@@ -147,8 +147,10 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Visual strategy
+    visual_mode: Literal["single_image"] = "single_image"
+
     # Chunking
-    chunk_max_words: int = Field(50, gt=0)
     time_chunk_duration: float = Field(30.0, gt=0.0)
     min_chunk_duration: float = Field(8.0, gt=0.0)
 
