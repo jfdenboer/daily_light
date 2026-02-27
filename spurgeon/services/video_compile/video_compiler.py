@@ -40,9 +40,9 @@ class VideoVariant:
     slug_suffix: str = ""
     filename_suffix: str = ""
 
-    def chunk_slug(self, slug: str, idx: int) -> str:
+    def clip_slug(self, slug: str, idx: int) -> str:
         prefix = f"{slug}_{self.slug_suffix}" if self.slug_suffix else slug
-        return f"{prefix}_chunk{idx:02d}"
+        return f"{prefix}_clip{idx:02d}"
 
     def temp_slug(self, slug: str) -> str:
         return f"{slug}_{self.slug_suffix}" if self.slug_suffix else slug
@@ -92,13 +92,6 @@ def _log(level: int, message: str, *args: object, **kwargs: object) -> None:
     ascii_message = _normalise_for_log(message)
     ascii_args = tuple(_normalise_arg_for_log(arg) for arg in args)
     logger.log(level, ascii_message, *ascii_args, **kwargs)
-
-
-def _escape_concat_path(path: Path) -> str:
-    """Return a path escaped for safe usage in FFmpeg concat list files."""
-
-    escaped = path.as_posix().replace("\\", "\\\\").replace("'", "\\'")
-    return escaped
 
 
 def _escape_subtitle_path(path: Path) -> str:
@@ -156,12 +149,12 @@ class VideoCompiler:
         self.retention_h = settings.temp_retention_hours
 
         base = Path(settings.output_dir)
-        self.chunks_dir = base / "chunks"
+        self.clips_dir = base / "clips"
         self.temp_dir = base / "temp"
         self.videos_dir = base / "videos"
         self.images_dir = base / "images"
 
-        for directory in (self.chunks_dir, self.temp_dir, self.videos_dir):
+        for directory in (self.clips_dir, self.temp_dir, self.videos_dir):
             directory.mkdir(parents=True, exist_ok=True)
 
         _log(
@@ -217,7 +210,7 @@ class VideoCompiler:
         _log(logging.DEBUG, "FFmpeg ok (%.1fs)", elapsed)
 
     def _clip_path(self, slug: str) -> Path:
-        return self.chunks_dir / f"{slug}.mp4"
+        return self.clips_dir / f"{slug}.mp4"
 
     def _build_clip_assets(self, slug: str, assets_raw: Sequence[RawAsset]) -> list[ClipAsset]:
         assets: list[ClipAsset] = []
@@ -229,15 +222,15 @@ class VideoCompiler:
 
             image_path = Path(image_raw)
             if not image_path.exists():
-                raise FileNotFoundError(f"Missing image asset for {slug} chunk {idx}: {image_path}")
+                raise FileNotFoundError(f"Missing image asset for {slug} asset {idx}: {image_path}")
 
             try:
                 duration_val = float(duration_raw)
             except (TypeError, ValueError) as exc:
-                raise ValueError(f"Invalid duration for {slug} chunk {idx}: {duration_raw!r}") from exc
+                raise ValueError(f"Invalid duration for {slug} asset {idx}: {duration_raw!r}") from exc
 
             if duration_val <= 0:
-                raise ValueError(f"Duration must be positive for {slug} chunk {idx}: {duration_val}")
+                raise ValueError(f"Duration must be positive for {slug} asset {idx}: {duration_val}")
 
             assets.append(ClipAsset(image=image_path, duration=duration_val, idx=idx))
 
@@ -287,48 +280,6 @@ class VideoCompiler:
         self._run(cmd)
         _log(logging.INFO, "Generated clip - %s", output_path)
         return output_path
-
-    def _write_concat_manifest(self, clips: Sequence[Path], concat_file: Path) -> None:
-        with concat_file.open("w", encoding="utf-8") as handle:
-            for clip in clips:
-                try:
-                    abs_path = clip.resolve(strict=True)
-                except FileNotFoundError as exc:
-                    raise FileNotFoundError(f"Concat input missing: {clip}") from exc
-                handle.write(f"file '{_escape_concat_path(abs_path)}'\n")
-
-    def concat_clips(self, clips: Sequence[Path], out_path: Path) -> Path:
-        if not clips:
-            raise ValueError("concat_clips requires at least one clip path")
-        if not self._needs_update(out_path, clips):
-            return out_path
-
-        concat_file = self.temp_dir / f"{out_path.stem}_concat.txt"
-        try:
-            self._write_concat_manifest(clips, concat_file)
-        except Exception:
-            concat_file.unlink(missing_ok=True)
-            raise
-
-        cmd = [
-            self.ffmpeg_cmd,
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(concat_file),
-            "-c",
-            "copy",
-            str(out_path),
-        ]
-        try:
-            self._run(cmd)
-        finally:
-            concat_file.unlink(missing_ok=True)
-        _log(logging.INFO, "Concatenated - %s", out_path)
-        return out_path
 
     def merge_audio_video(self, video: Path, audio: Path, out_path: Path) -> Path:
         if not self._needs_update(out_path, [video, audio]):
@@ -570,14 +521,12 @@ class VideoCompiler:
 
         clip_asset = self._single_background_asset(slug, assets_raw)
         temp_slug = variant.temp_slug(slug)
-        video_only = self.temp_dir / f"{temp_slug}_video_only.mp4"
-        single_clip = self.compile_image_clip(
-            variant.chunk_slug(slug, clip_asset.idx),
+        video_only = self.compile_image_clip(
+            variant.clip_slug(slug, clip_asset.idx),
             clip_asset.image,
             clip_asset.duration,
             variant,
         )
-        self.concat_clips([single_clip], video_only)
 
         if audio_path is None:
             audio_ext = getattr(self.settings, "elevenlabs_audio_extension", ".mp3")
