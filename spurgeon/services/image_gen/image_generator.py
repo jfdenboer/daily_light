@@ -2,12 +2,7 @@
 
 from __future__ import annotations
 
-"""image_generator.py – genereert afbeeldingen per *ImageChunk* (via OpenAI Images API)
-
-⬆ **Nieuw**: combineert een hardgecodeerde beeldstijl met een subjectprompt uit
-``PromptOrchestrator`` en stuurt die samengestelde prompt door naar de OpenAI
-image-endpoint.
-"""
+"""image_generator.py – genereert één afbeelding per reading (via OpenAI Images API)."""
 
 import base64
 import logging
