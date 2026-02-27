@@ -6,7 +6,7 @@ cd /d "%~dp0"
 
 where poetry >nul 2>nul
 if %errorlevel%==0 (
-    poetry run spurgeon gui
+    poetry run daily gui
 ) else (
     echo Poetry niet gevonden. Probeer met Python module...
     py -m spurgeon.cli gui

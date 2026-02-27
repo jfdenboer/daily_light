@@ -79,7 +79,7 @@ Daily Light is een Python-project dat een volledige *text-to-video* pipeline bie
 Voer de volledige pipeline uit:
 
 ```bash
-poetry run spurgeon build --start-date 2025-10-18 --end-date 2025-10-18
+poetry run daily build --start-date 2025-10-18 --end-date 2025-10-18
 ```
 
 Beschikbare opties voor `build`:

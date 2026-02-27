@@ -29,7 +29,7 @@ pytz = "^2025.2"
 yt-dlp = "^2025.3.10"
 
 [tool.poetry.scripts]
-spurgeon = "spurgeon.cli:app"
+daily = "spurgeon.cli:app"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.0"
