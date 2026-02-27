@@ -147,7 +147,6 @@ class SpurgeonGui:
                 settings=settings,
                 start_date=run_date,
                 end_date=run_date,
-                chunk_max_words=None,
             )
         except Exception as exc:  # pragma: no cover - GUI runtime path
             self.root.after(

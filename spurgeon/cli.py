@@ -73,22 +73,6 @@ def _map_to_next_leap_day(year: int) -> date:
     return date(next_leap, 2, 29)
 
 
-def _validate_chunk_max_words(value: Optional[int]) -> Optional[int]:
-    """Ensure *chunk_max_words* (if provided) is a positive integer."""
-
-    if value is None:
-        return None
-    if value <= 0:
-        raise BadParameter(
-            (
-                "Optie 'chunk_max_words' verwacht een positief geheel getal, "
-                "maar kreeg {value}."
-            ).format(value=value),
-            param_hint="chunk_max_words",
-        )
-    return value
-
-
 def _ensure_valid_range(
     start: Optional[date], end: Optional[date]
 ) -> None:
@@ -120,10 +104,6 @@ def build(
         help="Verwerk readings t/m deze datum (YYYY-MM-DD)",
         metavar="YYYY-MM-DD",
     ),
-    chunk_max_words: Optional[int] = Option(
-        None,
-        help="Max. aantal woorden per blok (default: settings.chunk_max_words)",
-    ),
 ) -> None:
     """Voer de volledige pipeline uit voor alle devotional readings."""
 
@@ -132,7 +112,6 @@ def build(
 
     _ensure_valid_range(parsed_start, parsed_end)
 
-    validated_chunk_max_words = _validate_chunk_max_words(chunk_max_words)
 
     settings = load_settings()
     init_logging(settings)
@@ -150,7 +129,6 @@ def build(
         settings=settings,
         start_date=parsed_start,
         end_date=parsed_end,
-        chunk_max_words=validated_chunk_max_words,
     )
 
     typer.secho("✅ Pipeline voltooid 🎉", fg=typer.colors.GREEN)
