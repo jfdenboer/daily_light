@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from typing import Final, Mapping, Union
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-import pytz
-from pytz.exceptions import AmbiguousTimeError, NonExistentTimeError, UnknownTimeZoneError
-from pytz.tzinfo import BaseTzInfo
 
 from spurgeon.models import ReadingType
 
@@ -21,7 +19,7 @@ _PUBLISH_TIME_BY_TYPE: Final[Mapping[ReadingType, time]] = {
     ReadingType.EVENING: time(19, 0),
 }
 
-TimeZoneLike = Union[str, BaseTzInfo]
+TimeZoneLike = Union[str, ZoneInfo]
 
 
 def next_publish_datetime(
@@ -36,7 +34,7 @@ def next_publish_datetime(
     Args:
         reading_date: Month and day of the devotional to schedule.
         reading_type: Determines whether the video goes live in the morning or evening.
-        tz: Name of the timezone or pytz timezone instance for publication.
+        tz: Name of the timezone or ZoneInfo timezone instance for publication.
         current_date: Optional override for the reference date (defaults to today).
 
     Returns:
@@ -57,15 +55,15 @@ def next_publish_datetime(
     return _localize(datetime.combine(publish_date, publish_time), timezone)
 
 
-def _resolve_timezone(tz: TimeZoneLike) -> BaseTzInfo:
-    if isinstance(tz, BaseTzInfo):
+def _resolve_timezone(tz: TimeZoneLike) -> ZoneInfo:
+    if isinstance(tz, ZoneInfo):
         return tz
     if isinstance(tz, str):
         try:
-            return pytz.timezone(tz)
-        except UnknownTimeZoneError as exc:  # pragma: no cover - defensive guard
+            return ZoneInfo(tz)
+        except ZoneInfoNotFoundError as exc:  # pragma: no cover - defensive guard
             raise ValueError(f"Unknown timezone '{tz}'") from exc
-    raise TypeError("tz must be a timezone name or pytz time zone instance")
+    raise TypeError("tz must be a timezone name or ZoneInfo instance")
 
 
 def _next_calendar_date(reading_date: date, reference: date) -> date:
@@ -86,23 +84,7 @@ def _next_calendar_date(reading_date: date, reference: date) -> date:
         return candidate
 
 
-def _localize(naive_datetime: datetime, timezone: BaseTzInfo) -> datetime:
-    try:
-        return timezone.localize(naive_datetime, is_dst=None)
-    except NonExistentTimeError:
-        adjusted_datetime = naive_datetime + timedelta(hours=1)
-        localized = timezone.localize(adjusted_datetime, is_dst=None)
-        logger.warning(
-            "Adjusted publish time from %s to %s due to DST gap",
-            naive_datetime.isoformat(),
-            localized.isoformat(),
-        )
-        return localized
-    except AmbiguousTimeError:
-        localized = timezone.localize(naive_datetime, is_dst=False)
-        logger.info(
-            "Resolved ambiguous publish time %s using standard time in %s",
-            naive_datetime.isoformat(),
-            getattr(timezone, "zone", str(timezone)),
-        )
-        return localized
+def _localize(naive_datetime: datetime, timezone: ZoneInfo) -> datetime:
+    localized = naive_datetime.replace(tzinfo=timezone)
+    logger.debug("Localized publish time %s in %s", naive_datetime.isoformat(), timezone.key)
+    return localized
