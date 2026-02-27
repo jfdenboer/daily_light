@@ -155,7 +155,7 @@ class Settings(BaseSettings):
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_file: Path = Field(
-        default_factory=lambda: Path("logs") / "spurgeon.log",
+        default_factory=lambda: Path("logs") / "daily_light.log",
         description="Location of the rotating log file.",
     )
     log_file_max_bytes: int = Field(10 * 1024 * 1024, gt=0)
