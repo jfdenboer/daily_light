@@ -1,4 +1,4 @@
-"""Typer CLI entrypoint for the Spurgeon pipeline."""
+"""Typer CLI entrypoint for de Daily Light-pipeline."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ __all__ = ["app"]
 ISO_DATE_EXAMPLE = "YYYY-MM-DD"
 
 
-app = Typer(help="Spurgeon: automatische devotional-video pipeline")
+app = Typer(help="Spurgeon: automatische Daily Light-video pipeline")
 
 
 def _parse_date(value: str, param_name: str) -> date:
