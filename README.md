@@ -150,11 +150,11 @@ graph TD
 
 ## 🧼 Logging
 
-Standaard logt Spurgeon naar console én (optioneel) naar `logs/spurgeon.log` met roterende logbestanden:
+Standaard logt Spurgeon naar console én (optioneel) naar `logs/daily_light.log` met roterende logbestanden:
 
 ```env
 LOG_LEVEL=INFO
-LOG_FILE=logs/spurgeon.log
+LOG_FILE=logs/daily_light.log
 LOG_FILE_MAX_BYTES=10485760
 LOG_FILE_BACKUP_COUNT=5
 ```
