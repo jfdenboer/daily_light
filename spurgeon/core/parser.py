@@ -26,6 +26,8 @@ from spurgeon.models import Reading, ReadingType
 
 logger = logging.getLogger(__name__)
 
+_INVISIBLE_SEPARATOR_PATTERN: re.Pattern[str] = re.compile(r"[\u200B-\u200D\u2060\uFEFF]")
+
 HEADER_PATTERN: re.Pattern[str] = re.compile(
     r"^\s*(?P<month>[A-Za-z\.]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?[\s\.,:\-–—]*"
     r"(?P<rtype>Morning|Evening)\s*$",
@@ -143,6 +145,7 @@ class Parser:
     # internals
     # ------------------------------------------------------------------ #
     def _normalise(self, text: str) -> str:
+        text = _INVISIBLE_SEPARATOR_PATTERN.sub("", text)
         text = text.replace("\r\n", "\n").replace("\r", "\n")
         lines = text.split("\n")
         normalised: List[str] = []
