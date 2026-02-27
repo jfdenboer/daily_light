@@ -94,9 +94,11 @@ class Parser:
         matches = list(self.header_pattern.finditer(raw))
         if not matches:
             ctx = f" ({source_name})" if source_name else ""
+            first_line = raw.split("\n", 1)[0][:120] if raw else "<empty input>"
             raise ValueError(
                 "No devotional headers found in supplied text"
-                f"{ctx}. Expected lines like 'JANUARY 1 MORNING'."
+                f"{ctx}. Expected lines like 'JANUARY 1 MORNING' (year is passed separately). "
+                f"First line was: {first_line!r}."
             )
 
         readings: List[Reading] = []
