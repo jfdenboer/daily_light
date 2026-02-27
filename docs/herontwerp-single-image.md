@@ -45,7 +45,7 @@ graph TD
     A[Input tekst] --> B[Parser]
     B --> C[Reading]
     C --> D[TTS]
-    C --> E[Single Visual Brief Generator]
+    C --> E[Prompt Generation (reading-level)]
     E --> F[Image Generator (1x)]
     D --> G[Audio]
     G --> H[Alignment + Subtitles]
@@ -76,12 +76,11 @@ graph TD
 
 ### Nieuwe concepten
 
-- `VisualBrief` (één object per reading/video)
-  - `theme`
-  - `mood`
-  - `symbolism`
-  - `style_constraints`
-  - `forbidden_elements`
+- `VideoPrompt` (één object per reading/video)
+  - `prompt_text`
+  - `style_profile`
+  - `safety_constraints`
+  - `source_summary`
 - `VideoVisualAsset` (één object)
   - `image_path`
   - `source_prompt`
@@ -98,10 +97,11 @@ graph TD
 - Parser levert één `Reading`.
 - Segmentatie kan intern blijven voor subtitle- of narratiedoelen, maar produceert geen image-taken.
 
-### Fase B — Visual brief generatie (nieuw focuspunt)
+### Fase B — Prompt generatie op video-niveau
 
-- Vervang “prompt per chunk” door één `VisualBrief` op reading-niveau.
-- Brief bevat:
+- Behoud de bestaande `prompt_generation`-laag.
+- Vervang “prompt per chunk” door één prompt op reading-/video-niveau.
+- Prompt bevat:
   - samenvattend hoofdthema;
   - gewenste compositie;
   - kleur/atmosfeer;
@@ -109,6 +109,7 @@ graph TD
 
 ### Fase C — Image generatie
 
+- Gebruik de output van `prompt_generation` als enige input voor beeldgeneratie.
 - Genereer **exact één image** per video.
 - Sla op als primair video-asset (bijv. `artwork.png`).
 - Registreer prompt + metadata voor reproduceerbaarheid.
@@ -172,7 +173,7 @@ graph TD
 
 Fallbackvolgorde:
 
-1. Retry met dezelfde brief (beperkt aantal pogingen).
+1. Retry met dezelfde prompt (beperkt aantal pogingen).
 2. Retry met vereenvoudigde stijlconstraints.
 3. Gebruik curated fallback image (neutraal, project-breed).
 4. Markeer run als “degraded success” met duidelijke audit-log.
@@ -228,11 +229,11 @@ Doel: snel detecteren of legacy chunk-gedrag nog onbedoeld actief is.
 ### Nadelen
 
 - Minder visuele variatie binnen één video.
-- Zwaardere afhankelijkheid van kwaliteit van één enkele prompt/brief.
+- Zwaardere afhankelijkheid van kwaliteit van één enkele videoprompt.
 
 ### Mitigatie
 
-- Zorgvuldige brief-generator met duidelijke stijlprofielen.
+- Zorgvuldige prompt-generatie met duidelijke stijlprofielen.
 - Optionele lichte camera-beweging in compositing voor dynamiek.
 
 ---
