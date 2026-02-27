@@ -6,7 +6,7 @@ spurgeon.core.parser
 Parse raw devotional text files into :class:`spurgeon.models.Reading`.
 
 Key features:
-- Robust header detection ("Morning, January 1" and abbreviations).
+- Header detection for Daily Light format ("JANUARY 1 MORNING").
 - Automatic year-rollover (Dec → Jan).
 - Dynamic leap-year mapping for Feb-29.
 - Whitespace-normalization (CRLF → LF, configurable blank-line collapse).
@@ -27,8 +27,8 @@ from spurgeon.models import Reading, ReadingType
 logger = logging.getLogger(__name__)
 
 HEADER_PATTERN: re.Pattern[str] = re.compile(
-    r"^\s*(?P<rtype>Morning|Evening)\s*,\s*(?P<month>[A-Za-z\.]+)\s+"
-    r"(?P<day>\d{1,2})(?:st|nd|rd|th)?\s*$",
+    r"^\s*(?P<month>[A-Za-z\.]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?\s+"
+    r"(?P<rtype>Morning|Evening)\s*$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 
