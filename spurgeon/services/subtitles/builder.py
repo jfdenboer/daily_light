@@ -14,8 +14,6 @@ Publieke functies
 =================
 - ``build_subtitles(reading)`` → genereert/overschrijft ``*.srt`` en
   retourneert de :class:`SubtitleLine`‑lijst.
-- ``build_image_chunks(reading)`` → lijst
-  :class:`ImageChunk` op basis van woordgebaseerde `.words.srt`.
 
 Alle parameters hebben defaults uit
 :pyclass:`spurgeon.config.settings.Settings`, maar kunnen worden
@@ -29,18 +27,15 @@ from typing import List, Optional
 
 from spurgeon.config.settings import Settings, load_settings
 from spurgeon.models import Reading
-from spurgeon.services.subtitles.caption_models import SubtitleLine, ImageChunk
+from spurgeon.services.subtitles.caption_models import SubtitleLine
 from spurgeon.services.subtitles.io import load_rev_json, write_srt_file
 from spurgeon.services.subtitles.tokenizer import iter_tokens, build_raw_lines
 from spurgeon.services.subtitles.merger import merge_micro_lines
-from spurgeon.core.time_chunker import build_time_chunks, merge_short_chunks
 
 
 __all__ = [
     "SubtitleLine",
-    "ImageChunk",
     "build_subtitles",
-    "build_image_chunks",
 ]
 
 logger = logging.getLogger(__name__)
@@ -75,9 +70,6 @@ def _subtitles_dir(settings: Settings) -> Path:
 def _json_dir(settings: Settings) -> Path:
     return _subtitles_dir(settings) / "json"
 
-
-def _words_srt_path(reading: Reading, settings: Settings) -> Path:
-    return _subtitles_dir(settings) / "words" / f"{reading.slug}.words.srt"
 
 
 def _get_json_path(reading: Reading, settings: Settings) -> Path:
@@ -198,22 +190,3 @@ def build_subtitles(
     write_srt_file(subs, srt_path)
     logger.info("%s: %d subtitle lines geschreven", srt_path.name, len(subs))
     return subs
-
-
-def build_image_chunks(
-    reading: Reading,
-    *,
-    settings: Optional[Settings] = None,
-) -> List[ImageChunk]:
-    """Bouw image‑chunks (±10s) op basis van woordgebaseerde SRT."""
-    cfg = _get_settings(settings)
-    words_srt = _words_srt_path(reading, cfg)
-    if not words_srt.exists():
-        raise FileNotFoundError(f"Woordgebaseerde SRT ontbreekt: {words_srt}")
-
-    raw = build_time_chunks(words_srt, seconds_per_chunk=cfg.time_chunk_duration)
-    merged = merge_short_chunks(raw, min_duration=cfg.min_chunk_duration)
-    return [
-        ImageChunk(chunk.index, chunk.start_time, chunk.end_time, chunk.text)
-        for chunk in merged
-    ]

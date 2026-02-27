@@ -9,10 +9,6 @@ spurgeon.services.subtitles.caption_models
 Structure-only dataclasses & helpers for the subtitle sub-package.
 **No** I/O or merge logic lives here so we avoid circular imports.
 
-2025-07-03 **BREAKING CHANGE** – `ImageChunk` re-designed:
-  * Was: `idx: int` + `subtitles: List[SubtitleLine]`
-  * Now: `index: int`, `start: timedelta`, `end: timedelta`, `text: str`
-
 2025-07-09 **PUNCTUATION FIX**
   * `STRONG_PUNCT` is now a **set** without ':'.
   * `SOFT_PUNCT` is now a **set** and *includes* ':'.
@@ -27,7 +23,6 @@ from typing import List
 
 __all__ = [
     "SubtitleLine",
-    "ImageChunk",
     "STRONG_PUNCT",
     "SOFT_PUNCT",
     "_format_srt_time",
@@ -100,42 +95,3 @@ class SubtitleLine:
     def visible_len(self) -> int:
         """Number of visible (alpha-numeric) characters in *text*."""
         return len(re.sub(r"[\s\W_]", "", self.text))
-
-
-@dataclass(frozen=True, slots=True)
-class ImageChunk:
-    """Bucket of consecutive subtitle lines mapped to a single image frame.
-
-    Attributes
-    ----------
-    index : int
-        1-based sequential chunk index within the parent reading.
-    start / end : timedelta
-        Absolute start/end times.  ``duration`` is derived.
-    text : str
-        Concatenated caption text.
-    """
-
-    index: int
-    start: timedelta
-    end: timedelta
-    text: str
-
-    # Derived props ----------------------------------------------------
-    @property
-    def duration(self) -> float:
-        return self.end.total_seconds() - self.start.total_seconds()
-
-    # Backwards-compat alias
-    @property
-    def idx(self) -> int:  # pragma: no cover – kept for legacy imports
-        return self.index
-
-    # Representation helpers ------------------------------------------
-    def __str__(self) -> str:  # pragma: no cover
-        txt_preview = (self.text[:47] + "…") if len(self.text) > 50 else self.text
-        return (
-            f"Chunk{self.index:02d}@"
-            f"{self.start.total_seconds():.2f}s–{self.end.total_seconds():.2f}s | "
-            f"{txt_preview}"
-        )
