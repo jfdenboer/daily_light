@@ -106,10 +106,7 @@ graph TD
 ### Fase E — Video compositing (single-background mode)
 
 - Compiler gebruikt één achtergrondbeeld voor de volledige timeline.
-- Optionele bewegingseffecten (ontwerpkeuze, niet verplicht):
-  - subtiele zoom-in/out (Ken Burns light);
-  - zeer trage pan;
-  - lichte vignette/overlay voor leesbaarheid ondertitels.
+
 
 ---
 
@@ -229,6 +226,7 @@ Doel: snel detecteren of legacy chunk-gedrag nog onbedoeld actief is.
 **Aanbeveling:** migreer naar `single_image` als standaardarchitectuur.
 
 Deze richting sluit aan op de wens “nog maar 1 image voor de hele video” en reduceert complexiteit zonder de kernwaarde van de pipeline (goede audio, leesbare subtitles, consistente visuele ondersteuning) te verliezen.
+
 
 
 
