@@ -26,8 +26,8 @@ SYSTEM_MESSAGE = (
 )
 
 FIXED_TAGS: List[str] = [
-    "Spurgeon",
-    "Morning and Evening",
+    "Daily Light on the Daily Path",
+    "Daily Devotional",
     "Christian Devotional",
 ]
 

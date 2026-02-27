@@ -74,7 +74,7 @@ class TitleGenerator:
 
         formatted_date = f"{reading.date.strftime('%B')} {reading.date.day}, {reading.date.year}"
         suffix = (
-            " | Spurgeon – Morning and Evening "
+            " | Daily Light on the Daily Path "
             f"({reading.reading_type.value}, {formatted_date})"
         )
 

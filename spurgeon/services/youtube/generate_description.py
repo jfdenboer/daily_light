@@ -9,8 +9,7 @@ from spurgeon.models import Reading
 
 
 DESCRIPTION_TEMPLATE = (
-    "👨‍💼 Author: Charles H. Spurgeon\n\n"
-    "📖 Devotional: Morning and Evening\n\n"
+    "📖 Devotional: Daily Light on the Daily Path\n\n"
     "📅 Date: {reading_type}, {reading_date}\n\n"
     "➡️ Don’t miss tomorrow’s devotional — subscribe today.\n\n"
     "---\n"
