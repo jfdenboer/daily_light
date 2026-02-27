@@ -1,14 +1,14 @@
-# Spurgeon
+# Daily Light
 
-🎥 **Automatische pipeline voor het omzetten van dagelijkse Spurgeon-overdenkingen naar video’s**
-📜 Gebaseerd op *Morning and Evening* van C.H. Spurgeon
+🎥 **Automatische pipeline voor het omzetten van dagelijkse *Daily Light*-overdenkingen naar video’s**
+📜 Gebaseerd op *Daily Light on the Daily Path*
 🧠 AI-gegenereerde beelden, 🎙️ ElevenLabs TTS, 📋 ondertiteling via Rev.ai, en 🎬 volledige video-compilatie.
 
 ---
 
 ## ✨ Overzicht
 
-Spurgeon is een Python-project dat een volledige *text-to-video* pipeline biedt voor christelijke dagboeklezingen. Het systeem verwerkt ruwe `.txt`-bestanden met dagteksten tot professioneel uitziende video’s, inclusief:
+Daily Light is een Python-project dat een volledige *text-to-video* pipeline biedt voor christelijke dagboeklezingen. Het systeem verwerkt ruwe `.txt`-bestanden met dagteksten tot professioneel uitziende video’s, inclusief:
 
 - 📖 Tekstanalyse en segmentatie
 - 🗣️ Tekst-naar-spraak synthese via ElevenLabs
