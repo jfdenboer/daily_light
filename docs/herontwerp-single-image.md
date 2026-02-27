@@ -86,7 +86,7 @@ graph TD
   - `source_prompt`
   - `generation_meta`
 
-**Ontwerpprincipe:** chunking mag nog bestaan voor andere domeinbehoeften, maar is **niet langer leidend** in de beeldketen.
+**Ontwerpprincipe:** segmentatie/chunking wordt volledig verwijderd uit het domeinmodel om de keten eenduidig op reading-niveau te houden.
 
 ---
 
@@ -95,7 +95,7 @@ graph TD
 ### Fase A — Inname & tekstvoorbewerking
 
 - Parser levert één `Reading`.
-- Segmentatie kan intern blijven voor subtitle- of narratiedoelen, maar produceert geen image-taken.
+- Geen segmentatie- of chunkstap meer in deze pipeline.
 
 ### Fase B — Prompt generatie op video-niveau
 
@@ -116,7 +116,7 @@ graph TD
 
 ### Fase D — Audio & subtitles
 
-- Ongewijzigd in kern: TTS, alignment en ondertitels blijven lineair gekoppeld aan audio.
+- TTS, alignment en ondertitels blijven lineair gekoppeld aan audio, direct op basis van de volledige reading.
 
 ### Fase E — Video compositing (single-background mode)
 
@@ -130,10 +130,11 @@ graph TD
 
 ## 7) Configuratieherziening
 
-### Te deprecaten
+### Te verwijderen
 
-- `chunk_max_words` (voor visuals)
-- toggles die aantal beelden per chunk sturen
+- `chunk_max_words`
+- segmentatie/chunking toggles
+- instellingen die aantal beelden per chunk sturen
 
 ### Nieuw/te behouden
 
@@ -142,7 +143,7 @@ graph TD
 - `single_image_style_profile`
 - `subtitle_readability_overlay` (true/false)
 
-**Migratiestrategie:** bestaande chunk-variabelen tijdelijk accepteren met waarschuwing in logs, daarna verwijderen in volgende major release.
+**Migratiestrategie:** verwijder segmentatievariabelen direct in dezelfde release als `single_image`-only gedrag; geen dual-path meer onderhouden.
 
 ---
 
@@ -200,20 +201,20 @@ Doel: snel detecteren of legacy chunk-gedrag nog onbedoeld actief is.
 
 ## 11) Gefaseerde migratie
 
-### Fase 1 — Compatibiliteit
+### Fase 1 — Verwijderen segmentatiepad
 
-- Introduceer `single_image` modus naast bestaande chunkmodus.
-- Default nog op legacy, met feature flag.
+- Verwijder segmentatie/chunking code en configuratie uit de beeldpipeline.
+- Houd tijdelijke mappinglaag alleen voor backward-compatible inputcontracten (zonder segmentatie-uitvoering).
 
-### Fase 2 — Standaardiseren
+### Fase 2 — Single-image-only afdwingen
 
-- Zet default naar `single_image`.
-- Legacy modus alleen nog expliciet opt-in.
+- Verwijder eventuele legacy flags voor visual mode.
+- Forceer exact één prompt + één image per run.
 
 ### Fase 3 — Opschonen
 
-- Verwijder chunk-visual codepaden.
-- Verwijder deprecated configuratie.
+- Verwijder overgebleven segmentatiehelpers in services, tests en docs.
+- Verwijder backward-compatible inputmapping zodra alle producers gemigreerd zijn.
 - Vereenvoudig documentatie en operationele runbooks.
 
 ---
