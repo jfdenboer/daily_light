@@ -14,7 +14,7 @@ from spurgeon.core.parser import load_all_readings
 from spurgeon.models import RawAsset, Reading
 from spurgeon.services.alignment.rev_aligner import RevAligner
 from spurgeon.services.image_gen.image_generator import ImageGenerator
-from spurgeon.services.subtitles.builder import build_image_chunks, build_subtitles
+from spurgeon.services.subtitles.builder import build_subtitles
 from spurgeon.services.tts.speech_synthesizer import SpeechSynthesizer
 from spurgeon.services.thumbnail import (
     ThumbnailGenerationError,
@@ -108,6 +108,39 @@ def _load_readings_for_range(
     return list(unique_by_slug.values())
 
 
+def _parse_srt_timestamp_to_seconds(value: str) -> float:
+    """Parse ``HH:MM:SS,mmm`` or ``HH:MM:SS.mmm`` into seconds."""
+
+    hours_str, minutes_str, rest = value.split(":")
+    if "," in rest:
+        seconds_str, millis_str = rest.split(",", 1)
+    elif "." in rest:
+        seconds_str, millis_str = rest.split(".", 1)
+    else:
+        seconds_str, millis_str = rest, "0"
+
+    millis = int(millis_str.ljust(3, "0")[:3])
+    return int(hours_str) * 3600 + int(minutes_str) * 60 + int(seconds_str) + millis / 1000
+
+
+def _words_srt_duration_seconds(words_srt_path: Path) -> float:
+    """Return the end timestamp of the final words-SRT cue in seconds."""
+
+    if not words_srt_path.exists():
+        raise FileNotFoundError(words_srt_path)
+
+    last_time_row: str | None = None
+    for line in words_srt_path.read_text(encoding="utf-8").splitlines():
+        if "-->" in line:
+            last_time_row = line
+
+    if not last_time_row:
+        raise ValueError(f"No cue timestamps found in words SRT: {words_srt_path}")
+
+    _, end_raw = [item.strip() for item in last_time_row.split("-->", 1)]
+    return _parse_srt_timestamp_to_seconds(end_raw)
+
+
 def _prepare_render_artifacts(
     reading: Reading,
     *,
@@ -140,31 +173,15 @@ def _prepare_render_artifacts(
         audio_path = tts.synthesize(reading)
         words_srt_path = aligner.align(reading.slug, reading.text, audio_path)
         build_subtitles(reading, settings=settings)
-        img_gen.generate_images_for_reading(reading, words_srt_path)
 
-        image_chunks = build_image_chunks(reading, settings=settings)
         assets_raw: List[RawAsset] = []
-        missing_images = 0
-        for chunk in image_chunks:
-            image_path = out_base / "images" / f"{reading.slug}_chunk{chunk.index:02d}.{image_ext}"
-            if not image_path.exists():
-                missing_images += 1
-                logger.warning(
-                    "%s chunk %02d: expected image %s is missing – skipping chunk",
-                    reading.slug,
-                    chunk.index,
-                    image_path.name,
-                )
-                continue
-            assets_raw.append((image_path, chunk.duration, ""))
-
-        if missing_images:
-            logger.info(
-                "%s: %d/%d generated image(s) missing on disk",
-                reading.slug,
-                missing_images,
-                len(image_chunks),
-            )
+        duration = _words_srt_duration_seconds(words_srt_path)
+        single_asset = img_gen.generate_single_image_for_reading(reading, duration=duration)
+        if single_asset is not None and single_asset[0].exists():
+            assets_raw.append(single_asset)
+        else:
+            logger.warning("%s: single-image generation produced no asset – skipping", reading.slug)
+            return None
         if not assets_raw:
             logger.warning("%s: no images generated – skipping", reading.slug)
             return None
@@ -200,9 +217,9 @@ def _prepare_render_artifacts(
             )
 
     if hero_image is None:
-        existing_images = sorted((out_base / "images").glob(f"{reading.slug}_chunk*.{image_ext}"))
-        if existing_images:
-            hero_image = existing_images[0]
+        single_path = out_base / "images" / f"{reading.slug}.{image_ext}"
+        if single_path.exists():
+            hero_image = single_path
 
     return RenderArtifacts(
         video_path=video_path,
@@ -329,7 +346,6 @@ def run_pipeline(
     *,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    chunk_max_words: Optional[int] = None,
     uploader: Optional[YouTubeUploader] = None,
 ) -> None:
     """Execute the full reading → video → YouTube pipeline.
@@ -337,36 +353,19 @@ def run_pipeline(
     Parameters
     ----------
     settings:
-        Base configuration object.  May be copied when ``chunk_max_words`` is
-        overridden at runtime.
+        Base configuration object.
     start_date / end_date:
         Optional date window for the readings that should be processed.
-    chunk_max_words:
-        Runtime override for :pyattr:`Settings.chunk_max_words` used during
-        subtitle/image chunking.
     uploader:
         Pre-configured :class:`~spurgeon.services.youtube.uploader.YouTubeUploader`
         instance.  Supplying one allows callers (primarily tests) to inject a
         mock without the pipeline re-initialising API clients.
     """
     effective_settings = settings
-    override_range: Optional[tuple[int, int]] = None
-    if chunk_max_words is not None:
-        if chunk_max_words <= 0:
-            raise ValueError("chunk_max_words must be greater than zero")
-        if chunk_max_words != settings.chunk_max_words:
-            effective_settings = settings.model_copy(update={"chunk_max_words": chunk_max_words})
-            override_range = (settings.chunk_max_words, chunk_max_words)
 
     init_logging(effective_settings)
 
     logger.info("Starting pipeline with settings: %s", effective_settings.model_dump())
-    if override_range:
-        logger.info(
-            "chunk_max_words override active (config=%d → runtime=%d)",
-            override_range[0],
-            override_range[1],
-        )
 
     if effective_settings.gcs_credentials_path:
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(effective_settings.gcs_credentials_path)
