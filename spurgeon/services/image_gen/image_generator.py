@@ -132,74 +132,63 @@ class ImageGenerator:
                 "Using legacy image model gpt-image-1; consider switching to gpt-image-1.5"
             )
 
-    def generate_images_for_reading(
+    def generate_single_image_for_reading(
         self,
         reading: Reading,
-        words_srt_path: Path | None = None,
-    ) -> None:
-        """Genereer alle afbeeldingen voor ``reading``.
-
-        Verwacht dat ``PromptOrchestrator`` `RawAsset`‑tuples levert in de vorm␊
-        ``(image_path, duration_sec, subject_prompt)``.
-        """
-        srt_words_path = words_srt_path
-        if srt_words_path is None:
-            srt_words_path = (
-                Path(self.settings.output_dir)
-                / "subtitles"
-                / "words"
-                / f"{reading.slug}.words.srt"
-            )
-
-        if not srt_words_path.exists():
-            logger.warning("Woordgebaseerde SRT ontbreekt: %s", srt_words_path)
-            return
+        *,
+        duration: float,
+    ) -> RawAsset | None:
+        """Generate exactly one image asset for the full reading."""
 
         prompt_gen = PromptOrchestrator(self.settings)
-        raw_assets: list[RawAsset] = prompt_gen.build_prompts_for_image_chunks(reading)
+        try:
+            image_path, _, subject_prompt = prompt_gen.build_single_image_asset(
+                reading,
+                duration=duration,
+            )
+        except Exception as exc:
+            logger.warning("Single-image prompt generation failed for %s: %s", reading.slug, exc)
+            return None
 
-        if not raw_assets:
-            logger.warning("Prompt generator returned no image chunks for %s", reading.slug)
-            return
+        if image_path.exists():
+            logger.debug("Skipping existing single image: %s", image_path.name)
+            return (image_path, duration, subject_prompt)
 
-        for img_path, _, subject_prompt in raw_assets:
-            if img_path.exists():
-                logger.debug("Skipping existing image: %s", img_path.name)
-                continue
+        if not subject_prompt.strip():
+            logger.warning("Skipping empty single-image subject prompt for %s", reading.slug)
+            return None
 
-            if not subject_prompt.strip():
-                logger.warning("Skipping empty subject prompt for %s", img_path.name)
-                continue
+        full_prompt = self._compose_full_prompt(subject_prompt)
 
-            full_prompt = self._compose_full_prompt(subject_prompt)
-
-            logger.debug("Generating image: %s | subject=%.60s…", img_path.name, subject_prompt)
-            logger.debug("Full prompt for %s:\n%s", img_path.name, full_prompt)
-            try:
-                image_bytes = retry_with_backoff(
-                    func=lambda: self._call_openai(full_prompt, user=reading.slug),
-                    max_retries=self.max_retries,
-                    backoff=self.retry_backoff,
-                    error_types=(
-                        APIError,
-                        RateLimitError,
-                        APIConnectionError,
-                        APITimeoutError,
-                        OpenAIError,
-                        ImageGenerationError,
-                    ),
-                    context=f"image_prompt_{img_path.stem}",
-                )
-                retry_with_backoff(
-                    func=lambda: self._write_image(image_bytes, img_path),
-                    max_retries=self.max_retries,
-                    backoff=self.retry_backoff,
-                    error_types=(ImageGenerationError,),
-                    context=f"image_write_{img_path.stem}",
-                )
-                logger.info("Saved image: %s", img_path.name)
-            except Exception as exc:
-                logger.warning("Image generation failed for %s: %s", img_path.name, exc)
+        logger.debug("Generating single image: %s", image_path.name)
+        logger.debug("Full single-image prompt for %s:\n%s", image_path.name, full_prompt)
+        try:
+            image_bytes = retry_with_backoff(
+                func=lambda: self._call_openai(full_prompt, user=reading.slug),
+                max_retries=self.max_retries,
+                backoff=self.retry_backoff,
+                error_types=(
+                    APIError,
+                    RateLimitError,
+                    APIConnectionError,
+                    APITimeoutError,
+                    OpenAIError,
+                    ImageGenerationError,
+                ),
+                context=f"single_image_prompt_{image_path.stem}",
+            )
+            retry_with_backoff(
+                func=lambda: self._write_image(image_bytes, image_path),
+                max_retries=self.max_retries,
+                backoff=self.retry_backoff,
+                error_types=(ImageGenerationError,),
+                context=f"single_image_write_{image_path.stem}",
+            )
+            logger.info("Saved single image: %s", image_path.name)
+            return (image_path, duration, subject_prompt)
+        except Exception as exc:
+            logger.warning("Single image generation failed for %s: %s", reading.slug, exc)
+            return None
 
     def _compose_full_prompt(self, subject_prompt: str) -> str:
         """Combine the configured style instructions with ``subject_prompt``."""
