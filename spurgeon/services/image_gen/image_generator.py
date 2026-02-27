@@ -5,8 +5,10 @@ from __future__ import annotations
 """image_generator.py – genereert één afbeelding per reading (via OpenAI Images API)."""
 
 import base64
+import json
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -61,8 +63,6 @@ LIGHTING_LINE = (
 )
 
 
-
-
 @dataclass(frozen=True)
 class PromptStyleConfig:
     """Container for the reusable style instructions prepended to every image prompt."""
@@ -88,6 +88,7 @@ class PromptStyleConfig:
             self.constraints_line,
         )
         return "\n\n".join(block for block in blocks if block)
+
 
 class ImageGenerationError(Exception):
     """Fout tijdens oproep of download bij image‑generation."""
@@ -142,21 +143,38 @@ class ImageGenerator:
                 duration=duration,
             )
         except Exception as exc:
-            logger.warning("Single-image prompt generation failed for %s: %s", reading.slug, exc)
+            logger.warning(
+                "Single-image prompt generation failed for %s: %s", reading.slug, exc
+            )
             return None
+
+        metadata_path = self._metadata_path_for_image(image_path)
 
         if image_path.exists():
             logger.debug("Skipping existing single image: %s", image_path.name)
+            self._write_generation_metadata(
+                metadata_path=metadata_path,
+                reading=reading,
+                image_path=image_path,
+                subject_prompt=subject_prompt,
+                full_prompt=self._compose_full_prompt(subject_prompt),
+                duration=duration,
+                generated=False,
+            )
             return (image_path, duration, subject_prompt)
 
         if not subject_prompt.strip():
-            logger.warning("Skipping empty single-image subject prompt for %s", reading.slug)
+            logger.warning(
+                "Skipping empty single-image subject prompt for %s", reading.slug
+            )
             return None
 
         full_prompt = self._compose_full_prompt(subject_prompt)
 
         logger.debug("Generating single image: %s", image_path.name)
-        logger.debug("Full single-image prompt for %s:\n%s", image_path.name, full_prompt)
+        logger.debug(
+            "Full single-image prompt for %s:\n%s", image_path.name, full_prompt
+        )
         try:
             image_bytes = retry_with_backoff(
                 func=lambda: self._call_openai(full_prompt, user=reading.slug),
@@ -179,10 +197,25 @@ class ImageGenerator:
                 error_types=(ImageGenerationError,),
                 context=f"single_image_write_{image_path.stem}",
             )
+            self._write_generation_metadata(
+                metadata_path=metadata_path,
+                reading=reading,
+                image_path=image_path,
+                subject_prompt=subject_prompt,
+                full_prompt=full_prompt,
+                duration=duration,
+                generated=True,
+            )
             logger.info("Saved single image: %s", image_path.name)
+            logger.info(
+                "single-image request completed for %s (image_requests_per_video=1)",
+                reading.slug,
+            )
             return (image_path, duration, subject_prompt)
         except Exception as exc:
-            logger.warning("Single image generation failed for %s: %s", reading.slug, exc)
+            logger.warning(
+                "Single image generation failed for %s: %s", reading.slug, exc
+            )
             return None
 
     def _compose_full_prompt(self, subject_prompt: str) -> str:
@@ -218,7 +251,9 @@ class ImageGenerator:
         try:
             return base64.b64decode(b64_payload)
         except (ValueError, TypeError) as exc:
-            raise ImageGenerationError("Invalid base64 image payload from OpenAI") from exc
+            raise ImageGenerationError(
+                "Invalid base64 image payload from OpenAI"
+            ) from exc
 
     @staticmethod
     def _write_image(image_bytes: bytes, dest_path: Path) -> None:
@@ -228,6 +263,44 @@ class ImageGenerator:
                 fh.write(image_bytes)
         except OSError as exc:
             raise ImageGenerationError("Writing image to disk failed") from exc
+
+    @staticmethod
+    def _metadata_path_for_image(image_path: Path) -> Path:
+        return image_path.with_suffix(".metadata.json")
+
+    def _write_generation_metadata(
+        self,
+        *,
+        metadata_path: Path,
+        reading: Reading,
+        image_path: Path,
+        subject_prompt: str,
+        full_prompt: str,
+        duration: float,
+        generated: bool,
+    ) -> None:
+        payload = {
+            "reading_slug": reading.slug,
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "image_path": str(image_path),
+            "duration_seconds": duration,
+            "prompt_subject": subject_prompt,
+            "prompt_full": full_prompt,
+            "image_model": self.model,
+            "image_size": self.size,
+            "image_quality": self.quality,
+            "image_background": self.background,
+            "created_new_image": generated,
+        }
+        try:
+            metadata_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            logger.warning(
+                "Could not write image metadata for %s: %s", reading.slug, exc
+            )
 
 
 __all__ = ["ImageGenerator", "ImageGenerationError", "PromptStyleConfig"]
