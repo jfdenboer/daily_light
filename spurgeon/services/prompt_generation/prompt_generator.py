@@ -7,7 +7,6 @@ from typing import List
 from spurgeon.config.settings import Settings
 from spurgeon.core.gpt5_client import GPT5Client
 from spurgeon.models import RawAsset, Reading
-from spurgeon.services.subtitles.builder import ImageChunk, build_image_chunks
 
 from .domain import (
     PromptContext,
@@ -190,53 +189,26 @@ class PromptOrchestrator:
         logger.debug("Prompt build output: %s", final_prompt.text)
         return final_prompt.text
 
-    def build_prompts_for_image_chunks(
-        self,
-        reading: Reading,
-        *,
-        chunks: List[ImageChunk] | None = None,
-    ) -> List[RawAsset]:
-        resolved_chunks = (
-            chunks if chunks is not None else build_image_chunks(reading, settings=self.settings)
-        )
+    def build_prompt_for_reading(self, reading: Reading) -> str:
+        """Generate one image subject prompt for the full reading text."""
 
-        if not resolved_chunks:
-            logger.warning("%s: geen image-chunks beschikbaar", reading.slug)
-            return []
+        reading_text = reading.text.strip()
+        if not reading_text:
+            raise PromptGenerationError("Reading bevat geen tekst voor promptgeneratie")
+
+        return self.build_prompt(reading_text)
+
+    def build_single_image_asset(self, reading: Reading, *, duration: float) -> RawAsset:
+        """Create a single image asset tuple for the entire reading."""
+
+        if duration <= 0:
+            raise PromptGenerationError("Single image duration must be positive")
 
         self._images_dir.mkdir(parents=True, exist_ok=True)
-
-        assets: List[RawAsset] = []
-        for chunk in resolved_chunks:
-            chunk_text = chunk.text.strip()
-            if not chunk_text:
-                raise PromptGenerationError(
-                    f"Chunk {chunk.index:02d} bevat geen tekst voor promptgeneratie"
-                )
-
-            try:
-                prompt = self.build_prompt(chunk_text)
-            except PromptGenerationError as exc:
-                raise PromptGenerationError(f"Chunk {chunk.index:02d}: {exc}") from exc
-
-            logger.info(
-                "%s: chunk %02d prompt gegenereerd: %s",
-                reading.slug,
-                chunk.index,
-                prompt,
-            )
-
-            image_name = f"{reading.slug}_chunk{chunk.index:02d}.{self._image_extension}"
-            image_path = self._images_dir / image_name
-            assets.append((image_path, chunk.duration, prompt))
-
-        logger.info(
-            "%s: %d prompt(s) gegenereerd voor image-chunks",
-            reading.slug,
-            len(assets),
-        )
-
-        return assets
+        prompt = self.build_prompt_for_reading(reading)
+        image_name = f"{reading.slug}.{self._image_extension}"
+        image_path = self._images_dir / image_name
+        return (image_path, duration, prompt)
 
 
 PromptGenerator = PromptOrchestrator
