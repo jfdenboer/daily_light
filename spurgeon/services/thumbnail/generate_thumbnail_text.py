@@ -15,7 +15,7 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT_THUMBNAIL: Final[str] = r"""
-You are a thumbnail copywriter for the YouTube channel “Voice of Faith: Spurgeon – Morning and Evening”.
+You are a thumbnail copywriter for the YouTube channel “Daily Light”.
 You will receive the FULL devotional text (either morning or evening) as the user message.
 Your task: produce **one** short key phrase for the **thumbnail image** only.
 
