@@ -90,11 +90,7 @@ graph TD
 
 - Behoud de bestaande `prompt_generation`-laag.
 - Vervang “prompt per chunk” door één prompt op reading-/video-niveau.
-- Prompt bevat:
-  - samenvattend hoofdthema;
-  - gewenste compositie;
-  - kleur/atmosfeer;
-  - theologisch veilige en stijlvaste constraints.
+
 
 ### Fase C — Image generatie
 
@@ -233,4 +229,5 @@ Doel: snel detecteren of legacy chunk-gedrag nog onbedoeld actief is.
 **Aanbeveling:** migreer naar `single_image` als standaardarchitectuur.
 
 Deze richting sluit aan op de wens “nog maar 1 image voor de hele video” en reduceert complexiteit zonder de kernwaarde van de pipeline (goede audio, leesbare subtitles, consistente visuele ondersteuning) te verliezen.
+
 
