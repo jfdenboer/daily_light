@@ -9,11 +9,10 @@ import shlex
 import subprocess
 import time
 import unicodedata
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional, Sequence, Tuple
+from typing import Iterable, Optional, Sequence
 
 from spurgeon.config.settings import Settings
 from spurgeon.models import RawAsset, Reading
@@ -246,6 +245,16 @@ class VideoCompiler:
             raise ValueError(f"No clip assets provided for {slug}")
 
         return assets
+
+    def _single_background_asset(self, slug: str, assets_raw: Sequence[RawAsset]) -> ClipAsset:
+        """Validate and return the single visual asset used for the full timeline."""
+
+        assets = self._build_clip_assets(slug, assets_raw)
+        if len(assets) != 1:
+            raise ValueError(
+                f"Single-image video compositing expects exactly 1 asset for {slug}, got {len(assets)}"
+            )
+        return assets[0]
 
     def compile_image_clip(
         self, slug: str, image: Path, duration: float, variant: VideoVariant
@@ -559,41 +568,16 @@ class VideoCompiler:
 
         variant = variant or WIDE_VIDEO
 
-        clip_assets = self._build_clip_assets(slug, assets_raw)
-
-        clip_results: list[Tuple[int, Path]] = []
-        worker_count = min(self.max_workers, len(clip_assets))
-        with ThreadPoolExecutor(max_workers=worker_count) as executor:
-            futures = {
-                executor.submit(
-                    self.compile_image_clip,
-                    variant.chunk_slug(slug, asset.idx),
-                    asset.image,
-                    asset.duration,
-                    variant,
-                ): asset.idx
-                for asset in clip_assets
-            }
-            for future in as_completed(futures):
-                idx = futures[future]
-                try:
-                    clip_path = future.result()
-                except Exception as exc:  # pragma: no cover - validated by runtime
-                    _log(
-                        logging.ERROR,
-                        "Clip generation failed for %s chunk %02d: %s",
-                        slug,
-                        idx,
-                        exc,
-                    )
-                    raise
-                clip_results.append((idx, clip_path))
-
-        clip_paths = [path for _, path in sorted(clip_results, key=lambda item: item[0])]
-
+        clip_asset = self._single_background_asset(slug, assets_raw)
         temp_slug = variant.temp_slug(slug)
         video_only = self.temp_dir / f"{temp_slug}_video_only.mp4"
-        self.concat_clips(clip_paths, video_only)
+        single_clip = self.compile_image_clip(
+            variant.chunk_slug(slug, clip_asset.idx),
+            clip_asset.image,
+            clip_asset.duration,
+            variant,
+        )
+        self.concat_clips([single_clip], video_only)
 
         if audio_path is None:
             audio_ext = getattr(self.settings, "elevenlabs_audio_extension", ".mp3")
