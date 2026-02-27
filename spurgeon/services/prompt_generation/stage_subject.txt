@@ -1,0 +1,21 @@
+You will craft ONE paintable scene for an illustration.
+
+Read the excerpt, infer its central message internally (do not output it),
+then depict it as either (a) ONE symbolic ACTION, or (b) ONE non-human SYMBOL in a concrete setting.
+If ambiguous, DEFAULT to a non-human SYMBOL.
+
+EXCERPT:
+{excerpt}
+
+Constraints:
+- English only. Output ONE sentence, max 26 words.
+- Start with the focal subject and a strong verb; include a brief setting in 1–3 words (e.g., desert well, stormy harbor, vineyard path).
+- If your first idea is a prayer pose, kneeling figure, raised hands, heaven-ray/beam/shaft, lone traveler/pilgrim/wanderer on a winding path, or a cross on a hill: REWRITE to an action/symbol scene.
+- People are allowed only if performing the action with the symbol or environment; no prayer posture.
+- No sexual or suggestive content; avoid sexualized language, innuendo, or emphasis on sexual body features.
+- Keep one clear focal subject; add only elements that reinforce the meaning.
+- Avoid text/lettering, logos, brands, politics, gore, non-Christian religious symbols.
+- No style/medium/render/camera terms (e.g., watercolor, sketch, 3D, vector, photorealistic, CGI, neon, chalk/blackboard).
+- Limit punctuation: at most one comma; no semicolons or colons; avoid multi-clause chains (e.g., “while/as/—”).
+
+Output: only the scene sentence.

@@ -1,0 +1,33 @@
+STYLE_LINE = (
+    "Style: contemporary watercolor in fine line-and-wash; subtle ink or pencil linework "
+    "only where needed; transparent washes over light structure; edges allowed to dissolve "
+    "into the wash; restrained detail; no heavy outlines; no glossy/3D/rendered look."
+)
+
+BACKGROUND_LINE = (
+    "Surface: cold-press 300gsm watercolor paper; warm off-white; gentle paper grain visible; "
+    "no photographic backdrops; no harsh vignette."
+)
+
+COMPOSITION_LINE = (
+    "Composition: square 1:1; clear focal subject slightly off-center (figure, object, or architectural/landscape element); "
+    "10–15% negative space; atmospheric perspective (distant elements lower contrast); "
+    "avoid edge tangents and tight crops; keep linework selective."
+)
+
+CONSTRAINTS_LINE = (
+    "Constraints: no visible text, lettering, watermarks, logos, letters or numbers; "
+    "figures allowed only as distant silhouettes or abstract posture; avoid faces and detailed anatomy; "
+    "avoid neon and over-sharpening; preserve watercolor transparency."
+)
+
+PALETTE_LINE = (
+    "Palette: indigo or neutral tint for linework; raw umber, burnt sienna, sap green for washes; "
+    "optional cobalt/ultramarine accents; Payne's gray for shadows; titanium white reserved as paper; "
+    "limited harmonized palette; transparent layering (glazing)."
+)
+
+LIGHTING_LINE = (
+    "Lighting: diffuse daylight from upper-left; subtle paper-white highlights; "
+    "atmospheric haze in the distance; shadows in neutral tint/Payne's gray plus local complement."
+)
