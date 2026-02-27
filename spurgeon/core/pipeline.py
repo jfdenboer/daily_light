@@ -60,7 +60,7 @@ class PublicationPayload:
 def _ensure_output_dirs(base: Path) -> None:
     """Create the standard output sub-directories if they do not exist."""
 
-    for sub in ("audio", "images", "subtitles", "chunks", "videos", "temp"):
+    for sub in ("audio", "images", "subtitles", "videos", "temp"):
         (base / sub).mkdir(parents=True, exist_ok=True)
 
 
