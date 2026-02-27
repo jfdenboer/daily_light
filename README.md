@@ -10,7 +10,7 @@
 
 Daily Light is een Python-project dat een volledige *text-to-video* pipeline biedt voor christelijke dagboeklezingen. Het systeem verwerkt ruwe `.txt`-bestanden met dagteksten tot professioneel uitziende video’s, inclusief:
 
-- 📖 Tekstanalyse en segmentatie
+- 📖 Tekstanalyse op reading-niveau
 - 🗣️ Tekst-naar-spraak synthese via ElevenLabs
 - 🧠 Beeldgeneratie met OpenAI `gpt-image-1` (Images API)
 - ⏱️ Forced alignment en ondertiteling met Rev.ai
@@ -88,7 +88,6 @@ Beschikbare opties voor `build`:
 | ------------------- | --------------------------------------------------- |
 | `--start-date`      | Startdatum (YYYY-MM-DD)                             |
 | `--end-date`        | Einddatum (YYYY-MM-DD)                              |
-| `--chunk-max-words` | Max woorden per segment (overschrijft `.env` value) |
 
 ---
 
@@ -101,9 +100,8 @@ spurgeon/
 │   └── settings.py      # Pydantic settings
 ├── core/
 │   ├── pipeline.py      # Main orchestration logic
-│   ├── parser.py        # Raw .txt → Reading[]
-│   └── segmenter.py     # Reading → SegmentBlocks
-├── models.py            # Domeinmodellen (Reading, SegmentBlock, etc.)
+│   └── parser.py        # Raw .txt → Reading[]
+├── models.py            # Domeinmodellen (Reading, etc.)
 ├── services/
 │   ├── tts/
 │   │   ├── speech_synthesizer.py
@@ -132,7 +130,6 @@ spurgeon/
 graph TD
     A[.txt files (input/)] --> B[Parser]
     B --> C[Readings]
-    C --> D[Segmenter]
     C --> E[ElevenLabs TTS]
     C --> F[PromptGenerator → OpenAI Images API]
     E --> G[Audio (mp3)]
