@@ -27,7 +27,7 @@ from spurgeon.models import Reading, ReadingType
 logger = logging.getLogger(__name__)
 
 HEADER_PATTERN: re.Pattern[str] = re.compile(
-    r"^\s*(?P<month>[A-Za-z\.]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?\s+"
+    r"^\s*(?P<month>[A-Za-z\.]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?[\s\.,:\-–—]*"
     r"(?P<rtype>Morning|Evening)\s*$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
@@ -94,7 +94,10 @@ class Parser:
         matches = list(self.header_pattern.finditer(raw))
         if not matches:
             ctx = f" ({source_name})" if source_name else ""
-            raise ValueError(f"No devotional headers found in supplied text{ctx}.")
+            raise ValueError(
+                "No devotional headers found in supplied text"
+                f"{ctx}. Expected lines like 'JANUARY 1 MORNING'."
+            )
 
         readings: List[Reading] = []
         prev_month: Optional[int] = None
