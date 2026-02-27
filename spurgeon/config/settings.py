@@ -150,9 +150,6 @@ class Settings(BaseSettings):
     # Visual strategy
     visual_mode: Literal["single_image"] = "single_image"
 
-    # Chunking
-    time_chunk_duration: float = Field(30.0, gt=0.0)
-    min_chunk_duration: float = Field(8.0, gt=0.0)
 
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -297,10 +294,6 @@ class Settings(BaseSettings):
     def _post_validate(self) -> Settings:
         """Perform validations that depend on multiple fields."""
 
-        if self.min_chunk_duration > self.time_chunk_duration:
-            raise ValueError(
-                "min_chunk_duration must be less than or equal to time_chunk_duration"
-            )
 
         if not self.gcs_credentials_path.exists():
             raise FileNotFoundError(
