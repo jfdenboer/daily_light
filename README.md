@@ -35,8 +35,8 @@ Daily Light is een Python-project dat een volledige *text-to-video* pipeline bie
 1. **Clone de repository**
 
    ```bash
-   git clone https://github.com/jfdenboer/spurgeon.git
-   cd spurgeon
+   git clone https://github.com/jfdenboer/daily_light.git
+   cd daily_light
    ```
 
 2. **Installeer afhankelijkheden**
@@ -47,7 +47,15 @@ Daily Light is een Python-project dat een volledige *text-to-video* pipeline bie
    poetry install
    ```
 
-3. **Maak een `.env` bestand aan**
+3. **Zorg dat `ffmpeg` geïnstalleerd is**
+
+   Controleer lokaal:
+
+   ```bash
+   ffmpeg -version
+   ```
+
+4. **Maak een `.env` bestand aan**
 
    Er is momenteel geen `.env.example` in de repository. Maak daarom handmatig een `.env` aan in de projectroot.
 
@@ -55,13 +63,25 @@ Daily Light is een Python-project dat een volledige *text-to-video* pipeline bie
 
    - `OPENAI_API_KEY`
    - `ELEVENLABS_API_KEY`
-   - `ELEVENLABS_VOICE_ID`
    - `REV_AI_TOKEN`
-
-   Optioneel (voor GCS upload):
-
    - `GCS_CREDENTIALS_PATH`
+
+   Aanbevolen aanvullingen:
+
+   - `ELEVENLABS_VOICE_ID`
    - `GCS_BUCKET_NAME`
+   - `BANNERBEAR_API_KEY`
+   - `BANNERBEAR_TEMPLATE_ID`
+
+   Voorbeeld:
+
+   ```env
+   OPENAI_API_KEY=...
+   ELEVENLABS_API_KEY=...
+   REV_AI_TOKEN=...
+   GCS_CREDENTIALS_PATH=/abs/path/to/gcs-service-account.json
+   GCS_BUCKET_NAME=spurgeon_bucket
+   ```
 
 ---
 
@@ -80,6 +100,18 @@ Voer de volledige pipeline uit:
 
 ```bash
 poetry run daily build --start-date 2025-10-18 --end-date 2025-10-18
+```
+
+Start de lokale GUI voor een enkele datum:
+
+```bash
+poetry run daily gui
+```
+
+Genereer een YouTube OAuth-token (`token.json`):
+
+```bash
+poetry run python auth_setup.py
 ```
 
 Beschikbare opties voor `build`:
