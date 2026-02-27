@@ -28,7 +28,6 @@ class PromptContext:
     excerpt: str
     intent: PromptIntent = PromptIntent.IMAGE_SUBJECT
     reading_slug: str | None = None
-    chunk_index: int | None = None
 
 
 @dataclass(frozen=True)
