@@ -96,7 +96,7 @@ graph TD
 
 - Gebruik de output van `prompt_generation` als enige input voor beeldgeneratie.
 - Genereer **exact één image** per video.
-- Sla op als primair video-asset (bijv. `artwork.png`).
+- Sla op als primair video-asset.
 - Registreer prompt + metadata voor reproduceerbaarheid.
 
 ### Fase D — Audio & subtitles
@@ -229,5 +229,6 @@ Doel: snel detecteren of legacy chunk-gedrag nog onbedoeld actief is.
 **Aanbeveling:** migreer naar `single_image` als standaardarchitectuur.
 
 Deze richting sluit aan op de wens “nog maar 1 image voor de hele video” en reduceert complexiteit zonder de kernwaarde van de pipeline (goede audio, leesbare subtitles, consistente visuele ondersteuning) te verliezen.
+
 
 
