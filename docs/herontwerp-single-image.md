@@ -74,17 +74,6 @@ graph TD
 - `SegmentBlock` als verplicht object voor visual generation.
 - Collectie van `image_assets[]` gekoppeld aan chunk-indexen.
 
-### Nieuwe concepten
-
-- `VideoPrompt` (één object per reading/video)
-  - `prompt_text`
-  - `style_profile`
-  - `safety_constraints`
-  - `source_summary`
-- `VideoVisualAsset` (één object)
-  - `image_path`
-  - `source_prompt`
-  - `generation_meta`
 
 **Ontwerpprincipe:** segmentatie/chunking wordt volledig verwijderd uit het domeinmodel om de keten eenduidig op reading-niveau te houden.
 
@@ -244,3 +233,4 @@ Doel: snel detecteren of legacy chunk-gedrag nog onbedoeld actief is.
 **Aanbeveling:** migreer naar `single_image` als standaardarchitectuur.
 
 Deze richting sluit aan op de wens “nog maar 1 image voor de hele video” en reduceert complexiteit zonder de kernwaarde van de pipeline (goede audio, leesbare subtitles, consistente visuele ondersteuning) te verliezen.
+
