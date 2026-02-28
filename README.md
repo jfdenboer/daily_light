@@ -175,6 +175,8 @@ graph TD
     L --> M[Output/video.mp4]
 ```
 
+Prompt generation now uses a two-message OpenAI payload: a full system prompt plus a minimal user excerpt wrapper (`EXCERPT` in triple quotes).
+
 ---
 
 ## 🧼 Logging
