@@ -94,6 +94,10 @@ class Parser:
     ) -> List[Reading]:
         raw = self._normalise(raw_text)
         matches = list(self.header_pattern.finditer(raw))
+        if not matches and "\\n" in raw_text:
+            raw = self._normalise(self._decode_escaped_linebreaks(raw_text))
+            matches = list(self.header_pattern.finditer(raw))
+
         if not matches:
             ctx = f" ({source_name})" if source_name else ""
             first_line = raw.split("\n", 1)[0][:120] if raw else "<empty input>"
@@ -144,6 +148,11 @@ class Parser:
     # ------------------------------------------------------------------ #
     # internals
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def _decode_escaped_linebreaks(text: str) -> str:
+        """Decode literal escape sequences that are often produced by copied JSON strings."""
+        return text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n")
+
     def _normalise(self, text: str) -> str:
         text = _INVISIBLE_SEPARATOR_PATTERN.sub("", text)
         text = text.replace("\r\n", "\n").replace("\r", "\n")
