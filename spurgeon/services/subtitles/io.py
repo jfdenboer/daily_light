@@ -182,7 +182,7 @@ def convert_srt_to_ass(
     border_style: int = 1,
     outline: float = 2.6,
     shadow: int = 0,
-    alignment: int = 5,
+    alignment: int = 2,
     margin_l: int = 230,
     margin_r: int = 230,
     margin_v: int = 40,
