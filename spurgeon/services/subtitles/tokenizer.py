@@ -126,17 +126,24 @@ def build_raw_lines(
         else:  # onbekend token-type
             continue
 
+        next_tok = token_list[idx + 1] if idx + 1 < len(token_list) else None
+
         # --------------------------------------------------------------
         # 2b. Flush na Bijbel-vers-referentie
         # --------------------------------------------------------------
         if _BIBLE_REF_RE.search(buffer):
-            _flush()
-            continue  # buffer is leeg – ga door met volgend token
+            comma_continuation = bool(
+                next_tok
+                and next_tok.get("type") == "punct"
+                and str(next_tok.get("value", "")).strip().startswith(",")
+            )
+            if not comma_continuation:
+                _flush()
+                continue  # buffer is leeg – ga door met volgend token
 
         # --------------------------------------------------------------
         # 3. Standaard flush-triggers
         # --------------------------------------------------------------
-        next_tok = token_list[idx + 1] if idx + 1 < len(token_list) else None
         next_val = str(next_tok.get("value", "")).strip() if next_tok else ""
         next_is_dot_punct = bool(
             next_tok
