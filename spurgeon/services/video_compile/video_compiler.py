@@ -250,7 +250,7 @@ class VideoCompiler:
 
     def _wide_zoom_filter(self, duration: float) -> str:
         start = float(getattr(self.settings, "video_zoom_wide_start", 1.0))
-        end = float(getattr(self.settings, "video_zoom_wide_end", 1.03))
+        end = float(getattr(self.settings, "video_zoom_wide_end", 1.10))
         if duration <= 0:
             raise ValueError("duration must be positive")
         if end < start:
@@ -258,12 +258,10 @@ class VideoCompiler:
 
         frame_count = max(int(round(duration * self.fps)), 1)
         frame_span = max(frame_count - 1, 1)
-        increment = (end - start) / frame_span
-        max_zoom = max(start, end)
 
         return (
             "scale=1920:1080:force_original_aspect_ratio=increase,"
-            f"zoompan=z='if(eq(on,1),{start:.6f},min(zoom+{increment:.8f},{max_zoom:.6f}))':"
+            f"zoompan=z='{start:.6f}+({end - start:.6f})*(0.5-0.5*cos(PI*on/{frame_span}))':"
             "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
             "d=1:s=1920x1080:fps={fps}"
         ).format(fps=self.fps)
