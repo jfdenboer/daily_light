@@ -36,8 +36,9 @@ STYLE_LINE = (
 )
 
 BACKGROUND_LINE = (
-    "Setting: outdoor landscape with depth and atmosphere; uncluttered but not empty; believable and not staged; "
-    "subtle haze for distance separation; push fine detail toward edges/foreground and keep the center calm; "
+    "Setting: cinematic environment chosen to best match the scene concept—either a broad outdoor landscape OR a quiet window-lit interior; "
+    "uncluttered but not empty; believable and not staged; "
+    "push fine detail toward edges/foreground and keep the center calm; "
     "no studio backdrops; no vintage/sepia/antique cues."
 )
 
@@ -54,14 +55,16 @@ CONSTRAINTS_LINE = (
 )
 
 PALETTE_LINE = (
-    "Color grade: warm-neutral cinematic palette with restrained saturation; natural greens/blues/earth tones; "
+    "Color grade: warm-neutral cinematic palette with restrained saturation; "
+    "outdoors: natural greens/blues/earth tones; indoors: warm grays, soft off-whites, muted wood/linen neutrals; "
     "gentle contrast with clean highlights and soft shadows, with subtle warm highlight accents (no orange cast); "
     "avoid yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
 )
 
 LIGHTING_LINE = (
-    "Lighting: soft overcast daylight with gentle direction, occasionally with a subtle sun-break for luminous highlights (no dramatic rays); "
-    "subtle atmospheric haze; soft shadows; controlled highlights; soft but dimensional separation between subject and background; "
+    "Lighting: soft natural daylight with gentle direction—overcast outdoor light or diffused window light indoors; "
+    "subtle atmospheric haze outdoors or gentle light falloff indoors; "
+    "soft shadows; controlled highlights; soft but dimensional separation between subject and background; "
     "calm mood without dramatic 'god rays' or extreme backlight."
 )
 
