@@ -29,37 +29,40 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 STYLE_LINE = (
-    "Style: contemporary watercolor in fine line-and-wash; subtle ink or pencil linework "
-    "only where needed; transparent washes over light structure; edges allowed to dissolve "
-    "into the wash; restrained detail; no heavy outlines; no glossy/3D/rendered look."
+    "Style: modern cinematic stillframe; naturalistic realism with a calm, contemplative mood; "
+    "soft focus with gentle bloom (not blurry overall); subtle film-like grain (not digital noise); matte finish; natural textures with slight imperfections; "
+    "avoid hyper-clarity, micro-contrast, and overly crisp detail; no illustration/paper/paint look; "
+    "no CGI/3D/glossy rendering; avoid HDR."
 )
 
 BACKGROUND_LINE = (
-    "Surface: cold-press 300gsm watercolor paper; warm off-white; gentle paper grain visible; "
-    "no photographic backdrops; no harsh vignette."
+    "Setting: outdoor landscape with depth and atmosphere; uncluttered but not empty; believable and not staged; "
+    "subtle haze for distance separation; push fine detail toward edges/foreground and keep the center calm; "
+    "no studio backdrops; no vintage/sepia/antique cues."
 )
 
 COMPOSITION_LINE = (
-    "Composition: cinematic wide 16:9; clear focal subject slightly off-center (figure, object, or architectural/landscape element); "
-    "10–15% negative space; atmospheric perspective (distant elements lower contrast); "
-    "avoid edge tangents and tight crops; keep linework selective."
+    "Composition: 16:9 wide; one clear focal subject slightly off-center; strong depth (foreground/midground/background) with minimal elements; "
+    "keep a calm, low-contrast horizontal band across the center for a single subtitle line; "
+    "avoid tight crops, edge tangents, and competing focal points; readable at a glance."
 )
 
 CONSTRAINTS_LINE = (
-    "Constraints: no visible text, lettering, watermarks, logos, letters or numbers; "
-    "figures allowed only as distant silhouettes or abstract posture; avoid faces and detailed anatomy; "
-    "avoid neon and over-sharpening; preserve watercolor transparency."
+    "Constraints: no visible text, captions, lettering, watermarks, logos, readable signage, icons, or emblems; "
+    "no identifiable people—if humans appear, they must be tiny distant silhouettes with no faces; "
+    "avoid neon colors, oversharpening, repeating patterns, noise, and high-frequency texture behind the subtitle area."
 )
 
 PALETTE_LINE = (
-    "Palette: indigo or neutral tint for linework; raw umber, burnt sienna, sap green for washes; "
-    "optional cobalt/ultramarine accents; Payne's gray for shadows; titanium white reserved as paper; "
-    "limited harmonized palette; transparent layering (glazing)."
+    "Color grade: warm-neutral cinematic palette with restrained saturation; natural greens/blues/earth tones; "
+    "gentle contrast with clean highlights and soft shadows, with subtle warm highlight accents (no orange cast); "
+    "avoid yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
 )
 
 LIGHTING_LINE = (
-    "Lighting: diffuse daylight from upper-left; subtle paper-white highlights; "
-    "atmospheric haze in the distance; shadows in neutral tint/Payne's gray plus local complement."
+    "Lighting: soft overcast daylight with gentle direction, occasionally with a subtle sun-break for luminous highlights (no dramatic rays); "
+    "subtle atmospheric haze; soft shadows; controlled highlights; soft but dimensional separation between subject and background; "
+    "calm mood without dramatic 'god rays' or extreme backlight."
 )
 
 
