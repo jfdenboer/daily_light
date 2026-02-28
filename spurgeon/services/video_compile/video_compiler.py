@@ -55,8 +55,7 @@ class VideoVariant:
 WIDE_VIDEO = VideoVariant(
     name="wide",
     filter_chain=(
-        "scale=-2:1080:force_original_aspect_ratio=decrease,"
-        "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black"
+        "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080"
     ),
 )
 
