@@ -248,6 +248,33 @@ class VideoCompiler:
             )
         return assets[0]
 
+    def _wide_zoom_filter(self, duration: float) -> str:
+        start = float(getattr(self.settings, "video_zoom_wide_start", 1.0))
+        end = float(getattr(self.settings, "video_zoom_wide_end", 1.03))
+        if duration <= 0:
+            raise ValueError("duration must be positive")
+        if end < start:
+            start, end = end, start
+
+        frame_count = max(int(round(duration * self.fps)), 1)
+        frame_span = max(frame_count - 1, 1)
+        increment = (end - start) / frame_span
+        max_zoom = max(start, end)
+
+        return (
+            "scale=1920:1080:force_original_aspect_ratio=increase,"
+            f"zoompan=z='if(eq(on,1),{start:.6f},min(zoom+{increment:.8f},{max_zoom:.6f}))':"
+            "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+            "d=1:s=1920x1080:fps={fps}"
+        ).format(fps=self.fps)
+
+    def _clip_filter_for_variant(self, variant: VideoVariant, duration: float) -> str:
+        is_wide = variant.name == WIDE_VIDEO.name
+        zoom_enabled = bool(getattr(self.settings, "video_zoom_wide_enabled", True))
+        if is_wide and zoom_enabled:
+            return self._wide_zoom_filter(duration)
+        return variant.filter_chain
+
     def compile_image_clip(
         self, slug: str, image: Path, duration: float, variant: VideoVariant
     ) -> Path:
@@ -255,6 +282,7 @@ class VideoCompiler:
         if not self._needs_update(output_path, [image]):
             return output_path
 
+        clip_filter = self._clip_filter_for_variant(variant, duration)
         cmd = [
             self.ffmpeg_cmd,
             "-y",
@@ -263,7 +291,7 @@ class VideoCompiler:
             "-i",
             str(image),
             "-vf",
-            variant.filter_chain,
+            clip_filter,
             "-c:v",
             self.codec,
             "-tune",
@@ -277,7 +305,16 @@ class VideoCompiler:
             str(output_path),
         ]
         self._run(cmd)
-        _log(logging.INFO, "Generated clip - %s", output_path)
+        _log(
+            logging.INFO,
+            "Generated clip (%s, zoom=%s) - %s",
+            variant.name,
+            bool(
+                variant.name == WIDE_VIDEO.name
+                and getattr(self.settings, "video_zoom_wide_enabled", True)
+            ),
+            output_path,
+        )
         return output_path
 
     def merge_audio_video(self, video: Path, audio: Path, out_path: Path) -> Path:
