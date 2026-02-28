@@ -27,11 +27,17 @@ from spurgeon.models import Reading, ReadingType
 logger = logging.getLogger(__name__)
 
 _INVISIBLE_SEPARATOR_PATTERN: re.Pattern[str] = re.compile(r"[\u200B-\u200D\u2060\uFEFF]")
+_LINEBREAK_PATTERN: re.Pattern[str] = re.compile(r"\r\n|[\r\v\f\x85\u2028\u2029]")
 
 HEADER_PATTERN: re.Pattern[str] = re.compile(
     r"^\s*(?P<month>[A-Za-z\.]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?[\s\.,:\-–—]*"
     r"(?P<rtype>Morning|Evening)\s*$",
     flags=re.IGNORECASE | re.MULTILINE,
+)
+
+_HEADER_LIKE_PATTERN: re.Pattern[str] = re.compile(
+    r"\b(morning|evening)\b",
+    flags=re.IGNORECASE,
 )
 
 _MONTH_MAP: dict[str, int] = {
@@ -101,10 +107,16 @@ class Parser:
         if not matches:
             ctx = f" ({source_name})" if source_name else ""
             first_line = raw.split("\n", 1)[0][:120] if raw else "<empty input>"
+            header_hints = self._collect_header_hints(raw)
+            hint_msg = (
+                f" Header-like lines seen: {header_hints}."
+                if header_hints
+                else ""
+            )
             raise ValueError(
                 "No devotional headers found in supplied text"
                 f"{ctx}. Expected lines like 'JANUARY 1 MORNING' (year is passed separately). "
-                f"First line was: {first_line!r}."
+                f"First line was: {first_line!r}.{hint_msg}"
             )
 
         readings: List[Reading] = []
@@ -155,7 +167,7 @@ class Parser:
 
     def _normalise(self, text: str) -> str:
         text = _INVISIBLE_SEPARATOR_PATTERN.sub("", text)
-        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        text = _LINEBREAK_PATTERN.sub("\n", text)
         lines = text.split("\n")
         normalised: List[str] = []
         blank_run = 0
@@ -170,6 +182,20 @@ class Parser:
                     normalised.append("")
 
         return "\n".join(normalised).strip()
+
+    @staticmethod
+    def _collect_header_hints(raw: str) -> List[str]:
+        """Return a few lines that look like potential headers for faster diagnostics."""
+        hints: List[str] = []
+        for line in raw.split("\n"):
+            candidate = line.strip()
+            if not candidate:
+                continue
+            if _HEADER_LIKE_PATTERN.search(candidate):
+                hints.append(candidate[:120])
+            if len(hints) >= 3:
+                break
+        return hints
 
     @staticmethod
     def _parse_reading_type(raw: str) -> ReadingType:
