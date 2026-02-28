@@ -176,39 +176,39 @@ class Settings(BaseSettings):
     srt_hard_max_chars: int = Field(27, gt=0)
 
     subtitle_font: str = Field("Inter", min_length=1)
-    subtitle_size: int = Field(74, gt=0)  # fallback; varianten hieronder zijn leidend
+    subtitle_size: int = Field(84, gt=0)  # fallback; varianten hieronder zijn leidend
     subtitle_style_extra: str = ""  # fallback; varianten hieronder zijn leidend
-    subtitle_line_spacing: int = Field(6)
-    subtitle_line_spacing_wide: int = Field(6)
-    subtitle_line_spacing_short: int = Field(6)
+    subtitle_line_spacing: int = Field(12)
+    subtitle_line_spacing_wide: int = Field(12)
+    subtitle_line_spacing_short: int = Field(12)
 
     # Variant-specific subtitle styling
     subtitle_font_wide: str = Field("Inter", min_length=1)
-    subtitle_size_wide: int = Field(74, gt=0)
+    subtitle_size_wide: int = Field(84, gt=0)
     subtitle_style_extra_wide: str = (
         "WrapStyle=2,"
         "PrimaryColour=&H00FFFFFF,"
         "OutlineColour=&H00000000,"  # volledig opaak zwart voor maximale contrast
         "BorderStyle=1,"
-        "Outline=3,"  # iets dikker voor YT-compressie
+        "Outline=2,"
         "Shadow=0,"
-        "Alignment=8,"  # midden-horizontaal + top-anker
-        "MarginV=778,"  # ~72% vanaf bovenkant bij 1080p
+        "Alignment=5,"
+        "MarginV=0,"
         "MarginL=120,"
         "MarginR=120"
     )
 
     subtitle_font_short: str = Field("Inter", min_length=1)
-    subtitle_size_short: int = Field(74, gt=0)
+    subtitle_size_short: int = Field(84, gt=0)
     subtitle_style_extra_short: str = (
         "WrapStyle=2,"
         "PrimaryColour=&H00FFFFFF,"
         "OutlineColour=&H00000000,"
         "BorderStyle=1,"
-        "Outline=3,"
+        "Outline=2,"
         "Shadow=0,"
-        "Alignment=8,"
-        "MarginV=778,"  # ~72% vanaf bovenkant bij 1080p
+        "Alignment=5,"
+        "MarginV=0,"
         "MarginL=100,"
         "MarginR=100"
     )
