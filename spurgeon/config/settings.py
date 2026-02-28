@@ -169,7 +169,7 @@ class Settings(BaseSettings):
     audio_bitrate: str = Field("192k", min_length=1)
     video_zoom_wide_enabled: bool = Field(True)
     video_zoom_wide_start: float = Field(1.0, gt=0.0)
-    video_zoom_wide_end: float = Field(1.03, gt=0.0)
+    video_zoom_wide_end: float = Field(1.10, gt=0.0)
 
     # Subtitles (legacy defaults)
     srt_max_chars: int = Field(22, gt=0)
@@ -307,8 +307,8 @@ class Settings(BaseSettings):
             directory.mkdir(parents=True, exist_ok=True)
 
         zoom_delta = abs(self.video_zoom_wide_end - self.video_zoom_wide_start)
-        if zoom_delta > 0.08:
-            raise ValueError("video_zoom_wide range must stay within 0.08 for subtle motion")
+        if zoom_delta - 0.12 > 1e-9:
+            raise ValueError("video_zoom_wide range must stay within 0.12 to prevent extreme motion")
 
         if self.bannerbear_api_key and not self.bannerbear_template_id:
             raise ValueError(
