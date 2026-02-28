@@ -131,7 +131,7 @@ def generate_onscreen_hook(reading: str) -> str:
             ],
         )
 
-        hook = _extract_response_text(response)
+        hook = " ".join(_extract_response_text(response).split())
         try:
             _validate_hook(hook)
             return hook
