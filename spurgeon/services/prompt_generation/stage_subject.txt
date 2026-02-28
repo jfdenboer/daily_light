@@ -1,6 +1,0 @@
-EXCERPT:
-"""
-{excerpt}
-"""
-
-Return only the single scene sentence.
