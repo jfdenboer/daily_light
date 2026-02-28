@@ -21,11 +21,11 @@
 \byin-?yang\b
 \bdharma(?:\s+wheel|\s+chakra|\s+chakr(?:a|as))\b
 \bkhanda\b
-\b(?:om|aum)\b
+\b(?:om|aum)\s+symbol\b
 \bstar\s+and\s+crescent\b
 
 # Sexual content
-\bnude\b
+\bnudes?\b
 \bnudity\b
 \bnaked\b
 \bsensual\b
@@ -39,8 +39,8 @@
 \blust(?:ful)?\b
 \binnuendo\b
 \blewd\b
-\bobscene\b
+\bobscen(?:e|ity)\b
 \bindecent\b
 \bprovocative\b
 \blingerie\b
-\bfetish\b
+\bfetish(?:es)?\b
