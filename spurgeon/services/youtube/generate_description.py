@@ -13,8 +13,7 @@ DESCRIPTION_TEMPLATE = (
     "📅 Date: {reading_type}, {reading_date}\n\n"
     "➡️ Don’t miss tomorrow’s devotional — subscribe today.\n\n"
     "---\n"
-    "© Public Domain Text. This recording is created for devotional use and educational purposes.\n"
-    "Voices of Faith provides daily readings to inspire reflection, prayer, and faith."
+    "© Public Domain Text. "
 )
 
 class DescriptionGenerator:

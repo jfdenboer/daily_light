@@ -72,10 +72,10 @@ class TitleGenerator:
     def _format_title(self, reading: Reading, key_phrase: str) -> str:
         """Construeer de definitieve YouTube-titel in het gewenste format."""
 
-        formatted_date = f"{reading.date.strftime('%B')} {reading.date.day}, {reading.date.year}"
+        formatted_date = f"{reading.date.strftime('%B')} {reading.date.day}"
         suffix = (
             " | Daily Light on the Daily Path "
-            f"({reading.reading_type.value}, {formatted_date})"
+            f"({formatted_date}, {reading.reading_type.value})"
         )
 
         max_total_length = 100
