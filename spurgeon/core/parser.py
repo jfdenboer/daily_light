@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 _INVISIBLE_SEPARATOR_PATTERN: re.Pattern[str] = re.compile(r"[\u200B-\u200D\u2060\uFEFF]")
 _LINEBREAK_PATTERN: re.Pattern[str] = re.compile(r"\r\n|[\r\v\f\x85\u2028\u2029]")
+_BODY_SEPARATOR_LINE_PATTERN: re.Pattern[str] = re.compile(r"^\s*_+\s*$")
 
 HEADER_PATTERN: re.Pattern[str] = re.compile(
     r"^\s*(?P<month>[A-Za-z\.]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?[\s\.,:\-–—]*"
@@ -287,7 +288,12 @@ class Parser:
         match = matches[index]
         start = match.end()
         end = matches[index + 1].start() if index + 1 < len(matches) else len(raw)
-        return raw[start:end].strip()
+        body = raw[start:end].strip()
+        if not body:
+            return body
+
+        cleaned_lines = [line for line in body.split("\n") if not _BODY_SEPARATOR_LINE_PATTERN.match(line)]
+        return "\n".join(cleaned_lines).strip()
 
 
 # ---------------------------------------------------------------------------
