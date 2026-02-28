@@ -34,7 +34,7 @@
 \bgraphic\s*design\b
 
 # — 3D / render / vector / graphics
-\b3d\b
+\b(?:3d|3[-\s]?d)\b
 \bcgi\b
 \bvector\b
 \bisometric\b
@@ -107,7 +107,7 @@
 
 # — Overige stijlsignalen (niet in subjectzin)
 \bneon\b
-\bglossy?\b
+\bglossy\b
 \bvignette\b
 \bgradient(?:s)?\b
 \bcolou?r\s*grading\b
