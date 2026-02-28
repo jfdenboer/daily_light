@@ -2,14 +2,12 @@
 
 # — Mediums / materialen / technieken
 \\bwatercolou?r(s)?\\b
-\\bink\\b
-\\bpen\\b
 \\bpen[-\\s]?and[-\\s]?ink\\b
 \\bpencil(s)?\\b
 \\bcolou?r(ed)?\\s+pencil(s)?\\b
 \\bgraphite\\b
 \\bgouache\\b
-\\boil(\\s*paint(ing)?)?\\b
+\\boil\\s*paint(ing)?\\b
 \\boil\\s+on\\s+canvas\\b
 \\bpastel(s)?\\b
 \\bcharcoal\\b
@@ -22,7 +20,6 @@
 \\bhatch(ing)?\\b
 \\bcross[-\\s]?hatch(ing)?\\b
 \\bstipple(d|s|ing)?\\b
-\\bwash(es)?\\b
 \\bglaze(s|ing)?\\b
 \\bdry\\s*brush(ing)?\\b
 \\bbrushstroke(s)?\\b
