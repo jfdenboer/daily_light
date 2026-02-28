@@ -28,7 +28,7 @@ class PromptPolicyRepository:
         for line in raw_patterns:
             stripped = line.strip()
             if stripped and not stripped.startswith("#"):
-                patterns.append(stripped)
+                patterns.append(stripped.replace("\\\\", "\\"))
 
         if not patterns:
             raise RuntimeError(f"{error_subject.capitalize()} file is empty: {path}")
