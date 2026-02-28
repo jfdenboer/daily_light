@@ -372,7 +372,7 @@ class VideoCompiler:
             "border_style": 1,
             "outline": 2.6,
             "shadow": 0,
-            "alignment": 5,
+            "alignment": 2,
             "margin_l": 230,
             "margin_r": 230,
             "margin_v": 40,
