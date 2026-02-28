@@ -15,9 +15,13 @@ from .domain import (
     PromptModelConfig,
 )
 from .gateway import LLMGenerationGateway
-from .pipeline import PromptGenerationOrchestrator, PromptRequestNormalizer
+from .pipeline import (
+    PromptGenerationOrchestrator,
+    PromptRequestNormalizer,
+    build_excerpt_user_prompt,
+)
 from .policy import PromptPolicy, PromptPolicyEngine, PromptPolicyRepository
-from .templates import PromptTemplateEngine, PromptTemplateRepository, TemplateBundle
+from .templates import PromptTemplateRepository, TemplateBundle
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +81,6 @@ def _build_prompt_generation_orchestrator(
 
     return PromptGenerationOrchestrator(
         template_bundle=template_bundle,
-        template_engine=PromptTemplateEngine(),
         policy_engine=policy_engine,
         gateway=gateway,
         max_attempts=max_attempts,
@@ -112,7 +115,7 @@ def stage_generate_subject(
         max_retries=0,
         retry_backoff=0.01,
     )
-    user_prompt = PromptTemplateEngine.render(template_bundle.user_template, excerpt=excerpt)
+    user_prompt = build_excerpt_user_prompt(excerpt)
     candidate = gateway.generate(
         system_prompt=template_bundle.system_template,
         user_prompt=user_prompt,

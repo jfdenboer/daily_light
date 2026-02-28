@@ -11,10 +11,14 @@ from .domain import (
 )
 from .gateway import LLMGenerationGateway
 from .policy import PromptPolicyEngine
-from .templates import PromptTemplateEngine, TemplateBundle
+from .templates import TemplateBundle
 
 
 logger = logging.getLogger(__name__)
+
+
+def build_excerpt_user_prompt(excerpt: str) -> str:
+    return f'EXCERPT:\n"""\n{excerpt}\n"""'
 
 
 class PromptRequestNormalizer:
@@ -43,16 +47,12 @@ class PromptPostProcessor:
 @dataclass
 class PromptGenerationOrchestrator:
     template_bundle: TemplateBundle
-    template_engine: PromptTemplateEngine
     policy_engine: PromptPolicyEngine
     gateway: LLMGenerationGateway
     max_attempts: int = 2
 
     def generate(self, context: PromptContext) -> FinalPrompt:
-        user_prompt = self.template_engine.render(
-            self.template_bundle.user_template,
-            excerpt=context.excerpt,
-        )
+        user_prompt = build_excerpt_user_prompt(context.excerpt)
 
         for attempt in range(1, self.max_attempts + 1):
             candidate = self.gateway.generate(
@@ -75,8 +75,7 @@ class PromptGenerationOrchestrator:
 
             if attempt < self.max_attempts:
                 violations = ", ".join(v.matched_text for v in validation.violations)
-                user_prompt = self.template_engine.render(
-                    self.template_bundle.repair_template,
+                user_prompt = self.template_bundle.repair_template.format(
                     candidate=cleaned,
                     violations=violations,
                     excerpt=context.excerpt,
