@@ -16,7 +16,7 @@ Task: output EXACTLY ONE onscreen hook.
 Rules (must follow all):
 - English only.
 - 3-7 words.
-- No punctuation of any kind (no commas, periods, apostrophes, quotes, dashes, colons, question marks, exclamation marks).
+- No punctuation, except apostrophes within words (no commas, periods, quotes, dashes, colons, question marks, exclamation marks).
 - Do not mention author, title, year, chapter, or “public domain”.
 - Do not quote the excerpt or reuse distinctive phrases from it.
 - Avoid clickbait words: shocking, insane, unbelievable, crazy, you wont believe.
@@ -28,7 +28,7 @@ Before answering, silently draft 5 candidates and choose the best one that follo
 MODEL: Final[str] = "gpt-5.2"
 MAX_ATTEMPTS: Final[int] = 3
 PUNCTUATION_FREE_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"^[A-Za-z0-9]+( [A-Za-z0-9]+){2,6}$"
+    r"^[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)?(?: [A-Za-z0-9]+(?:['’][A-Za-z0-9]+)?){2,6}$"
 )
 BANNED_SINGLE_WORDS: Final[set[str]] = {"shocking", "insane", "unbelievable", "crazy"}
 BANNED_PHRASE: Final[str] = "you wont believe"
@@ -97,7 +97,8 @@ def _validate_hook(hook: str) -> None:
     if any(word in BANNED_SINGLE_WORDS for word in lowered.split()):
         raise OnscreenHookValidationError("contains_blacklisted_word")
 
-    if BANNED_PHRASE in lowered:
+    normalized = lowered.replace("'", "").replace("’", "")
+    if BANNED_PHRASE in normalized:
         raise OnscreenHookValidationError("contains_blacklisted_phrase")
 
 
