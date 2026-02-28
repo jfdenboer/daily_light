@@ -467,6 +467,42 @@ class VideoCompiler:
             )
         return ass_path
 
+    def _wide_visualizer_filtergraph(self, variant: Optional[VideoVariant]) -> str:
+        if not bool(getattr(self.settings, "video_visualizer_enabled", False)):
+            return ""
+        if variant is None:
+            return ""
+        if variant.name != WIDE_VIDEO.name:
+            return ""
+
+        width = int(getattr(self.settings, "video_visualizer_width_wide", 640))
+        height = int(getattr(self.settings, "video_visualizer_height_wide", 180))
+        margin_top = int(getattr(self.settings, "video_visualizer_margin_top", 40))
+        margin_right = int(getattr(self.settings, "video_visualizer_margin_right", 40))
+        mode = str(getattr(self.settings, "video_visualizer_mode", "bar")).strip().lower()
+        alpha = float(getattr(self.settings, "video_visualizer_alpha", 0.70))
+        ascale = str(getattr(self.settings, "video_visualizer_ascale", "log")).strip()
+        fscale = str(getattr(self.settings, "video_visualizer_fscale", "log")).strip()
+
+        _log(
+            logging.INFO,
+            "Audio visualizer active (wide-only): mode=%s size=%sx%s alpha=%.2f margin_top=%s margin_right=%s ascale=%s fscale=%s",
+            mode,
+            width,
+            height,
+            alpha,
+            margin_top,
+            margin_right,
+            ascale,
+            fscale,
+        )
+
+        return (
+            f"[0:a]showfreqs=s={width}x{height}:mode={mode}:ascale={ascale}:fscale={fscale}:r={self.fps},"
+            f"format=rgba,colorchannelmixer=aa={alpha:.2f}[viz];"
+            f"[0:v][viz]overlay=x=W-w-{margin_right}:y={margin_top}[v0]"
+        )
+
     def burn_subtitles(
         self,
         av_path: Path,
@@ -505,24 +541,61 @@ class VideoCompiler:
             line_spacing,
         )
 
-        cmd = [
-            self.ffmpeg_cmd,
-            "-y",
-            "-i",
-            str(av_path),
-            "-vf",
-            subtitles_filter,
-            "-c:v",
-            self.codec,
-            "-c:a",
-            "copy",
-            "-pix_fmt",
-            "yuv420p",
-            "-movflags",
-            "+faststart",
-            str(out_path),
-        ]
-        self._run(cmd)
+        visualizer_fg = self._wide_visualizer_filtergraph(variant)
+        if bool(getattr(self.settings, "video_visualizer_enabled", False)):
+            _log(
+                logging.INFO,
+                "Visualizer is wide-only; short variant keeps subtitle-only rendering path",
+            )
+
+        if not visualizer_fg:
+            cmd = [
+                self.ffmpeg_cmd,
+                "-y",
+                "-i",
+                str(av_path),
+                "-vf",
+                subtitles_filter,
+                "-c:v",
+                self.codec,
+                "-c:a",
+                "copy",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                str(out_path),
+            ]
+            self._run(cmd)
+        else:
+            filter_complex = f"{visualizer_fg};[v0]{subtitles_filter}[v]"
+            cmd = [
+                self.ffmpeg_cmd,
+                "-y",
+                "-i",
+                str(av_path),
+                "-filter_complex",
+                filter_complex,
+                "-map",
+                "[v]",
+                "-map",
+                "0:a:0",
+                "-c:v",
+                self.codec,
+                "-c:a",
+                "copy",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                str(out_path),
+            ]
+            try:
+                self._run(cmd)
+            except RuntimeError as exc:
+                raise RuntimeError(
+                    f"{exc}\nVisualizer enabled requires audio stream"
+                ) from exc
         _log(logging.INFO, "Subtitles burned - %s", out_path)
         return out_path
 
