@@ -10,7 +10,7 @@ from spurgeon.models import Reading
 
 DESCRIPTION_TEMPLATE = (
     "📖 Devotional: Daily Light on the Daily Path\n\n"
-    "📅 Date: {reading_type}, {reading_date}\n\n"
+    "📅 Date: {reading_date}, {reading_type}\n\n"
     "➡️ Don’t miss tomorrow’s devotional — subscribe today.\n\n"
     "---\n"
     "© Public Domain Text. "
@@ -26,7 +26,7 @@ class DescriptionGenerator:
     def generate(self, reading: Reading, title: str) -> str:  # noqa: D401 - Dutch docstring retained
         """Genereer een volledige YouTube-description voor de video."""
 
-        formatted_date = reading.date.strftime("%B %d, %Y").replace(" 0", " ")
+        formatted_date = reading.date.strftime("%B %d").replace(" 0", " ")
 
         return DESCRIPTION_TEMPLATE.format(
             reading_type=reading.reading_type.value,
