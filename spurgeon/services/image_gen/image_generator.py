@@ -40,7 +40,7 @@ BACKGROUND_LINE = (
 )
 
 COMPOSITION_LINE = (
-    "Composition: square 1:1; clear focal subject slightly off-center (figure, object, or architectural/landscape element); "
+    "Composition: cinematic wide 16:9; clear focal subject slightly off-center (figure, object, or architectural/landscape element); "
     "10–15% negative space; atmospheric perspective (distant elements lower contrast); "
     "avoid edge tangents and tight crops; keep linework selective."
 )
