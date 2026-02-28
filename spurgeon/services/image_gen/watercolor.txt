@@ -1,35 +1,36 @@
 STYLE_LINE = (
     "Style: modern cinematic stillframe; naturalistic realism with a calm, contemplative mood; "
-    "soft focus with gentle bloom; subtle film grain; matte finish; natural textures with slight imperfections; "
+    "soft focus with gentle bloom (not blurry overall); subtle film grain; matte finish; natural textures with slight imperfections; "
     "avoid hyper-clarity, micro-contrast, and overly crisp detail; no illustration/paper/paint look; "
     "no CGI/3D/glossy rendering; avoid HDR."
 )
 
 BACKGROUND_LINE = (
-    "Setting: outdoor landscape with depth and atmosphere; uncluttered but not empty; "
+    "Setting: outdoor landscape with depth and atmosphere; uncluttered but not empty; believable and not staged; "
     "subtle haze for distance separation; push fine detail toward edges/foreground and keep the center calm; "
     "no studio backdrops; no vintage/sepia/antique cues."
 )
 
 COMPOSITION_LINE = (
-    "Composition: 16:9 wide; one clear focal subject slightly off-center; strong depth (foreground/midground/background); "
+    "Composition: 16:9 wide; one clear focal subject slightly off-center; strong depth (foreground/midground/background) with minimal elements; "
     "keep a calm, low-contrast horizontal band across the center for a single subtitle line; "
     "avoid tight crops, edge tangents, and competing focal points; readable at a glance."
 )
 
 CONSTRAINTS_LINE = (
-    "Constraints: no visible text, captions, lettering, watermarks, logos, signage, icons, or emblems; "
+    "Constraints: no visible text, captions, lettering, watermarks, logos, readable signage, icons, or emblems; "
     "no identifiable people—if humans appear, they must be tiny distant silhouettes with no faces; "
     "avoid neon colors, oversharpening, repeating patterns, noise, and high-frequency texture behind the subtitle area."
 )
 
 PALETTE_LINE = (
     "Color grade: warm-neutral cinematic palette with restrained saturation; natural greens/blues/earth tones; "
-    "gentle contrast with clean highlights and soft shadows; avoid yellowed vintage tones, teal-orange gimmicks, "
-    "and heavy color casts."
+    "gentle contrast with clean highlights and soft shadows, with subtle warm highlight accents (no orange cast); "
+    "avoid yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
 )
 
 LIGHTING_LINE = (
     "Lighting: soft overcast daylight with gentle direction; subtle atmospheric haze; "
-    "soft shadows; controlled highlights; calm mood without dramatic 'god rays' or extreme backlight."
+    "soft shadows; controlled highlights; soft but dimensional separation between subject and background; "
+    "calm mood without dramatic 'god rays' or extreme backlight."
 )
