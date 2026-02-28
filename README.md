@@ -72,6 +72,8 @@ Daily Light is een Python-project dat een volledige *text-to-video* pipeline bie
    - `GCS_BUCKET_NAME`
    - `BANNERBEAR_API_KEY`
    - `BANNERBEAR_TEMPLATE_ID`
+   - `VIDEO_ZOOM_WIDE_START` (standaard `1.00`)
+   - `VIDEO_ZOOM_WIDE_END` (standaard `1.10`, aanbevolen bereikverschil maximaal `0.12`)
 
    Voorbeeld:
 
