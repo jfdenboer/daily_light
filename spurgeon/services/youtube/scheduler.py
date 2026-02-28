@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime, time
 from typing import Final, Mapping, Union
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+import pytz
+from pytz import BaseTzInfo, UnknownTimeZoneError
 
 
 from spurgeon.models import ReadingType
@@ -19,7 +21,7 @@ _PUBLISH_TIME_BY_TYPE: Final[Mapping[ReadingType, time]] = {
     ReadingType.EVENING: time(19, 0),
 }
 
-TimeZoneLike = Union[str, ZoneInfo]
+TimeZoneLike = Union[str, BaseTzInfo]
 
 
 def next_publish_datetime(
@@ -34,7 +36,7 @@ def next_publish_datetime(
     Args:
         reading_date: Month and day of the devotional to schedule.
         reading_type: Determines whether the video goes live in the morning or evening.
-        tz: Name of the timezone or ZoneInfo timezone instance for publication.
+        tz: Name of the timezone or pytz timezone instance for publication.
         current_date: Optional override for the reference date (defaults to today).
 
     Returns:
@@ -55,15 +57,15 @@ def next_publish_datetime(
     return _localize(datetime.combine(publish_date, publish_time), timezone)
 
 
-def _resolve_timezone(tz: TimeZoneLike) -> ZoneInfo:
-    if isinstance(tz, ZoneInfo):
+def _resolve_timezone(tz: TimeZoneLike) -> BaseTzInfo:
+    if isinstance(tz, BaseTzInfo):
         return tz
     if isinstance(tz, str):
         try:
-            return ZoneInfo(tz)
-        except ZoneInfoNotFoundError as exc:  # pragma: no cover - defensive guard
+            return pytz.timezone(tz)
+        except UnknownTimeZoneError as exc:  # pragma: no cover - defensive guard
             raise ValueError(f"Unknown timezone '{tz}'") from exc
-    raise TypeError("tz must be a timezone name or ZoneInfo instance")
+    raise TypeError("tz must be a timezone name or pytz timezone instance")
 
 
 def _next_calendar_date(reading_date: date, reference: date) -> date:
@@ -84,7 +86,7 @@ def _next_calendar_date(reading_date: date, reference: date) -> date:
         return candidate
 
 
-def _localize(naive_datetime: datetime, timezone: ZoneInfo) -> datetime:
-    localized = naive_datetime.replace(tzinfo=timezone)
-    logger.debug("Localized publish time %s in %s", naive_datetime.isoformat(), timezone.key)
+def _localize(naive_datetime: datetime, timezone: BaseTzInfo) -> datetime:
+    localized = timezone.localize(naive_datetime)
+    logger.debug("Localized publish time %s in %s", naive_datetime.isoformat(), timezone.zone)
     return localized
