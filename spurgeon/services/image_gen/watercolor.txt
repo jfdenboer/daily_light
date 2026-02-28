@@ -1,33 +1,34 @@
 STYLE_LINE = (
-    "Style: contemporary watercolor in fine line-and-wash; subtle ink or pencil linework "
-    "only where needed; transparent washes over light structure; edges allowed to dissolve "
-    "into the wash; restrained detail; no heavy outlines; no glossy/3D/rendered look."
+    "Style: modern cinematic stillframe; naturalistic realism with a calm, contemplative mood; "
+    "soft focus and gentle bloom; subtle film grain; matte finish; realistic textures without looking like stock photography; "
+    "no illustration/paper/paint look; no CGI/3D/glossy rendering; avoid HDR."
 )
 
 BACKGROUND_LINE = (
-    "Surface: cold-press 300gsm watercolor paper; warm off-white; gentle paper grain visible; "
-    "no photographic backdrops; no harsh vignette."
+    "Setting: outdoor landscape with depth and atmosphere; clean, uncluttered environment; "
+    "subtle haze for distance separation; avoid busy micro-textures in the center; "
+    "no studio backdrops; no vintage/sepia/antique cues."
 )
 
 COMPOSITION_LINE = (
-    "Composition: square 1:1; clear focal subject slightly off-center (figure, object, or architectural/landscape element); "
-    "10–15% negative space; atmospheric perspective (distant elements lower contrast); "
-    "avoid edge tangents and tight crops; keep linework selective."
+    "Composition: 16:9 wide; clear focal subject slightly off-center; strong sense of distance (foreground/midground/background); "
+    "keep a calm, low-contrast horizontal band across the center for a single subtitle line; "
+    "avoid tight crops and edge tangents; keep the scene simple and readable at a glance."
 )
 
 CONSTRAINTS_LINE = (
-    "Constraints: no visible text, lettering, watermarks, logos, letters or numbers; "
-    "figures allowed only as distant silhouettes or abstract posture; avoid faces and detailed anatomy; "
-    "avoid neon and over-sharpening; preserve watercolor transparency."
+    "Constraints: no visible text, captions, lettering, watermarks, logos, or symbols; "
+    "no identifiable people—if humans appear, they must be tiny distant silhouettes with no faces; "
+    "avoid neon colors, oversharpening, noise, and high-frequency patterns behind the subtitle area."
 )
 
 PALETTE_LINE = (
-    "Palette: indigo or neutral tint for linework; raw umber, burnt sienna, sap green for washes; "
-    "optional cobalt/ultramarine accents; Payne's gray for shadows; titanium white reserved as paper; "
-    "limited harmonized palette; transparent layering (glazing)."
+    "Color grade: warm-neutral cinematic palette with restrained saturation; "
+    "natural greens/blues/earth tones; gentle contrast; clean highlights (no yellowed paper look); "
+    "avoid teal-orange gimmicks and heavy color casts."
 )
 
 LIGHTING_LINE = (
-    "Lighting: diffuse daylight from upper-left; subtle paper-white highlights; "
-    "atmospheric haze in the distance; shadows in neutral tint/Payne's gray plus local complement."
+    "Lighting: diffuse natural daylight with soft directional feel; subtle atmospheric haze; "
+    "soft shadows; controlled highlights; calm mood without dramatic 'god rays' or extreme backlight."
 )
