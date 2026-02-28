@@ -72,6 +72,7 @@ def build_raw_lines(
 ) -> List[SubtitleLine]:
     """Converteer *tokens* naar voorlopige :class:`SubtitleLine`-objecten."""
     strong_punct = strong_punct or STRONG_PUNCT
+    token_list = list(tokens)
 
     lines: List[SubtitleLine] = []
     buffer = ""
@@ -94,7 +95,7 @@ def build_raw_lines(
         start_time = None
         end_time = None
 
-    for tok in tokens:
+    for idx, tok in enumerate(token_list):
         typ = tok["type"]
         val = str(tok.get("value", ""))
         val_strip = val.strip()
@@ -135,12 +136,29 @@ def build_raw_lines(
         # --------------------------------------------------------------
         # 3. Standaard flush-triggers
         # --------------------------------------------------------------
+        next_tok = token_list[idx + 1] if idx + 1 < len(token_list) else None
+        next_val = str(next_tok.get("value", "")).strip() if next_tok else ""
+        next_is_dot_punct = bool(
+            next_tok
+            and next_tok.get("type") == "punct"
+            and next_val.startswith(".")
+        )
+        is_ellipsis_prefix = typ == "punct" and val_strip == "." and next_is_dot_punct
+
+        is_multi_dot_punct = bool(val_strip) and set(val_strip) == {"."} and len(val_strip) > 1
+
         flush_now = (
             len(buffer) >= max_chars
             or (
                 typ == "punct"
                 and val_strip
-                and (val_strip in strong_punct or "\n" in val)
+                and (
+                    (
+                        ((val_strip in strong_punct) and not is_ellipsis_prefix)
+                        or is_multi_dot_punct
+                    )
+                    or "\n" in val
+                )
             )
         )
         if flush_now:
