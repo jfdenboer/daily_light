@@ -218,7 +218,7 @@ class Settings(BaseSettings):
     image_model: Literal["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"] = (
         "gpt-image-1.5"
     )
-    image_size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1024x1024"
+    image_size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1536x1024"
     image_quality: Literal["low", "medium", "high", "auto"] = "low"
     image_background: Literal["transparent", "opaque", "auto"] = "opaque"
     image_max_retries: int = Field(3, ge=0)
