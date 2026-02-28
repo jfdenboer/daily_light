@@ -112,7 +112,6 @@ def generate_onscreen_hook(reading: str) -> str:
         response = client.responses.create(
             model=MODEL,
             temperature=0.9,
-            reasoning={"effort": "low"},
             max_output_tokens=30,
             input=[
                 {
