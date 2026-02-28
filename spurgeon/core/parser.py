@@ -16,6 +16,7 @@ Key features:
 """
 
 import calendar
+import codecs
 import logging
 import re
 from datetime import date, datetime
@@ -104,6 +105,10 @@ class Parser:
             raw = self._normalise(self._decode_escaped_linebreaks(raw_text))
             matches = list(self.header_pattern.finditer(raw))
 
+        if not matches and self._looks_unicode_escaped(raw_text):
+            raw = self._normalise(self._decode_unicode_escapes(raw_text))
+            matches = list(self.header_pattern.finditer(raw))
+
         if not matches:
             ctx = f" ({source_name})" if source_name else ""
             first_line = raw.split("\n", 1)[0][:120] if raw else "<empty input>"
@@ -164,6 +169,18 @@ class Parser:
     def _decode_escaped_linebreaks(text: str) -> str:
         """Decode literal escape sequences that are often produced by copied JSON strings."""
         return text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n")
+
+    @staticmethod
+    def _looks_unicode_escaped(text: str) -> bool:
+        return any(token in text for token in ("\\u", "\\x", "\\U", "\\N{"))
+
+    @staticmethod
+    def _decode_unicode_escapes(text: str) -> str:
+        """Best-effort decoding for strings that contain literal unicode escape sequences."""
+        try:
+            return codecs.decode(text, "unicode_escape")
+        except Exception:
+            return text
 
     def _normalise(self, text: str) -> str:
         text = _INVISIBLE_SEPARATOR_PATTERN.sub("", text)
