@@ -170,9 +170,15 @@ def _prepare_render_artifacts(
             short_video.name,
         )
     else:
-        audio_path = tts.synthesize(reading)
-        words_srt_path = aligner.align(reading.slug, reading.text, audio_path)
-        build_subtitles(reading, settings=settings)
+        synthesis = tts.synthesize_for_video(reading)
+        words_srt_path = aligner.align(reading.slug, reading.text, synthesis.narration_audio_path)
+        build_subtitles(
+            reading,
+            settings=settings,
+            initial_offset_seconds=synthesis.intro_duration_seconds,
+            overwrite=True,
+        )
+        audio_path = synthesis.final_audio_path
 
         assets_raw: List[RawAsset] = []
         duration = _words_srt_duration_seconds(words_srt_path)
