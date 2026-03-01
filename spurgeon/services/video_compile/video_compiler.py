@@ -10,7 +10,7 @@ import subprocess
 import time
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
@@ -503,6 +503,68 @@ class VideoCompiler:
             f"[0:v][viz]overlay=x=W-w-{margin_right}:y={margin_top}[v0]"
         )
 
+    def _reading_start_seconds_from_srt(self, srt_path: Path) -> float:
+        raw = srt_path.read_text(encoding="utf-8").strip()
+        if not raw:
+            return 0.0
+
+        for block in raw.split("\n\n"):
+            rows = [row.strip() for row in block.splitlines() if row.strip()]
+            if len(rows) < 2:
+                continue
+            if "-->" not in rows[1]:
+                continue
+            start_raw = rows[1].split("-->", 1)[0].strip()
+            try:
+                hours_str, minutes_str, rest = start_raw.split(":")
+                if "," in rest:
+                    seconds_str, millis_str = rest.split(",", 1)
+                else:
+                    seconds_str, millis_str = rest, "0"
+                delta = timedelta(
+                    hours=int(hours_str),
+                    minutes=int(minutes_str),
+                    seconds=int(seconds_str),
+                    milliseconds=int(millis_str.ljust(3, "0")[:3]),
+                )
+            except (TypeError, ValueError):
+                continue
+            return delta.total_seconds()
+        return 0.0
+
+    def build_reading_card_filters(self, reading_start: float) -> str:
+        if not bool(getattr(self.settings, "reading_card_enabled", True)):
+            return ""
+
+        width_ratio = float(getattr(self.settings, "reading_card_width_ratio", 0.74))
+        height_ratio = float(getattr(self.settings, "reading_card_height_ratio", 0.40))
+        alpha = float(getattr(self.settings, "reading_card_alpha", 0.65))
+        shadow_offset = int(getattr(self.settings, "reading_card_shadow_offset", 6))
+        shadow_alpha = float(getattr(self.settings, "reading_card_shadow_alpha", 0.18))
+
+        enable_expr = f"gte(t,{reading_start:.3f})"
+        shadow_box = (
+            "drawbox="
+            f"x=(w-w*{width_ratio:.4f})/2+{shadow_offset}:"
+            f"y=(h-h*{height_ratio:.4f})/2+{shadow_offset}:"
+            f"w=w*{width_ratio:.4f}:"
+            f"h=h*{height_ratio:.4f}:"
+            f"color=0x000000@{shadow_alpha:.2f}:"
+            "t=fill:"
+            f"enable='{enable_expr}'"
+        )
+        main_box = (
+            "drawbox="
+            f"x=(w-w*{width_ratio:.4f})/2:"
+            f"y=(h-h*{height_ratio:.4f})/2:"
+            f"w=w*{width_ratio:.4f}:"
+            f"h=h*{height_ratio:.4f}:"
+            f"color=0xF3EBDD@{alpha:.2f}:"
+            "t=fill:"
+            f"enable='{enable_expr}'"
+        )
+        return f"{shadow_box},{main_box}"
+
     def burn_subtitles(
         self,
         av_path: Path,
@@ -534,11 +596,17 @@ class VideoCompiler:
         subtitles_filter = (
             f"subtitles='{ass_path_escaped}':force_style='LineSpacing={line_spacing}'"
         )
+        reading_start_seconds = self._reading_start_seconds_from_srt(srt_path)
+        reading_card_filters = self.build_reading_card_filters(reading_start_seconds)
+        if reading_card_filters:
+            subtitles_filter = f"{reading_card_filters},{subtitles_filter}"
         _log(
             logging.INFO,
-            "Rendering subtitles from %s with LineSpacing=%spx",
+            "Rendering subtitles from %s with LineSpacing=%spx (reading card %s at t>=%.3fs)",
             ass_path,
             line_spacing,
+            "enabled" if bool(reading_card_filters) else "disabled",
+            reading_start_seconds,
         )
 
         visualizer_fg = self._wide_visualizer_filtergraph(variant)
