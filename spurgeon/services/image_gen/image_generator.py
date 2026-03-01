@@ -30,42 +30,42 @@ logger = logging.getLogger(__name__)
 
 STYLE_LINE = (
     "Style: modern cinematic stillframe; naturalistic realism with a calm, contemplative mood; "
-    "soft focus with gentle bloom (not blurry overall); subtle film-like grain (not digital noise); matte finish; natural textures with slight imperfections; "
-    "avoid hyper-clarity, micro-contrast, and overly crisp detail; no illustration/paper/paint look; "
-    "no CGI/3D/glossy rendering; avoid HDR."
+    "subtle highlight bloom/halation (not overall blur); subject remains crisp and readable; "
+    "fine, subtle film-like grain (avoid digital noise or speckling); matte finish; natural materials with slight imperfections; "
+    "avoid hyper-clarity, micro-contrast, crunchy edges, sharpening halos, heavy vignettes, and HDR; "
+    "no illustration/paper/paint look; no CGI/3D/glossy rendering."
 )
 
 BACKGROUND_LINE = (
-    "Setting: cinematic environment chosen to best match the scene concept—either a broad outdoor landscape OR a quiet window-lit interior; "
-    "uncluttered but not empty; believable and not staged; "
-    "push fine detail toward edges/foreground and keep the center calm; "
+    "Setting: outdoor environment with depth and atmosphere; believable and not staged; uncluttered but not empty; "
+    "use landforms and broad shapes (rock, coast, dunes, hills, snow, water, weathered stone/wood) more than foliage; "
+    "subtle haze for distance separation; keep the central band simple and low-detail; "
+    "avoid prominent flowers, close foliage, or branches framing the scene; "
     "no studio backdrops; no vintage/sepia/antique cues."
 )
 
 COMPOSITION_LINE = (
-    "Composition: 16:9 wide; one clear focal subject slightly off-center; strong depth (foreground/midground/background) with minimal elements; "
-    "keep a calm, low-contrast horizontal band across the center for a single subtitle line; "
-    "avoid tight crops, edge tangents, and competing focal points; readable at a glance."
+    "Composition: 16:9 wide; one clear focal subject placed off-center; strong depth (foreground/midground/background) with minimal elements; "
+    "reserve a calm, low-contrast horizontal subtitle safe-zone across the center (no key subject, no high-detail edges, no busy textures); "
+    "avoid tight crops, edge tangents, horizon lines cutting through the subtitle zone, and competing focal points; readable at a glance."
 )
 
 CONSTRAINTS_LINE = (
-    "Constraints: no visible text, captions, lettering, watermarks, logos, readable signage, icons, or emblems; "
-    "no identifiable people—if humans appear, they must be tiny distant silhouettes with no faces; "
-    "avoid neon colors, oversharpening, repeating patterns, noise, and high-frequency texture behind the subtitle area."
+    "Constraints: no visible text, captions, lettering, numbers, pseudo-text, watermarks, logos, readable signage, icons, emblems, frames, or UI overlays; "
+    "prefer no people—if humans appear, they must be extremely small distant silhouettes with no faces or identifiable features; "
+    "avoid neon colors, oversharpening, repeating patterns, banding in skies/gradients, and high-frequency texture behind the subtitle area."
 )
 
 PALETTE_LINE = (
-    "Color grade: warm-neutral cinematic palette with restrained saturation; "
-    "outdoors: natural greens/blues/earth tones; indoors: warm grays, soft off-whites, muted wood/linen neutrals; "
-    "gentle contrast with clean highlights and soft shadows, with subtle warm highlight accents (no orange cast); "
-    "avoid yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
+    "Color grade: warm-neutral cinematic palette with restrained saturation; natural earth/stone/sky/water tones; "
+    "gentle contrast with clean highlights and soft shadows, subtle warm highlight accents (no orange cast); "
+    "avoid overly lush greens, yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
 )
 
 LIGHTING_LINE = (
-    "Lighting: soft natural daylight with gentle direction—overcast outdoor light or diffused window light indoors; "
-    "subtle atmospheric haze outdoors or gentle light falloff indoors; "
-    "soft shadows; controlled highlights; soft but dimensional separation between subject and background; "
-    "calm mood without dramatic 'god rays' or extreme backlight."
+    "Lighting: soft overcast daylight with gentle direction; occasional subtle brightening for luminous highlights (no visible rays/beams); "
+    "subtle atmospheric haze; soft shadows; controlled highlights; gentle subject-background separation without extreme backlight; "
+    "calm mood—no dramatic 'god rays' or harsh spotlighting."
 )
 
 
