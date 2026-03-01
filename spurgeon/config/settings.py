@@ -86,6 +86,12 @@ class Settings(BaseSettings):
     elevenlabs_allow_pcm_chunk_join: bool = Field(True)
     elevenlabs_streaming: bool = Field(False)
 
+    # Intro audio
+    intro_enabled: bool = Field(True)
+    intro_pause_between_ms: int = Field(450, ge=0)
+    intro_pause_after_credit_ms: int = Field(350, ge=0)
+    intro_fail_open: bool = Field(True)
+
     elevenlabs_supported_output_formats: ClassVar[set[str]] = {
         "mp3_22050_32",
         "mp3_44100_32",
