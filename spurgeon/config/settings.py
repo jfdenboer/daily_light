@@ -198,6 +198,12 @@ class Settings(BaseSettings):
     video_visualizer_margin_right: int = Field(40, gt=0)
     video_visualizer_ascale: str = Field("log", min_length=1)
     video_visualizer_fscale: str = Field("log", min_length=1)
+    reading_card_enabled: bool = Field(True)
+    reading_card_width_ratio: float = Field(0.74, gt=0.0, le=1.0)
+    reading_card_height_ratio: float = Field(0.40, gt=0.0, le=1.0)
+    reading_card_alpha: float = Field(0.65, ge=0.0, le=1.0)
+    reading_card_shadow_offset: int = Field(6, ge=0)
+    reading_card_shadow_alpha: float = Field(0.18, ge=0.0, le=1.0)
 
     # Subtitles (legacy defaults)
     srt_max_chars: int = Field(22, gt=0)
@@ -215,30 +221,30 @@ class Settings(BaseSettings):
     subtitle_size_wide: int = Field(84, gt=0)
     subtitle_style_extra_wide: str = (
         "WrapStyle=2,"
-        "PrimaryColour=&H00FFFFFF,"
-        "OutlineColour=&H00000000,"  # volledig opaak zwart voor maximale contrast
+        "PrimaryColour=&H00171A1C,"
+        "OutlineColour=&H00000000,"
         "BorderStyle=1,"
-        "Outline=2,"
+        "Outline=0,"
         "Shadow=0,"
-        "Alignment=2,"
+        "Alignment=5,"
         "MarginV=0,"
-        "MarginL=120,"
-        "MarginR=120"
+        "MarginL=350,"
+        "MarginR=350"
     )
 
     subtitle_font_short: str = Field("Inter", min_length=1)
     subtitle_size_short: int = Field(84, gt=0)
     subtitle_style_extra_short: str = (
         "WrapStyle=2,"
-        "PrimaryColour=&H00FFFFFF,"
+        "PrimaryColour=&H00171A1C,"
         "OutlineColour=&H00000000,"
         "BorderStyle=1,"
-        "Outline=2,"
+        "Outline=0,"
         "Shadow=0,"
-        "Alignment=2,"
+        "Alignment=5,"
         "MarginV=0,"
-        "MarginL=100,"
-        "MarginR=100"
+        "MarginL=350,"
+        "MarginR=350"
     )
 
     # Opschonen
