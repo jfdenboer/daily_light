@@ -108,7 +108,7 @@ class SpeechSynthesizer:
         intro_dir = self.output_dir / "intro"
         intro_dir.mkdir(parents=True, exist_ok=True)
 
-        hook_text = generate_spoken_hook(reading.text)
+        hook_text = generate_spoken_hook(reading.text, self.settings)
         if not hook_text:
             raise SpokenHookValidationError("empty_hook")
         credit_text = generate_credit_line()
