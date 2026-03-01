@@ -89,8 +89,9 @@ class Settings(BaseSettings):
     # Intro audio
     intro_enabled: bool = Field(True)
     intro_cache_enabled: bool = Field(True)
-    intro_pause_between_ms: int = Field(450, ge=0)
-    intro_pause_after_credit_ms: int = Field(350, ge=0)
+    intro_pause_pre_intro_ms: int = Field(120, ge=0)
+    intro_pause_between_ms: int = Field(550, ge=0)
+    intro_pause_after_credit_ms: int = Field(550, ge=0)
     intro_fail_open: bool = Field(True)
     intro_hook_fail_strategy: Literal["credit_only", "skip_intro", "raise"] = Field(
         "credit_only"
