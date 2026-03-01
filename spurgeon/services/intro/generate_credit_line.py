@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 
 CREDIT_LINE: Final[str] = (
-    "You’re listening to the devotional: Daily Light on the Daily Path. By Samuel Bagster."
+    "You’re listening to the devotional: Daily Light on the Daily Path, by Samuel Bagster."
 )
 
 
