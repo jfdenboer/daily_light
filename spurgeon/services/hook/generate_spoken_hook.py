@@ -33,8 +33,12 @@ INVALID_CHAR_PATTERN: Final[re.Pattern[str]] = re.compile(r"[^A-Za-z0-9\s'’,.?
 FORBIDDEN_PUNCTUATION_PATTERN: Final[re.Pattern[str]] = re.compile(r"[\"“”\-–—:;()\[\]{}<>]")
 BANNED_SINGLE_WORDS: Final[set[str]] = {"shocking", "insane", "unbelievable", "crazy"}
 BANNED_PHRASE: Final[str] = "you wont believe"
+APOSTROPHE_OUTSIDE_WORD_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"(?<![A-Za-z0-9])['’]|['’](?![A-Za-z0-9])"
+)
+YEAR_PATTERN: Final[re.Pattern[str]] = re.compile(r"\b(1[5-9]\d{2}|20\d{2})\b")
 FORBIDDEN_TERMS_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"\b(author|title|year|chapter|public\s+domain)\b", re.IGNORECASE
+    r"\b(author|title|chapter|public\s+domain)\b", re.IGNORECASE
 )
 
 
@@ -89,6 +93,12 @@ def _extract_response_text(response: object) -> str:
     return ""
 
 
+def _normalize_for_phrase_check(text: str) -> str:
+    normalized = text.lower().replace("'", "").replace("’", "")
+    normalized = re.sub(r"[^a-z0-9\s]+", " ", normalized)
+    return " ".join(normalized.split())
+
+
 def _validate_hook(hook: str) -> None:
     words = WORD_PATTERN.findall(hook)
     if not 8 <= len(words) <= 14:
@@ -97,6 +107,9 @@ def _validate_hook(hook: str) -> None:
     if INVALID_CHAR_PATTERN.search(hook) or FORBIDDEN_PUNCTUATION_PATTERN.search(hook):
         raise SpokenHookValidationError("contains_forbidden_characters_or_punctuation")
 
+    if APOSTROPHE_OUTSIDE_WORD_PATTERN.search(hook):
+        raise SpokenHookValidationError("apostrophe_outside_word")
+
     terminators = [char for char in hook if char in ".?!"]
     if len(terminators) > 1:
         raise SpokenHookValidationError("multiple_sentences_detected")
@@ -104,7 +117,7 @@ def _validate_hook(hook: str) -> None:
         raise SpokenHookValidationError("sentence_terminator_must_be_final_character")
 
     lowered = hook.lower()
-    normalized_text = lowered.replace("'", "").replace("’", "")
+    normalized_phrase_text = _normalize_for_phrase_check(hook)
     normalized_words = [
         token.replace("'", "").replace("’", "").lower() for token in WORD_PATTERN.findall(hook)
     ]
@@ -112,8 +125,11 @@ def _validate_hook(hook: str) -> None:
     if any(word in BANNED_SINGLE_WORDS for word in normalized_words):
         raise SpokenHookValidationError("contains_blacklisted_word")
 
-    if BANNED_PHRASE in normalized_text:
+    if re.search(r"\byou wont believe\b", normalized_phrase_text):
         raise SpokenHookValidationError("contains_blacklisted_phrase")
+
+    if YEAR_PATTERN.search(hook):
+        raise SpokenHookValidationError("contains_year_number")
 
     if FORBIDDEN_TERMS_PATTERN.search(lowered):
         raise SpokenHookValidationError("contains_forbidden_mentions")
