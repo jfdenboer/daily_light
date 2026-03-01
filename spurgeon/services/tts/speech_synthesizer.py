@@ -24,6 +24,7 @@ class SynthesisResult:
     final_audio_path: Path
     narration_audio_path: Path
     intro_duration_seconds: float = 0.0
+    intro_status: str = "skipped"
 
 
 class SpeechSynthesizer:
@@ -46,18 +47,45 @@ class SpeechSynthesizer:
         narration_audio = self._synthesize_reading_audio(reading, narration_path, force=force)
         if not getattr(self.settings, "intro_enabled", True):
             self._copy_file(narration_audio, final_path)
-            return SynthesisResult(final_path, narration_audio, 0.0)
+            return SynthesisResult(final_path, narration_audio, 0.0, "disabled")
 
         try:
             intro_path, intro_duration = self._build_intro_audio(reading, force=force)
             self._concat_audio_files([intro_path, narration_audio], final_path)
-            return SynthesisResult(final_path, narration_audio, intro_duration)
+            return SynthesisResult(final_path, narration_audio, intro_duration, "full_intro")
+        except SpokenHookValidationError as exc:
+            strategy = getattr(self.settings, "intro_hook_fail_strategy", "credit_only")
+            if strategy == "raise":
+                raise
+            if strategy == "skip_intro":
+                logger.warning(
+                    "Hook generation failed for %s; skipping intro (%s)",
+                    reading.slug,
+                    exc,
+                )
+                self._copy_file(narration_audio, final_path)
+                return SynthesisResult(final_path, narration_audio, 0.0, "hook_failed_skip")
+
+            try:
+                intro_path, intro_duration = self._build_credit_only_intro_audio(reading, force=force)
+                self._concat_audio_files([intro_path, narration_audio], final_path)
+                return SynthesisResult(final_path, narration_audio, intro_duration, "credit_only")
+            except Exception as fallback_exc:
+                if not getattr(self.settings, "intro_fail_open", True):
+                    raise
+                logger.warning(
+                    "Credit-only intro fallback failed for %s; using narration only (%s)",
+                    reading.slug,
+                    fallback_exc,
+                )
+                self._copy_file(narration_audio, final_path)
+                return SynthesisResult(final_path, narration_audio, 0.0, "hook_failed_open")
         except Exception as exc:
             if not getattr(self.settings, "intro_fail_open", True):
                 raise
             logger.warning("Intro generation failed for %s; fallback to narration (%s)", reading.slug, exc)
             self._copy_file(narration_audio, final_path)
-            return SynthesisResult(final_path, narration_audio, 0.0)
+            return SynthesisResult(final_path, narration_audio, 0.0, "intro_failed_open")
 
     def _copy_file(self, source: Path, destination: Path) -> None:
         if source == destination:
@@ -106,8 +134,29 @@ class SpeechSynthesizer:
         self._concat_audio_files([hook_path, pause1_path, credit_path, pause2_path], intro_path)
         return intro_path, self._probe_duration_seconds(intro_path)
 
+
+    def _build_credit_only_intro_audio(self, reading: Reading, *, force: bool) -> tuple[Path, float]:
+        output_extension = self.settings.elevenlabs_audio_extension
+        intro_dir = self.output_dir / "intro"
+        intro_dir.mkdir(parents=True, exist_ok=True)
+
+        credit_text = generate_credit_line()
+        credit_path = intro_dir / f"{reading.slug}_credit{output_extension}"
+        pause2_path = intro_dir / f"{reading.slug}_pause2{output_extension}"
+        intro_path = intro_dir / f"{reading.slug}_intro_credit_only{output_extension}"
+
+        self._synthesize_plain_text(credit_text, credit_path, force=force)
+        self._generate_silence(
+            pause2_path,
+            duration_ms=int(getattr(self.settings, "intro_pause_after_credit_ms", 350)),
+            force=force,
+        )
+        self._concat_audio_files([credit_path, pause2_path], intro_path)
+        return intro_path, self._probe_duration_seconds(intro_path)
+
     def _synthesize_plain_text(self, text: str, out_path: Path, *, force: bool) -> Path:
-        if out_path.exists() and not force:
+        cache_enabled = bool(getattr(self.settings, "intro_cache_enabled", True))
+        if out_path.exists() and not force and cache_enabled:
             return out_path
         tmp_path = out_path.with_suffix(f"{out_path.suffix}.tmp")
         tmp_path.write_bytes(self._synthesize_text(text))
@@ -115,7 +164,8 @@ class SpeechSynthesizer:
         return out_path
 
     def _generate_silence(self, out_path: Path, *, duration_ms: int, force: bool) -> Path:
-        if out_path.exists() and not force:
+        cache_enabled = bool(getattr(self.settings, "intro_cache_enabled", True))
+        if out_path.exists() and not force and cache_enabled:
             return out_path
         duration = max(duration_ms, 0) / 1000
         format_info = parse_output_format(self.settings.elevenlabs_output_format)
