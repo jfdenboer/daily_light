@@ -18,28 +18,19 @@ Hard rules:
 - English. Exactly one sentence. 8–14 words (prefer 11–13).
 - Simple punctuation ok (commas ok). No quotes or dashes.
 - Do not quote the reading or reuse distinctive phrases from it.
-- Do not reuse any 2–3 word sequence from the examples below.
+- Do not copy 3+ consecutive words from the reading.
 - Avoid clickbait: shocking, insane, unbelievable, crazy, you wont believe.
 - Avoid vague/generic words: inspiring, powerful, profound, timeless, beautiful, lesson, truth, message, excerpt.
+- Avoid meta references: passage, reading, line, quote.
 - Output only the sentence, single line.
 
 Quality targets:
-- Create an open loop (curiosity) without spoilers.
+- Create an open loop without spoilers: do not reveal the outcome or resolution.
 - Make it viewer-relevant; prefer you/your when it fits.
 - Use a concrete tension (cost, choice, turning point), not general motivation.
-
-Style anchors (structure only, do not copy wording):
-Mirror: If you have ever felt envy, you know how it drains joy.
-Paradox: What feels like strength can quietly become its own weakness.
-Promise: One line here reframes how you see patience under pressure.
-Question: When fear sounds reasonable, how do you tell it is still fear?
-Stakes: Before you decide today, listen for the moment that matters most.
-Time travel: A familiar habit, named sharply, long before our modern excuses.
-Contrarian: We praise bluntness, but it can be anger with better posture.
-Sensory: This lands like cold air, and it wakes you up fast.
+- Use concrete verbs (e.g., costs, exposes, reveals, turns, traps, tempts, breaks, steadies).
 
 Silent process:
-- Pick ONE anchor that best fits the reading and follow its structure.
 - Silently generate 5 distinct candidates.
 - Silently score them for curiosity, relevance, concreteness, and rule compliance.
 - Output only the top-scoring hook.
