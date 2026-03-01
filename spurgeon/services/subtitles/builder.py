@@ -129,6 +129,17 @@ def _load_existing_srt(path: Path) -> List[SubtitleLine]:
     return subtitle_lines
 
 
+
+
+def _apply_offset(lines: List[SubtitleLine], *, offset_seconds: float) -> List[SubtitleLine]:
+    if offset_seconds <= 0:
+        return lines
+    offset = timedelta(seconds=offset_seconds)
+    return [
+        SubtitleLine(start=line.start + offset, end=line.end + offset, text=line.text)
+        for line in lines
+    ]
+
 def build_subtitle_lines_from_rev_json(
     reading: Reading,
     *,
@@ -173,6 +184,7 @@ def build_subtitles(
     *,
     overwrite: bool = False,
     settings: Optional[Settings] = None,
+    initial_offset_seconds: float = 0.0,
 ) -> List[SubtitleLine]:
     """Genereer (en schrijf) line‑based SRT voor *reading*.
 
@@ -187,6 +199,7 @@ def build_subtitles(
         return _load_existing_srt(srt_path)
 
     subs = build_subtitle_lines_from_rev_json(reading, settings=cfg)
+    subs = _apply_offset(subs, offset_seconds=initial_offset_seconds)
     write_srt_file(subs, srt_path)
     logger.info("%s: %d subtitle lines geschreven", srt_path.name, len(subs))
     return subs
