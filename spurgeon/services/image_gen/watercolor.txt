@@ -6,9 +6,9 @@ STYLE_LINE = (
 )
 
 BACKGROUND_LINE = (
-    "Setting: outdoor landscape with depth and atmosphere; uncluttered but not empty; believable and not staged; "
-    "subtle haze for distance separation; push fine detail toward edges/foreground and keep the center calm; "
-    "no studio backdrops; no vintage/sepia/antique cues."
+    "Setting: an open-air exterior environment with atmospheric depth; uncluttered but not empty; believable and not staged; "
+    "distant separation via haze; clear foreground/midground/background; keep the center calm; "
+    "avoid prominent foliage/flowers; no studio backdrops; no vintage cues."
 )
 
 COMPOSITION_LINE = (
@@ -35,4 +35,5 @@ LIGHTING_LINE = (
     "subtle atmospheric haze; soft shadows; controlled highlights; soft but dimensional separation between subject and background; "
     "calm mood without dramatic 'god rays' or extreme backlight."
 )
+
 
