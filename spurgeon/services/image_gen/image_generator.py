@@ -33,12 +33,13 @@ STYLE_LINE = (
     "subtle highlight bloom/halation (not overall blur); subject remains crisp and readable; "
     "fine, subtle film-like grain (avoid digital noise or speckling); matte finish; natural materials with slight imperfections; "
     "avoid hyper-clarity, micro-contrast, crunchy edges, sharpening halos, heavy vignettes, and HDR; "
+    "no smeary detail or heavy diffusion; "
     "no illustration/paper/paint look; no CGI/3D/glossy rendering."
 )
 
 BACKGROUND_LINE = (
     "Setting: outdoor environment with depth and atmosphere; believable and not staged; uncluttered but not empty; "
-    "use landforms and broad shapes (rock, coast, dunes, hills, snow, water, weathered stone/wood) more than foliage; "
+    "favor broad landforms and materials (rock, coast, dunes, hills, snow, water, weathered stone/wood) over foliage; "
     "subtle haze for distance separation; keep the central band simple and low-detail; "
     "avoid prominent flowers, close foliage, or branches framing the scene; "
     "no studio backdrops; no vintage/sepia/antique cues."
@@ -46,13 +47,15 @@ BACKGROUND_LINE = (
 
 COMPOSITION_LINE = (
     "Composition: 16:9 wide; one clear focal subject placed off-center; strong depth (foreground/midground/background) with minimal elements; "
-    "reserve a calm, low-contrast horizontal subtitle safe-zone across the center (no key subject, no high-detail edges, no busy textures); "
+    "reserve a calm, low-contrast horizontal subtitle safe-zone across the exact center (no key subject, no high-detail edges, no busy textures); "
+    "keep the focal subject clearly above or below the subtitle safe-zone; "
     "avoid tight crops, edge tangents, horizon lines cutting through the subtitle zone, and competing focal points; readable at a glance."
 )
 
 CONSTRAINTS_LINE = (
     "Constraints: no visible text, captions, lettering, numbers, pseudo-text, watermarks, logos, readable signage, icons, emblems, frames, or UI overlays; "
     "prefer no people—if humans appear, they must be extremely small distant silhouettes with no faces or identifiable features; "
+    "avoid exaggerated shallow depth-of-field, bokeh balls, or cut-out subject separation; "
     "avoid neon colors, oversharpening, repeating patterns, banding in skies/gradients, and high-frequency texture behind the subtitle area."
 )
 
@@ -65,6 +68,7 @@ PALETTE_LINE = (
 LIGHTING_LINE = (
     "Lighting: soft overcast daylight with gentle direction; occasional subtle brightening for luminous highlights (no visible rays/beams); "
     "subtle atmospheric haze; soft shadows; controlled highlights; gentle subject-background separation without extreme backlight; "
+    "maintain gentle shape definition on the subject (not flat); "
     "calm mood—no dramatic 'god rays' or harsh spotlighting."
 )
 
