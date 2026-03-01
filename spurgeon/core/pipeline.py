@@ -123,6 +123,28 @@ def _parse_srt_timestamp_to_seconds(value: str) -> float:
     return int(hours_str) * 3600 + int(minutes_str) * 60 + int(seconds_str) + millis / 1000
 
 
+
+
+def _audio_duration_seconds(audio_path: Path) -> float:
+    """Return total duration in seconds for an audio file."""
+
+    import subprocess
+
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        str(audio_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"Unable to read duration for {audio_path}: {result.stderr.strip()}")
+    return float(result.stdout.strip())
+
 def _words_srt_duration_seconds(words_srt_path: Path) -> float:
     """Return the end timestamp of the final words-SRT cue in seconds."""
 
@@ -171,6 +193,7 @@ def _prepare_render_artifacts(
         )
     else:
         synthesis = tts.synthesize_for_video(reading)
+        logger.info("%s: intro_status=%s intro_duration=%.3fs", reading.slug, synthesis.intro_status, synthesis.intro_duration_seconds)
         words_srt_path = aligner.align(reading.slug, reading.text, synthesis.narration_audio_path)
         build_subtitles(
             reading,
@@ -181,7 +204,7 @@ def _prepare_render_artifacts(
         audio_path = synthesis.final_audio_path
 
         assets_raw: List[RawAsset] = []
-        duration = _words_srt_duration_seconds(words_srt_path)
+        duration = _audio_duration_seconds(audio_path)
         single_asset = img_gen.generate_single_image_for_reading(reading, duration=duration)
         if single_asset is not None and single_asset[0].exists():
             assets_raw.append(single_asset)
