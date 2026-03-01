@@ -6,6 +6,7 @@ import re
 from typing import Final
 
 from openai import OpenAI
+from spurgeon.config.settings import Settings
 
 DEVELOPER_MESSAGE: Final[str] = """You are a YouTube hook copywriter for 2-minute public-domain literature clips.
 
@@ -135,10 +136,10 @@ def _validate_hook(hook: str) -> None:
         raise SpokenHookValidationError("contains_forbidden_mentions")
 
 
-def generate_spoken_hook(reading: str) -> str:
+def generate_spoken_hook(reading: str, settings: Settings) -> str:
     """Return a validated spoken hook string for the supplied reading text."""
 
-    client = OpenAI()
+    client = OpenAI(api_key=settings.openai_api_key)
     last_reason: str | None = None
 
     for _ in range(MAX_ATTEMPTS):
