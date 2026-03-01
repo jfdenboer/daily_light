@@ -115,6 +115,7 @@ class SpeechSynthesizer:
 
         hook_path = intro_dir / f"{reading.slug}_hook{output_extension}"
         credit_path = intro_dir / f"{reading.slug}_credit{output_extension}"
+        pause0_path = intro_dir / f"{reading.slug}_pause0{output_extension}"
         pause1_path = intro_dir / f"{reading.slug}_pause1{output_extension}"
         pause2_path = intro_dir / f"{reading.slug}_pause2{output_extension}"
         intro_path = intro_dir / f"{reading.slug}_intro{output_extension}"
@@ -122,16 +123,21 @@ class SpeechSynthesizer:
         self._synthesize_plain_text(hook_text, hook_path, force=force)
         self._synthesize_plain_text(credit_text, credit_path, force=force)
         self._generate_silence(
+            pause0_path,
+            duration_ms=int(getattr(self.settings, "intro_pause_pre_intro_ms", 120)),
+            force=force,
+        )
+        self._generate_silence(
             pause1_path,
-            duration_ms=int(getattr(self.settings, "intro_pause_between_ms", 450)),
+            duration_ms=int(getattr(self.settings, "intro_pause_between_ms", 550)),
             force=force,
         )
         self._generate_silence(
             pause2_path,
-            duration_ms=int(getattr(self.settings, "intro_pause_after_credit_ms", 350)),
+            duration_ms=int(getattr(self.settings, "intro_pause_after_credit_ms", 550)),
             force=force,
         )
-        self._concat_audio_files([hook_path, pause1_path, credit_path, pause2_path], intro_path)
+        self._concat_audio_files([pause0_path, hook_path, pause1_path, credit_path, pause2_path], intro_path)
         return intro_path, self._probe_duration_seconds(intro_path)
 
 
@@ -142,16 +148,22 @@ class SpeechSynthesizer:
 
         credit_text = generate_credit_line()
         credit_path = intro_dir / f"{reading.slug}_credit{output_extension}"
+        pause0_path = intro_dir / f"{reading.slug}_pause0{output_extension}"
         pause2_path = intro_dir / f"{reading.slug}_pause2{output_extension}"
         intro_path = intro_dir / f"{reading.slug}_intro_credit_only{output_extension}"
 
         self._synthesize_plain_text(credit_text, credit_path, force=force)
         self._generate_silence(
-            pause2_path,
-            duration_ms=int(getattr(self.settings, "intro_pause_after_credit_ms", 350)),
+            pause0_path,
+            duration_ms=int(getattr(self.settings, "intro_pause_pre_intro_ms", 120)),
             force=force,
         )
-        self._concat_audio_files([credit_path, pause2_path], intro_path)
+        self._generate_silence(
+            pause2_path,
+            duration_ms=int(getattr(self.settings, "intro_pause_after_credit_ms", 550)),
+            force=force,
+        )
+        self._concat_audio_files([pause0_path, credit_path, pause2_path], intro_path)
         return intro_path, self._probe_duration_seconds(intro_path)
 
     def _synthesize_plain_text(self, text: str, out_path: Path, *, force: bool) -> Path:
