@@ -24,8 +24,9 @@ CONSTRAINTS_LINE = (
 )
 
 PALETTE_LINE = (
-    "Color grade: warm-neutral cinematic palette with restrained saturation; natural greens/blues/earth tones; "
-    "gentle contrast with clean highlights and soft shadows, with subtle warm highlight accents (no orange cast); "
+    "Color grade: warm-neutral cinematic palette with restrained saturation; "
+    "stone/sky/water/earth neutrals; gentle contrast with clean highlights and soft shadows; "
+    "subtle warm highlight accents (no orange cast); "
     "avoid yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
 )
 
@@ -34,3 +35,4 @@ LIGHTING_LINE = (
     "subtle atmospheric haze; soft shadows; controlled highlights; soft but dimensional separation between subject and background; "
     "calm mood without dramatic 'god rays' or extreme backlight."
 )
+
