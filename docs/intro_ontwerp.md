@@ -7,7 +7,7 @@ We voegen een **spraak-intro** toe aan elke video, bestaande uit:
 
 Vereisten:
 - Introtekst wordt omgezet naar audio via **ElevenLabs TTS**.
-- Audio-opbouw intro: `hook_audio + pause_audio1 + credit_audio + pause_audio2`.
+- Audio-opbouw intro: `pause_audio0 + hook_audio + pause_audio1 + credit_audio + pause_audio2`.
 - Tijdens de intro blijft het beeld **dezelfde image** die al voor de volledige video wordt gebruikt.
 - Intro gebruikt **dezelfde voice** als de reading.
 - **Geen subtitles tijdens intro**.
@@ -21,10 +21,11 @@ Per reading:
 3. Syntheseer twee spraaksegmenten met ElevenLabs in exact dezelfde voice/config als main narration:
    - `hook_audio`
    - `credit_audio`
-4. Genereer twee stiltesegmenten:
+4. Genereer drie stiltesegmenten:
+   - `pause_audio0` (micro-pause aan het begin van de intro)
    - `pause_audio1` (tussen hook en credit)
    - `pause_audio2` (na credit, vóór hoofdtekst)
-5. Concateneer: `hook_audio + pause_audio1 + credit_audio + pause_audio2` -> `intro_audio`.
+5. Concateneer: `pause_audio0 + hook_audio + pause_audio1 + credit_audio + pause_audio2` -> `intro_audio`.
 6. Syntheseer bestaande hoofdnarratie (`main_audio`) van `reading.text`.
 7. Concateneer `intro_audio + main_audio` -> `final_audio`.
 8. Gebruik `final_audio` voor alignment en videorendering.
@@ -39,7 +40,7 @@ Conceptueel nieuwe service die:
 - `hook` ophaalt via `generate_spoken_hook(reading.text)`.
 - `credit_line` ophaalt via `generate_credit_line()`.
 - TTS uitvoert voor hook + credit.
-- `pause_audio1` en `pause_audio2` genereert.
+- `pause_audio0`, `pause_audio1` en `pause_audio2` genereert.
 - Introsegmenten concateneert naar `intro_audio`.
 - Metadata teruggeeft, incl. totale `intro_duration`.
 
@@ -50,12 +51,13 @@ Er wordt **geen aparte intro-voice** gebruikt.
 
 ### 3) Pauzes: deterministisch en configureerbaar
 Pauzes worden expliciet als stiltebestanden gemaakt (FFmpeg `anullsrc`), niet via interpunctie.
-- `intro_pause_between_ms` voor `pause_audio1`.
+- `intro_pause_pre_intro_ms` voor `pause_audio0` (micro-pause, kort).
+- `intro_pause_between_ms` voor `pause_audio1` (iets langer dan voorheen).
 - `intro_pause_after_credit_ms` voor `pause_audio2`.
 
 ### 4) Audio samenvoegen
 Twee concat-stappen:
-1. Intro concat: `hook_audio + pause_audio1 + credit_audio + pause_audio2` -> `intro_audio`.
+1. Intro concat: `pause_audio0 + hook_audio + pause_audio1 + credit_audio + pause_audio2` -> `intro_audio`.
 2. Eindconcat: `intro_audio + main_audio` -> `final_audio`.
 
 Randvoorwaarde:
@@ -81,7 +83,8 @@ Geen extra intro-scene:
 
 ## Configuratievoorstel
 - `intro_enabled: bool = true`
-- `intro_pause_between_ms: int = 450`
+- `intro_pause_pre_intro_ms: int = 120`
+- `intro_pause_between_ms: int = 550`
 - `intro_pause_after_credit_ms: int = 350`
 - `intro_cache_enabled: bool = true`
 - `intro_fail_open: bool = true`
@@ -100,8 +103,10 @@ Let op:
 
 ## Acceptatiecriteria
 1. Intro is hoorbaar vóór de hoofdtekst.
-2. Introvolgorde is exact: `hook -> pause1 -> credit -> pause2`.
-3. Intro-voice is identiek aan reading-voice.
-4. Tijdens intro blijft exact dezelfde achtergrondimage zichtbaar.
-5. Geen subtitles tijdens intro; hoofdtekstsubtitles starten na intro-offset.
-6. Pipeline blijft bruikbaar bij introfouten volgens fail-open instelling.
+2. Intro start met een korte micro-pause (`pause0`) vóór de hook.
+3. Introvolgorde is exact: `pause0 -> hook -> pause1 -> credit -> pause2`.
+4. Pauze tussen hook en credit is merkbaar langer dan in het vorige ontwerp.
+5. Intro-voice is identiek aan reading-voice.
+6. Tijdens intro blijft exact dezelfde achtergrondimage zichtbaar.
+7. Geen subtitles tijdens intro; hoofdtekstsubtitles starten na intro-offset.
+8. Pipeline blijft bruikbaar bij introfouten volgens fail-open instelling.
