@@ -5,15 +5,25 @@ from __future__ import annotations
 import logging
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
 from spurgeon.config.settings import Settings
 from spurgeon.models import Reading
+from spurgeon.services.intro.generate_credit_line import generate_credit_line
+from spurgeon.services.intro.generate_spoken_hook import SpokenHookValidationError, generate_spoken_hook
 from spurgeon.services.tts.elevenlabs_tts_client import ElevenLabsTTSClient
 from spurgeon.services.tts.utils import OutputFormatInfo, chunk_text_for_v3, parse_output_format
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SynthesisResult:
+    final_audio_path: Path
+    narration_audio_path: Path
+    intro_duration_seconds: float = 0.0
 
 
 class SpeechSynthesizer:
@@ -25,65 +35,153 @@ class SpeechSynthesizer:
         self.output_dir = Path(output_dir) if output_dir else Path("output/audio")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(
-            "SpeechSynthesizer init: output_dir=%s voice_speed=%.2f format=%s",
-            self.output_dir,
-            self.settings.elevenlabs_voice_speed,
-            self.settings.elevenlabs_output_format,
-        )
-
     def synthesize(self, reading: Reading, force: bool = False) -> Path:
-        """Genereer een audiobestand voor de aangeleverde ``Reading``."""
+        return self.synthesize_for_video(reading, force=force).final_audio_path
 
+    def synthesize_for_video(self, reading: Reading, force: bool = False) -> SynthesisResult:
         output_extension = self.settings.elevenlabs_audio_extension
-        out_path = self.output_dir / f"{reading.slug}{output_extension}"
-        tmp_path = out_path.with_suffix(f"{output_extension}.tmp")
+        narration_path = self.output_dir / f"{reading.slug}_main{output_extension}"
+        final_path = self.output_dir / f"{reading.slug}{output_extension}"
 
-        if out_path.exists() and not force:
-            logger.info("Sla synthese over, audio-bestand bestaat al: %s", out_path)
-            return out_path
-
-        logger.info(
-            "Start TTS-synthese voor: %s (%s) – model=%s format=%s",
-            reading.slug,
-            reading.date,
-            self.settings.elevenlabs_model_id,
-            self.settings.elevenlabs_output_format,
-        )
-        snippet = reading.text.strip().replace("\n", " ")[:100]
-        logger.debug("Inputtekst (snippet): %s", snippet)
-
-        audio_bytes = self._synthesize_text(reading.text)
+        narration_audio = self._synthesize_reading_audio(reading, narration_path, force=force)
+        if not getattr(self.settings, "intro_enabled", True):
+            self._copy_file(narration_audio, final_path)
+            return SynthesisResult(final_path, narration_audio, 0.0)
 
         try:
-            tmp_path.write_bytes(audio_bytes)
-            tmp_path.replace(out_path)
-            size_kb = len(audio_bytes) / 1024
-            logger.info("Audio opgeslagen (%.2f kB): %s", size_kb, out_path)
-        except PermissionError as pe:  # pragma: no cover - passthrough
-            logger.error("Kan audio-bestand niet schrijven: %s (%s)", out_path, pe)
-            raise
-        except Exception as ex:  # pragma: no cover - unexpected I/O errors
-            logger.error("Onbekende fout bij schrijven audio-bestand: %s (%s)", out_path, ex)
-            raise
+            intro_path, intro_duration = self._build_intro_audio(reading, force=force)
+            self._concat_audio_files([intro_path, narration_audio], final_path)
+            return SynthesisResult(final_path, narration_audio, intro_duration)
+        except Exception as exc:
+            if not getattr(self.settings, "intro_fail_open", True):
+                raise
+            logger.warning("Intro generation failed for %s; fallback to narration (%s)", reading.slug, exc)
+            self._copy_file(narration_audio, final_path)
+            return SynthesisResult(final_path, narration_audio, 0.0)
 
+    def _copy_file(self, source: Path, destination: Path) -> None:
+        if source == destination:
+            return
+        tmp_path = destination.with_suffix(f"{destination.suffix}.tmp")
+        tmp_path.write_bytes(source.read_bytes())
+        tmp_path.replace(destination)
+
+    def _synthesize_reading_audio(self, reading: Reading, out_path: Path, *, force: bool) -> Path:
+        if out_path.exists() and not force:
+            return out_path
+        tmp_path = out_path.with_suffix(f"{out_path.suffix}.tmp")
+        audio_bytes = self._synthesize_text(reading.text)
+        tmp_path.write_bytes(audio_bytes)
+        tmp_path.replace(out_path)
         return out_path
 
-    # ------------------------------------------------------------------ #
-    # Interne helpers
-    # ------------------------------------------------------------------ #
+    def _build_intro_audio(self, reading: Reading, *, force: bool) -> tuple[Path, float]:
+        output_extension = self.settings.elevenlabs_audio_extension
+        intro_dir = self.output_dir / "intro"
+        intro_dir.mkdir(parents=True, exist_ok=True)
+
+        hook_text = generate_spoken_hook(reading.text)
+        if not hook_text:
+            raise SpokenHookValidationError("empty_hook")
+        credit_text = generate_credit_line()
+
+        hook_path = intro_dir / f"{reading.slug}_hook{output_extension}"
+        credit_path = intro_dir / f"{reading.slug}_credit{output_extension}"
+        pause1_path = intro_dir / f"{reading.slug}_pause1{output_extension}"
+        pause2_path = intro_dir / f"{reading.slug}_pause2{output_extension}"
+        intro_path = intro_dir / f"{reading.slug}_intro{output_extension}"
+
+        self._synthesize_plain_text(hook_text, hook_path, force=force)
+        self._synthesize_plain_text(credit_text, credit_path, force=force)
+        self._generate_silence(
+            pause1_path,
+            duration_ms=int(getattr(self.settings, "intro_pause_between_ms", 450)),
+            force=force,
+        )
+        self._generate_silence(
+            pause2_path,
+            duration_ms=int(getattr(self.settings, "intro_pause_after_credit_ms", 350)),
+            force=force,
+        )
+        self._concat_audio_files([hook_path, pause1_path, credit_path, pause2_path], intro_path)
+        return intro_path, self._probe_duration_seconds(intro_path)
+
+    def _synthesize_plain_text(self, text: str, out_path: Path, *, force: bool) -> Path:
+        if out_path.exists() and not force:
+            return out_path
+        tmp_path = out_path.with_suffix(f"{out_path.suffix}.tmp")
+        tmp_path.write_bytes(self._synthesize_text(text))
+        tmp_path.replace(out_path)
+        return out_path
+
+    def _generate_silence(self, out_path: Path, *, duration_ms: int, force: bool) -> Path:
+        if out_path.exists() and not force:
+            return out_path
+        duration = max(duration_ms, 0) / 1000
+        format_info = parse_output_format(self.settings.elevenlabs_output_format)
+        cmd = [
+            self.settings.ffmpeg_cmd,
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            f"anullsrc=r={format_info.sample_rate}:cl=mono",
+            "-t",
+            f"{duration:.3f}",
+        ]
+        cmd += self._ffmpeg_audio_args(format_info)
+        cmd.append(str(out_path))
+        self._run_ffmpeg(cmd)
+        return out_path
+
+    def _concat_audio_files(self, input_paths: Sequence[Path], out_path: Path) -> Path:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_dir = Path(tmpdir)
+            list_file = tmp_dir / "concat.txt"
+            list_file.write_text(
+                "\n".join(f"file '{p.resolve().as_posix()}'" for p in input_paths),
+                encoding="utf-8",
+            )
+            cmd = [
+                self.settings.ffmpeg_cmd,
+                "-y",
+                "-loglevel",
+                "error",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(list_file),
+                "-c",
+                "copy",
+                str(out_path),
+            ]
+            self._run_ffmpeg(cmd)
+        return out_path
+
+    def _probe_duration_seconds(self, audio_path: Path) -> float:
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(audio_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(f"Unable to read duration for {audio_path}: {result.stderr.strip()}")
+        return float(result.stdout.strip())
+
     def _synthesize_text(self, text: str) -> bytes:
         if not text.strip():
             raise ValueError("Lege tekst kan niet gesynthetiseerd worden")
 
         model_id = self.settings.elevenlabs_model_id
         format_info = parse_output_format(self.settings.elevenlabs_output_format)
-        logger.debug(
-            "TTS-config: model=%s format=%s sample_rate=%s",
-            model_id,
-            self.settings.elevenlabs_output_format,
-            format_info.sample_rate,
-        )
 
         if (
             self.settings.elevenlabs_enable_v3
@@ -96,18 +194,8 @@ class SpeechSynthesizer:
                 hard_limit=self.settings.elevenlabs_v3_max_chars,
                 target=target,
             )
-            logger.info(
-                "Gebruik chunking voor Eleven v3 (%d chunks, totaal %d karakters)",
-                len(chunks),
-                len(text),
-            )
             return self._synthesize_chunks(chunks, format_info)
 
-        logger.debug(
-            "Enkelvoudige synthese: model=%s chars=%d",
-            model_id,
-            len(text),
-        )
         return self.tts_client.synthesize(text)
 
     def _synthesize_chunks(
@@ -117,17 +205,9 @@ class SpeechSynthesizer:
     ) -> bytes:
         chunk_format_name = self._determine_chunk_format(final_format)
         chunk_format = parse_output_format(chunk_format_name)
-        logger.debug(
-            "Chunking met format=%s target_format=%s",
-            chunk_format_name,
-            self.settings.elevenlabs_output_format,
-        )
 
         chunk_audio: list[bytes] = []
-        for idx, chunk in enumerate(chunks, start=1):
-            logger.debug(
-                "Synthese chunk %d/%d (len=%d)", idx, len(chunks), len(chunk)
-            )
+        for chunk in chunks:
             data = self.tts_client.synthesize(
                 chunk,
                 output_format=chunk_format_name,
@@ -143,7 +223,6 @@ class SpeechSynthesizer:
         if chunk_format_name == self.settings.elevenlabs_output_format:
             return self._concat_chunks_ffmpeg(chunk_audio, final_format)
 
-        # Fallback: convert chunk format to final format via FFmpeg
         return self._convert_and_concat(chunk_audio, chunk_format, final_format)
 
     def _determine_chunk_format(self, final_format: OutputFormatInfo) -> str:
@@ -298,10 +377,8 @@ class SpeechSynthesizer:
         return ["-c", "copy"]
 
     def _run_ffmpeg(self, cmd: Sequence[str]) -> None:
-        logger.debug("FFmpeg command: %s", " ".join(cmd))
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if result.returncode != 0:
-            logger.error("FFmpeg failure: %s", result.stderr.strip())
             raise RuntimeError(
                 f"FFmpeg exited with status {result.returncode}: {result.stderr.strip()}"
             )
