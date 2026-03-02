@@ -195,12 +195,13 @@ class Settings(BaseSettings):
     video_zoom_wide_start: float = Field(1.0, gt=0.0)
     video_zoom_wide_end: float = Field(1.10, gt=0.0)
     video_visualizer_enabled: bool = Field(False)
-    video_visualizer_mode: str = Field("bar", min_length=1)
+    video_visualizer_mode: str = Field("quiet_wave_mini", min_length=1)
     video_visualizer_alpha: float = Field(0.70, ge=0.0, le=1.0)
     video_visualizer_width_wide: int = Field(640, gt=0)
     video_visualizer_height_wide: int = Field(180, gt=0)
     video_visualizer_margin_top: int = Field(40, gt=0)
     video_visualizer_margin_right: int = Field(40, gt=0)
+    video_visualizer_margin_bottom: int = Field(220, gt=0)
     video_visualizer_ascale: str = Field("log", min_length=1)
     video_visualizer_fscale: str = Field("log", min_length=1)
 
@@ -209,7 +210,7 @@ class Settings(BaseSettings):
     srt_hard_max_chars: int = Field(27, gt=0)
 
     subtitle_font: str = Field("Inter", min_length=1)
-    subtitle_size: int = Field(84, gt=0)  # fallback; varianten hieronder zijn leidend
+    subtitle_size: int = Field(86, gt=0)  # fallback; varianten hieronder zijn leidend
     subtitle_style_extra: str = ""  # fallback; varianten hieronder zijn leidend
     subtitle_line_spacing: int = Field(12)
     subtitle_line_spacing_wide: int = Field(12)
@@ -217,7 +218,7 @@ class Settings(BaseSettings):
 
     # Variant-specific subtitle styling
     subtitle_font_wide: str = Field("Inter", min_length=1)
-    subtitle_size_wide: int = Field(84, gt=0)
+    subtitle_size_wide: int = Field(86, gt=0)
     subtitle_style_extra_wide: str = (
         "WrapStyle=2,"
         "PrimaryColour=&H00FFFFFF,"
@@ -225,14 +226,14 @@ class Settings(BaseSettings):
         "BorderStyle=1,"
         "Outline=2,"
         "Shadow=0,"
-        "Alignment=2,"
+        "Alignment=5,"
         "MarginV=0,"
         "MarginL=120,"
         "MarginR=120"
     )
 
     subtitle_font_short: str = Field("Inter", min_length=1)
-    subtitle_size_short: int = Field(84, gt=0)
+    subtitle_size_short: int = Field(86, gt=0)
     subtitle_style_extra_short: str = (
         "WrapStyle=2,"
         "PrimaryColour=&H00FFFFFF,"
@@ -240,7 +241,7 @@ class Settings(BaseSettings):
         "BorderStyle=1,"
         "Outline=2,"
         "Shadow=0,"
-        "Alignment=2,"
+        "Alignment=5,"
         "MarginV=0,"
         "MarginL=100,"
         "MarginR=100"
