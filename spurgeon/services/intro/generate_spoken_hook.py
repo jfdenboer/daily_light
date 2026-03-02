@@ -545,6 +545,9 @@ def _log_hook_event(
     selected_candidate: str | None,
     selected_angle: str | None,
 ) -> None:
+    if not getattr(settings, "intro_telemetry_enabled", False):
+        return
+
     outcome = HookOutcome(
         status=outcome_status,
         selected_source=selected_source,
@@ -555,13 +558,16 @@ def _log_hook_event(
         model_generator=settings.hook_generator_model,
         model_judge=settings.hook_judge_model,
     )
-    append_hook_event(
-        settings.intro_telemetry_path,
-        reading_hash=reading_hash,
-        intent_card=intent_card,
-        candidate_stats=candidate_stats,
-        outcome=outcome,
-    )
+    try:
+        append_hook_event(
+            settings.intro_telemetry_path,
+            reading_hash=reading_hash,
+            intent_card=intent_card,
+            candidate_stats=candidate_stats,
+            outcome=outcome,
+        )
+    except OSError as exc:
+        logger.warning("hook_pipeline.telemetry_write_failed path=%s error=%s", settings.intro_telemetry_path, exc)
 
 
 _parse_tweaker_variants = parse_tweaker_variants
