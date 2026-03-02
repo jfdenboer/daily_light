@@ -98,6 +98,14 @@ class Settings(BaseSettings):
     hook_num_candidates: int = Field(10, ge=8, le=12)
     hook_tweaker_num_variants: int = Field(4, ge=3, le=6, env="HOOK_TWEAKER_NUM_VARIANTS")
     hook_tweaker_enabled: bool = Field(True, env="HOOK_TWEAKER_ENABLED")
+    hook_style_profile: Literal["control", "curiosity", "consequence"] = Field(
+        "control",
+        env="HOOK_STYLE_PROFILE",
+    )
+    intro_telemetry_path: Path = Field(
+        default_factory=lambda: Path("output") / "intro_telemetry" / "hook_events.jsonl",
+        env="INTRO_TELEMETRY_PATH",
+    )
     intro_pause_pre_intro_ms: int = Field(200, ge=0)
     intro_pause_between_ms: int = Field(420, ge=0)
     intro_pause_after_credit_ms: int = Field(320, ge=0)
