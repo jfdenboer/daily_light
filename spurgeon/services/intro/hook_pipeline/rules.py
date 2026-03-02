@@ -89,6 +89,18 @@ class HookScoreCard:
         )
 
 
+@dataclass(slots=True)
+class HookOutcome:
+    status: str
+    selected_source: str
+    selected_candidate: str | None
+    selected_angle: str | None
+    prompt_versions: dict[str, str]
+    style_profile: str
+    model_generator: str
+    model_judge: str
+
+
 def prepare_reading(reading: str) -> str:
     prepared = reading.strip()
     if len(prepared) > MAX_READING_CHARS:
@@ -349,6 +361,7 @@ __all__ = [
     "CandidateCheck",
     "IntentCard",
     "HookScoreCard",
+    "HookOutcome",
     "WORD_PATTERN",
     "prepare_reading",
     "normalize_hook_punctuation",
