@@ -117,6 +117,7 @@ class Settings(BaseSettings):
         default_factory=lambda: Path("output") / "intro_telemetry" / "hook_events.jsonl",
         env="INTRO_TELEMETRY_PATH",
     )
+    intro_telemetry_enabled: bool = Field(True, env="INTRO_TELEMETRY_ENABLED")
     intro_pause_pre_intro_ms: int = Field(200, ge=0)
     intro_pause_between_ms: int = Field(420, ge=0)
     intro_pause_after_credit_ms: int = Field(320, ge=0)
