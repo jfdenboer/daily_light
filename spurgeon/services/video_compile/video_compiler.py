@@ -475,12 +475,33 @@ class VideoCompiler:
         if variant.name != WIDE_VIDEO.name:
             return ""
 
+        mode = str(getattr(self.settings, "video_visualizer_mode", "quiet_wave_mini")).strip().lower()
+        alpha = float(getattr(self.settings, "video_visualizer_alpha", 0.70))
+
+        if mode == "quiet_wave_mini":
+            width = int(getattr(self.settings, "video_visualizer_width_wide", 220))
+            height = int(getattr(self.settings, "video_visualizer_height_wide", 36))
+            margin_bottom = int(getattr(self.settings, "video_visualizer_margin_bottom", 220))
+            _log(
+                logging.INFO,
+                "Audio visualizer active (wide-only): mode=%s size=%sx%s alpha=%.2f position=bottom-center margin_bottom=%s",
+                mode,
+                width,
+                height,
+                alpha,
+                margin_bottom,
+            )
+            return (
+                f"[0:a]aformat=channel_layouts=mono,"
+                f"showwaves=s={width}x{height}:mode=line:colors=0xF2F2EE:r={self.fps},"
+                f"format=rgba,colorchannelmixer=aa={alpha:.2f}[viz];"
+                f"[0:v][viz]overlay=x=(W-w)/2:y=H-h-{margin_bottom}[v0]"
+            )
+
         width = int(getattr(self.settings, "video_visualizer_width_wide", 640))
         height = int(getattr(self.settings, "video_visualizer_height_wide", 180))
         margin_top = int(getattr(self.settings, "video_visualizer_margin_top", 40))
         margin_right = int(getattr(self.settings, "video_visualizer_margin_right", 40))
-        mode = str(getattr(self.settings, "video_visualizer_mode", "bar")).strip().lower()
-        alpha = float(getattr(self.settings, "video_visualizer_alpha", 0.70))
         ascale = str(getattr(self.settings, "video_visualizer_ascale", "log")).strip()
         fscale = str(getattr(self.settings, "video_visualizer_fscale", "log")).strip()
 
