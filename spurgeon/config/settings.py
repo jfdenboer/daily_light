@@ -194,7 +194,8 @@ class Settings(BaseSettings):
     video_zoom_wide_enabled: bool = Field(True)
     video_zoom_wide_start: float = Field(1.0, gt=0.0)
     video_zoom_wide_end: float = Field(1.10, gt=0.0)
-    video_visualizer_enabled: bool = Field(False)
+    # Wide renders should show the audio visualizer unless explicitly disabled.
+    video_visualizer_enabled: bool = Field(True)
     video_visualizer_mode: str = Field("quiet_wave_mini", min_length=1)
     video_visualizer_alpha: float = Field(0.70, ge=0.0, le=1.0)
     video_visualizer_width_wide: int = Field(640, gt=0)
