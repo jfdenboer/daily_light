@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import Final
 
 PROMPT_VERSION_MAP: Final[dict[str, str]] = {
-    "hook_intent": "v1",
-    "hook_generate": "v2",
-    "hook_judge": "v1",
-    "hook_repair": "v1",
-    "hook_tweaker": "v1",
+    "hook_intent": "v2",
+    "hook_generate": "v3",
+    "hook_judge": "v2",
+    "hook_repair": "v2",
+    "hook_tweaker": "v2",
 }
 
 HOOK_STYLE_PROFILES: Final[dict[str, str]] = {
@@ -30,6 +30,9 @@ Return exactly four lines in this exact format:
 Rules:
 - English only.
 - Keep each value concise (max 12 words).
+- Avoid vague/generic values (e.g., inspiring, profound, lesson, truth, message).
+- Avoid meta references (passage, reading, line, quote, excerpt).
+- Avoid names/titles/chapters/years unless absolutely unavoidable from the reading.
 - No numbering variants beyond the required 1) to 4).
 - Output only these four lines.
 """
@@ -44,10 +47,11 @@ Use the supplied intent card and angle list.
 
 Hard rules:
 - English. One sentence. 8–14 words (prefer 11–13).
-- Simple punctuation ok (commas ok). No quotes or dashes.
+- Simple punctuation ok (commas ok). No quotes. No hyphen-minus '-' and no em/en dashes '—' or '–'.
+- Do not mention author, title, chapter, public domain, or any 4-digit year.
 - Do not quote the reading or reuse distinctive phrases from it.
-- Avoid clickbait: shocking, insane, unbelievable, crazy, you wont believe.
-- Avoid vague/generic words: inspiring, powerful, profound, timeless, beautiful, lesson, truth.
+- Avoid clickbait: shocking, insane, unbelievable, crazy, you wont believe, you won't believe, you'll never believe, you’ll never believe.
+- Avoid vague/generic words: inspiring, powerful, profound, timeless, beautiful, lesson, truth, message.
 - Avoid meta references: passage, reading, line, quote, excerpt, these lines, this passage, message.
 - Make candidates meaningfully distinct in angle and wording.
 - Prefix every candidate with an angle tag from the provided list.
@@ -65,8 +69,9 @@ Input contains a reading and hook candidates. Choose the single best hook.
 
 Rules (highest priority):
 - English. Exactly one sentence. 8–14 words.
-- No quotes and no dashes.
-- Avoid clickbait words and vague/generic words and meta references.
+- No quotes. No hyphen-minus '-' and no em/en dashes '—' or '–'.
+- Do not mention author, title, chapter, public domain, or any 4-digit year.
+- Avoid clickbait words (e.g., shocking, insane, unbelievable, crazy, you wont believe, you won't believe, you'll never believe, you’ll never believe), vague/generic words, and meta references.
 - Keep the hook spoiler-safe and not copied from the reading.
 
 Rubric (silent):
@@ -85,8 +90,9 @@ HOOK_REPAIR_DEVMSG: Final[str] = """Fix this spoken hook to satisfy all rules.
 
 Rules:
 - English. Exactly one sentence. 8–14 words.
-- No quotes and no dashes.
-- Avoid clickbait words and vague/generic words and meta references.
+- No quotes. No hyphen-minus '-' and no em/en dashes '—' or '–'.
+- Do not mention author, title, chapter, public domain, or any 4-digit year.
+- Avoid clickbait words (e.g., shocking, insane, unbelievable, crazy, you wont believe, you won't believe, you'll never believe, you’ll never believe), vague/generic words, and meta references.
 - Keep the original meaning where possible.
 
 Output exactly one line, hook only.
@@ -99,7 +105,7 @@ Task: Produce EXACTLY {num_variants} micro-variant rewrites of the sentence.
 
 Hard rules for EACH output line:
 - English. Exactly one sentence. 8–14 words (prefer 11–13).
-- Simple punctuation ok (commas ok). No quotes or dashes.
+- Simple punctuation ok (commas ok). No quotes. No hyphen-minus '-' and no em/en dashes '—' or '–'.
 - Do not mention author, title, chapter, public domain, or any 4-digit year.
 - Avoid meta references: passage, reading, line, quote, excerpt, these lines, this passage, message.
 - Keep meaning and intent: minimal edits only; do not introduce new concepts.
