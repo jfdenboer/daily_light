@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import ValidationError
+
+from spurgeon.config.settings import load_settings
 from spurgeon.services.intro.generate_spoken_hook import (
     SpokenHookValidationError,
     generate_spoken_hook,
@@ -27,8 +30,9 @@ def _read_input(path: Path) -> str:
 
 
 def main() -> None:
+    settings = load_settings()
     reading_text = _read_input(DEFAULT_INPUT_PATH)
-    hook = generate_spoken_hook(reading_text)
+    hook = generate_spoken_hook(reading_text, settings)
 
     DEFAULT_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     DEFAULT_OUTPUT_PATH.write_text(f"{hook}\n", encoding="utf-8")
@@ -40,5 +44,10 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except (FileNotFoundError, ValueError, SpokenHookValidationError) as error:
+    except (
+        FileNotFoundError,
+        ValidationError,
+        ValueError,
+        SpokenHookValidationError,
+    ) as error:
         raise SystemExit(str(error))
