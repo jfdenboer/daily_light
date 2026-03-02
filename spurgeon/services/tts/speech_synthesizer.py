@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -168,12 +169,32 @@ class SpeechSynthesizer:
 
     def _synthesize_plain_text(self, text: str, out_path: Path, *, force: bool) -> Path:
         cache_enabled = bool(getattr(self.settings, "intro_cache_enabled", True))
-        if out_path.exists() and not force and cache_enabled:
+        fingerprint = self._text_fingerprint(text)
+        fingerprint_path = self._fingerprint_path(out_path)
+        if out_path.exists() and not force and cache_enabled and self._is_cache_hit(fingerprint_path, fingerprint):
             return out_path
         tmp_path = out_path.with_suffix(f"{out_path.suffix}.tmp")
         tmp_path.write_bytes(self._synthesize_text(text))
         tmp_path.replace(out_path)
+        self._write_fingerprint(fingerprint_path, fingerprint)
         return out_path
+
+    def _text_fingerprint(self, text: str) -> str:
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    def _fingerprint_path(self, out_path: Path) -> Path:
+        return out_path.with_suffix(f"{out_path.suffix}.sha256")
+
+    def _is_cache_hit(self, fingerprint_path: Path, expected: str) -> bool:
+        if not fingerprint_path.exists():
+            return False
+        stored = fingerprint_path.read_text(encoding="utf-8").strip()
+        return stored == expected
+
+    def _write_fingerprint(self, fingerprint_path: Path, fingerprint: str) -> None:
+        tmp_path = fingerprint_path.with_suffix(f"{fingerprint_path.suffix}.tmp")
+        tmp_path.write_text(f"{fingerprint}\n", encoding="utf-8")
+        tmp_path.replace(fingerprint_path)
 
     def _generate_silence(self, out_path: Path, *, duration_ms: int, force: bool) -> Path:
         cache_enabled = bool(getattr(self.settings, "intro_cache_enabled", True))
