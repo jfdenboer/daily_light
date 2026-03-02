@@ -24,11 +24,9 @@ Hard rules:
 - English. One sentence. 8–14 words (prefer 11–13).
 - Simple punctuation ok (commas ok). No quotes or dashes.
 - Do not quote the reading or reuse distinctive phrases from it.
-- Do not copy 3+ consecutive words from the reading.
 - Avoid clickbait: shocking, insane, unbelievable, crazy, you wont believe.
-- Avoid vague/generic words: inspiring, powerful, profound, timeless, beautiful, lesson, truth, message, excerpt.
-- Avoid meta references: author, title, chapter, public domain.
-- Avoid meta references: passage, reading, line, quote, excerpt, these lines, this passage.
+- Avoid vague/generic words: inspiring, powerful, profound, timeless, beautiful, lesson, truth.
+- Avoid meta references: passage, reading, line, quote, excerpt, these lines, this passage, message.
 - Make candidates meaningfully distinct in angle and wording.
 - Output only candidates, nothing else.
 
