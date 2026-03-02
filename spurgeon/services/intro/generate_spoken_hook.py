@@ -13,6 +13,7 @@ from spurgeon.services.intro.hook_pipeline.openai_utils import (
 )
 from spurgeon.services.intro.hook_pipeline.prompts import (
     HOOK_GENERATOR_DEVMSG,
+    HOOK_INTENT_DEVMSG,
     HOOK_JUDGE_DEVMSG,
     HOOK_REPAIR_DEVMSG,
     HOOK_TWEAKER_DEVMSG,
@@ -21,12 +22,16 @@ from spurgeon.services.intro.hook_pipeline.rules import (
     WORD_PATTERN,
     CandidateCheck,
     build_generator_user_input,
+    build_intent_user_input,
     build_judge_user_input,
     normalize_hook_punctuation,
     normalize_judge_output,
+    parse_intent_card,
     parse_numbered_candidates,
     parse_tweaker_variants,
     prepare_reading,
+    score_candidate,
+    strip_angle_tag,
     validate_candidate,
 )
 
@@ -92,6 +97,24 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         settings.hook_tweaker_num_variants,
     )
 
+    intent_response = create_response_with_transport_retries(
+        client,
+        model=settings.hook_generator_model,
+        temperature=0.2,
+        top_p=1.0,
+        max_output_tokens=140,
+        input=[
+            {"role": "developer", "content": [{"type": "input_text", "text": HOOK_INTENT_DEVMSG}]},
+            {
+                "role": "user",
+                "content": [{"type": "input_text", "text": build_intent_user_input(prepared_reading)}],
+            },
+        ],
+    )
+    intent_card = parse_intent_card(extract_response_text(intent_response))
+
+    logger.info("hook_pipeline.intent_card core_tension=%s implicit_choice=%s likely_consequence=%s emotional_tone=%s", intent_card.core_tension, intent_card.implicit_choice, intent_card.likely_consequence, intent_card.emotional_tone)
+
     generator_response = create_response_with_transport_retries(
         client,
         model=settings.hook_generator_model,
@@ -110,13 +133,17 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
             },
             {
                 "role": "user",
-                "content": [{"type": "input_text", "text": build_generator_user_input(prepared_reading)}],
+                "content": [{"type": "input_text", "text": build_generator_user_input(prepared_reading, intent_card, num_candidates=settings.hook_num_candidates)}],
             },
         ],
     )
 
     raw_candidates_text = extract_response_text(generator_response)
     parsed_candidates = [normalize_hook_punctuation(candidate) for candidate in parse_numbered_candidates(raw_candidates_text)]
+    angled_candidates = []
+    for raw_candidate in parsed_candidates:
+        angle, candidate_text = strip_angle_tag(raw_candidate)
+        angled_candidates.append((angle, normalize_hook_punctuation(candidate_text)))
 
     if len(parsed_candidates) < settings.hook_num_candidates:
         logger.warning(
@@ -125,12 +152,32 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
             settings.hook_num_candidates,
         )
 
-    checked = [CandidateCheck(candidate=c, reasons=validate_candidate(c)) for c in parsed_candidates]
+    checked = [CandidateCheck(candidate=c, reasons=validate_candidate(c), angle=a) for a, c in angled_candidates]
     valid = [item for item in checked if not item.reasons]
 
+    scored_stats = []
+    for item in checked:
+        peers = [other.candidate for other in checked if other.candidate != item.candidate]
+        scorecard = score_candidate(item.candidate, reading=prepared_reading, peers=peers)
+        scored_stats.append((item, scorecard))
+
     candidate_stats = [
-        {"candidate": item.candidate, "word_count": len(WORD_PATTERN.findall(item.candidate)), "reasons": item.reasons}
-        for item in checked
+        {
+            "candidate": item.candidate,
+            "angle": item.angle,
+            "word_count": len(WORD_PATTERN.findall(item.candidate)),
+            "reasons": item.reasons,
+            "score": {
+                "compliance": score.compliance,
+                "curiosity_tension": score.curiosity_tension,
+                "concreteness": score.concreteness,
+                "viewer_relevance": score.viewer_relevance,
+                "spoken_fluency": score.spoken_fluency,
+                "novelty": score.novelty,
+                "total": score.total,
+            },
+        }
+        for item, score in scored_stats
     ]
     logger.info(
         "hook_pipeline.candidate_stats total=%d valid=%d stats=%s",
@@ -143,7 +190,15 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         raise SpokenHookValidationError("no_candidates_generated")
 
     if valid:
-        shortlist = valid
+        shortlist = sorted(
+            valid,
+            key=lambda item: score_candidate(
+                item.candidate,
+                reading=prepared_reading,
+                peers=[other.candidate for other in checked if other.candidate != item.candidate],
+            ).total,
+            reverse=True,
+        )
         include_reasons = False
     else:
         shortlist = sorted(checked, key=lambda item: len(item.reasons))[: min(3, len(checked))]
