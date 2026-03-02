@@ -124,10 +124,10 @@ De nieuwe intent + angle + scorelaag laat zien dat iteratie sneller kan zonder a
    - Conceptueel scoremodel toegevoegd en aangesloten op ranking/observability.
    - Basis-tests toegevoegd voor parser/score/input-builders.
 
-3. ⏳ **Fase 3 — Telemetrie & experimenten**
-   - Promptversies in metadata opnemen.
-   - Structurele opslag van scorecards/outcomes.
-   - A/B-profielen voor hookstijlen.
+3. ✅ **Fase 3 — Telemetrie & experimenten**
+   - Promptversies nu opgenomen in hook-metadata en logging.
+   - Structurele opslag toegevoegd via JSONL-eventlog met intent card, candidate stats en outcome.
+   - A/B-profielen toegevoegd voor hookstijlen (`control`, `curiosity`, `consequence`).
 
 4. ⏳ **Fase 4 — Kwaliteitsoptimalisatie**
    - Drempels/gewichten kalibreren op productiedata.
@@ -142,3 +142,5 @@ Bijstelling op oorspronkelijk plan:
 - Deze scorelaag is bedoeld als **tussenstap** richting uitgebreidere telemetrie in fase 3.
 
 Resultaat: fase 2 is functioneel afgerond met lage implementatierisico’s en duidelijke basis voor data-gedreven iteratie.
+
+Resultaat fase 3: basis-telemetrie en experimenteerlaag staan nu operationeel, waardoor hookkwaliteit per profiel en promptversie vergelijkbaar is over runs heen.
