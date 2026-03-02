@@ -111,6 +111,24 @@ def _repair_hook(client: OpenAI, settings: Settings, hook: str) -> str:
     return normalize_judge_output(extract_response_text(response))
 
 
+def _build_tweak_pool(winner: str, variants: list[str]) -> list[str]:
+    """Return a de-duplicated tweak pool with the original winner as first option."""
+
+    normalized_winner = normalize_hook_punctuation(winner)
+    pool: list[str] = [normalized_winner]
+    seen = {normalized_winner.lower()}
+
+    for variant in variants:
+        normalized_variant = normalize_hook_punctuation(variant)
+        key = normalized_variant.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        pool.append(normalized_variant)
+
+    return pool
+
+
 def generate_spoken_hook(reading: str, settings: Settings) -> str:
     """Return a validated spoken hook string for the supplied reading text."""
 
@@ -315,8 +333,8 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
             )
             return normalize_hook_punctuation(judged)
 
-        tweak_variants = [normalize_hook_punctuation(v) for v in _tweak_winner(client, winner=winner_before_tweak, settings=settings)]
-        tweak_pool = [winner_before_tweak, *tweak_variants]
+        tweak_variants = _tweak_winner(client, winner=winner_before_tweak, settings=settings)
+        tweak_pool = _build_tweak_pool(winner_before_tweak, tweak_variants)
         tweak_checked = [CandidateCheck(candidate=c, reasons=validate_candidate(c)) for c in tweak_pool]
         tweak_valid = [item for item in tweak_checked if not item.reasons]
         tweak_stats = [
