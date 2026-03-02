@@ -133,14 +133,6 @@ class Settings(BaseSettings):
             )
         return fmt
 
-    @field_validator("video_visualizer_mode")
-    @classmethod
-    def _validate_visualizer_mode(cls, value: str) -> str:
-        mode = value.strip().lower()
-        if mode not in {"bar", "line", "dot", "quiet_wave_mini"}:
-            raise ValueError("video_visualizer_mode must be one of: bar, line, dot, quiet_wave_mini")
-        return mode
-
     @property
     def elevenlabs_audio_extension(self) -> str:
         fmt = self.elevenlabs_output_format
@@ -198,18 +190,6 @@ class Settings(BaseSettings):
     video_zoom_wide_enabled: bool = Field(True)
     video_zoom_wide_start: float = Field(1.0, gt=0.0)
     video_zoom_wide_end: float = Field(1.10, gt=0.0)
-    # Wide renders should show the audio visualizer unless explicitly disabled.
-    video_visualizer_enabled: bool = Field(True)
-    video_visualizer_mode: str = Field("quiet_wave_mini", min_length=1)
-    video_visualizer_alpha: float = Field(0.70, ge=0.0, le=1.0)
-    video_visualizer_width_wide: int = Field(640, gt=0)
-    video_visualizer_height_wide: int = Field(180, gt=0)
-    video_visualizer_margin_top: int = Field(40, gt=0)
-    video_visualizer_margin_right: int = Field(40, gt=0)
-    video_visualizer_margin_bottom: int = Field(220, gt=0)
-    video_visualizer_ascale: str = Field("log", min_length=1)
-    video_visualizer_fscale: str = Field("log", min_length=1)
-
     # Subtitles (legacy defaults)
     srt_max_chars: int = Field(22, gt=0)
     srt_hard_max_chars: int = Field(27, gt=0)
