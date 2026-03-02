@@ -28,6 +28,7 @@ Hard rules:
 - Avoid clickbait: shocking, insane, unbelievable, crazy, you wont believe.
 - Avoid vague/generic words: inspiring, powerful, profound, timeless, beautiful, lesson, truth, message, excerpt.
 - Avoid meta references: author, title, chapter, public domain.
+- Avoid meta references: passage, reading, line, quote, excerpt, these lines, this passage.
 - Make candidates meaningfully distinct in angle and wording.
 - Output only candidates, nothing else.
 
@@ -81,6 +82,7 @@ INVALID_CHAR_PATTERN: Final[re.Pattern[str]] = re.compile(r"[^A-Za-z0-9\s'’,.?
 TERMINATOR_PATTERN: Final[re.Pattern[str]] = re.compile(r"[.!?]")
 QUOTES_PATTERN: Final[re.Pattern[str]] = re.compile(r'["“”]')
 DASH_PATTERN: Final[re.Pattern[str]] = re.compile(r"[-–—]")
+QUESTION_START_PATTERN: Final[re.Pattern[str]] = re.compile(r"^(what|when|why|how|if|ever)\b", re.IGNORECASE)
 
 BANNED_CLICKBAIT_TERMS: Final[tuple[str, ...]] = (
     "shocking",
@@ -224,6 +226,27 @@ def _contains_term(text: str, term: str) -> bool:
     return bool(pattern.search(text))
 
 
+def normalize_hook_punctuation(text: str) -> str:
+    normalized = text.strip()
+    if not normalized:
+        return normalized
+
+    if normalized.endswith(("?", "!")):
+        return normalized
+
+    is_question_like = bool(QUESTION_START_PATTERN.match(normalized))
+    if is_question_like:
+        if normalized.endswith("."):
+            return f"{normalized[:-1]}?"
+        if not normalized.endswith((".", "?", "!")):
+            return f"{normalized}?"
+        return normalized
+
+    if not normalized.endswith((".", "?", "!")):
+        return f"{normalized}."
+    return normalized
+
+
 def validate_candidate(hook: str) -> list[str]:
     reasons: list[str] = []
     normalized = " ".join(hook.split())
@@ -339,7 +362,7 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
     )
 
     raw_candidates_text = _extract_response_text(generator_response)
-    parsed_candidates = _parse_numbered_candidates(raw_candidates_text)
+    parsed_candidates = [normalize_hook_punctuation(candidate) for candidate in _parse_numbered_candidates(raw_candidates_text)]
 
     if len(parsed_candidates) < settings.hook_num_candidates:
         logger.warning(
@@ -392,20 +415,20 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         ],
     )
 
-    judged = _normalize_judge_output(_extract_response_text(judge_response))
+    judged = normalize_hook_punctuation(_normalize_judge_output(_extract_response_text(judge_response)))
     judged_reasons = validate_candidate(judged)
 
     if not judged_reasons:
         selected_source = "judge"
         logger.info("hook_pipeline.selected_source=%s", selected_source)
-        return judged
+        return normalize_hook_punctuation(judged)
 
-    repaired = _repair_hook(client, settings, judged)
+    repaired = normalize_hook_punctuation(_repair_hook(client, settings, judged))
     repaired_reasons = validate_candidate(repaired)
     if not repaired_reasons:
         selected_source = "repair"
         logger.info("hook_pipeline.selected_source=%s", selected_source)
-        return repaired
+        return normalize_hook_punctuation(repaired)
 
     fallback_item = sorted(checked, key=lambda item: len(item.reasons))[0]
     selected_source = "failure"
@@ -419,4 +442,4 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
     raise SpokenHookValidationError("no_valid_hook_after_judge_and_repair")
 
 
-__all__ = ["generate_spoken_hook", "SpokenHookValidationError", "validate_candidate"]
+__all__ = ["generate_spoken_hook", "normalize_hook_punctuation", "SpokenHookValidationError", "validate_candidate"]
