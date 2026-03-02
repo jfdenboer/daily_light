@@ -94,9 +94,9 @@ class Settings(BaseSettings):
     hook_generator_temperature: float = Field(0.9, ge=0.0, le=2.0)
     hook_judge_temperature: float = Field(0.1, ge=0.0, le=2.0)
     hook_num_candidates: int = Field(10, ge=8, le=12)
-    intro_pause_pre_intro_ms: int = Field(120, ge=0)
-    intro_pause_between_ms: int = Field(550, ge=0)
-    intro_pause_after_credit_ms: int = Field(550, ge=0)
+    intro_pause_pre_intro_ms: int = Field(200, ge=0)
+    intro_pause_between_ms: int = Field(420, ge=0)
+    intro_pause_after_credit_ms: int = Field(320, ge=0)
     intro_fail_open: bool = Field(True)
     intro_hook_fail_strategy: Literal["credit_only", "skip_intro", "raise"] = Field(
         "credit_only"
