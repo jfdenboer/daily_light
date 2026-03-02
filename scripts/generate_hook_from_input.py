@@ -1,12 +1,12 @@
-"""Genereer een on-screen hook op basis van ``input/hook.txt``."""
+"""Genereer een spoken hook op basis van ``input/hook.txt``."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from spurgeon.services.hook.generate_onscreen_hook import (
-    OnscreenHookValidationError,
-    generate_onscreen_hook,
+from spurgeon.services.intro.generate_spoken_hook import (
+    SpokenHookValidationError,
+    generate_spoken_hook,
 )
 
 DEFAULT_INPUT_PATH = Path("input/hook.txt")
@@ -28,7 +28,7 @@ def _read_input(path: Path) -> str:
 
 def main() -> None:
     reading_text = _read_input(DEFAULT_INPUT_PATH)
-    hook = generate_onscreen_hook(reading_text)
+    hook = generate_spoken_hook(reading_text)
 
     DEFAULT_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     DEFAULT_OUTPUT_PATH.write_text(f"{hook}\n", encoding="utf-8")
@@ -40,5 +40,5 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except (FileNotFoundError, ValueError, OnscreenHookValidationError) as error:
+    except (FileNotFoundError, ValueError, SpokenHookValidationError) as error:
         raise SystemExit(str(error))
