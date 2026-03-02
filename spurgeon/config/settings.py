@@ -133,8 +133,8 @@ class Settings(BaseSettings):
     @classmethod
     def _validate_visualizer_mode(cls, value: str) -> str:
         mode = value.strip().lower()
-        if mode not in {"bar", "line", "dot"}:
-            raise ValueError("video_visualizer_mode must be one of: bar, line, dot")
+        if mode not in {"bar", "line", "dot", "quiet_wave_mini"}:
+            raise ValueError("video_visualizer_mode must be one of: bar, line, dot, quiet_wave_mini")
         return mode
 
     @property
