@@ -79,7 +79,7 @@ WORD_PATTERN: Final[re.Pattern[str]] = re.compile(r"[A-Za-z0-9]+(?:['’][A-Za-z
 NUMBERED_LINE_PATTERN: Final[re.Pattern[str]] = re.compile(r"^\s*\d+\)\s+(.+)$")
 INVALID_CHAR_PATTERN: Final[re.Pattern[str]] = re.compile(r"[^A-Za-z0-9\s'’,.?!]")
 TERMINATOR_PATTERN: Final[re.Pattern[str]] = re.compile(r"[.!?]")
-QUOTES_PATTERN: Final[re.Pattern[str]] = re.compile(r"[\"“”'’]")
+QUOTES_PATTERN: Final[re.Pattern[str]] = re.compile(r'["“”]')
 DASH_PATTERN: Final[re.Pattern[str]] = re.compile(r"[-–—]")
 
 BANNED_CLICKBAIT_TERMS: Final[tuple[str, ...]] = (
@@ -407,15 +407,16 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         logger.info("hook_pipeline.selected_source=%s", selected_source)
         return repaired
 
-    fallback = sorted(checked, key=lambda item: len(item.reasons))[0].candidate
-    selected_source = "fallback"
+    fallback_item = sorted(checked, key=lambda item: len(item.reasons))[0]
+    selected_source = "failure"
     logger.warning(
-        "hook_pipeline.selected_source=%s judge_reasons=%s repair_reasons=%s",
+        "hook_pipeline.selected_source=%s judge_reasons=%s repair_reasons=%s fallback_reasons=%s",
         selected_source,
         judged_reasons,
         repaired_reasons,
+        fallback_item.reasons,
     )
-    return fallback
+    raise SpokenHookValidationError("no_valid_hook_after_judge_and_repair")
 
 
 __all__ = ["generate_spoken_hook", "SpokenHookValidationError", "validate_candidate"]
