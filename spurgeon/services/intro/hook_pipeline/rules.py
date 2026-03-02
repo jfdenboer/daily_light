@@ -80,12 +80,29 @@ class HookScoreCard:
 
     @property
     def total(self) -> int:
+        return self.weighted_total(
+            curiosity=3,
+            concreteness=2,
+            viewer_relevance=2,
+            spoken_fluency=1,
+            novelty=1,
+        )
+
+    def weighted_total(
+        self,
+        *,
+        curiosity: int,
+        concreteness: int,
+        viewer_relevance: int,
+        spoken_fluency: int,
+        novelty: int,
+    ) -> int:
         return (
-            3 * self.curiosity_tension
-            + 2 * self.concreteness
-            + 2 * self.viewer_relevance
-            + self.spoken_fluency
-            + self.novelty
+            curiosity * self.curiosity_tension
+            + concreteness * self.concreteness
+            + viewer_relevance * self.viewer_relevance
+            + spoken_fluency * self.spoken_fluency
+            + novelty * self.novelty
         )
 
 
