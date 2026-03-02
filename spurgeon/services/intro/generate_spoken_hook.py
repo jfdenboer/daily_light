@@ -42,6 +42,31 @@ from spurgeon.services.intro.hook_pipeline.telemetry import append_hook_event, s
 
 logger = logging.getLogger(__name__)
 
+def _score_weights(settings: Settings) -> dict[str, int]:
+    return {
+        "curiosity": settings.hook_score_weight_curiosity,
+        "concreteness": settings.hook_score_weight_concreteness,
+        "viewer_relevance": settings.hook_score_weight_viewer_relevance,
+        "spoken_fluency": settings.hook_score_weight_spoken_fluency,
+        "novelty": settings.hook_score_weight_novelty,
+    }
+
+
+def _weighted_total(scorecard, settings: Settings) -> int:
+    weights = _score_weights(settings)
+    return scorecard.weighted_total(
+        curiosity=weights["curiosity"],
+        concreteness=weights["concreteness"],
+        viewer_relevance=weights["viewer_relevance"],
+        spoken_fluency=weights["spoken_fluency"],
+        novelty=weights["novelty"],
+    )
+
+
+def _score_with_weights(candidate: str, *, reading: str, peers: list[str], settings: Settings) -> tuple[object, int]:
+    scorecard = score_candidate(candidate, reading=reading, peers=peers)
+    return scorecard, _weighted_total(scorecard, settings)
+
 
 class SpokenHookValidationError(ValueError):
     """Raised when generated spoken hook violates output constraints."""
@@ -174,8 +199,8 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
     scored_stats = []
     for item in checked:
         peers = [other.candidate for other in checked if other.candidate != item.candidate]
-        scorecard = score_candidate(item.candidate, reading=prepared_reading, peers=peers)
-        scored_stats.append((item, scorecard))
+        scorecard, weighted_total = _score_with_weights(item.candidate, reading=prepared_reading, peers=peers, settings=settings)
+        scored_stats.append((item, scorecard, weighted_total))
 
     candidate_stats = [
         {
@@ -183,9 +208,9 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
             "angle": item.angle,
             "word_count": len(WORD_PATTERN.findall(item.candidate)),
             "reasons": item.reasons,
-            "score": scorecard_to_dict(score),
+            "score": {**scorecard_to_dict(score), "weighted_total": weighted_total},
         }
-        for item, score in scored_stats
+        for item, score, weighted_total in scored_stats
     ]
     logger.info(
         "hook_pipeline.candidate_stats total=%d valid=%d stats=%s",
@@ -214,19 +239,19 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         raise SpokenHookValidationError("no_candidates_generated")
 
     if valid:
+        weighted_by_candidate = {item.candidate: weighted_total for item, _, weighted_total in scored_stats}
         shortlist = sorted(
             valid,
-            key=lambda item: score_candidate(
-                item.candidate,
-                reading=prepared_reading,
-                peers=[other.candidate for other in checked if other.candidate != item.candidate],
-            ).total,
+            key=lambda item: weighted_by_candidate.get(item.candidate, 0),
             reverse=True,
         )
         include_reasons = False
     else:
         shortlist = sorted(checked, key=lambda item: len(item.reasons))[: min(3, len(checked))]
         include_reasons = True
+
+    min_total_score = settings.hook_min_total_score
+    min_total_score_repaired = settings.hook_min_total_score_repaired
 
     judge_response = create_response_with_transport_retries(
         client,
@@ -252,6 +277,19 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
     judged_reasons = validate_candidate(judged)
 
     if not judged_reasons:
+        _, judged_weighted_total = _score_with_weights(
+            judged,
+            reading=prepared_reading,
+            peers=[other.candidate for other in checked if other.candidate != judged],
+            settings=settings,
+        )
+        if judged_weighted_total < min_total_score:
+            logger.info(
+                "hook_pipeline.judged_below_threshold weighted_total=%d threshold=%d",
+                judged_weighted_total,
+                min_total_score,
+            )
+            judged_reasons.append("below_min_total_score")
         winner_before_tweak = judged
         if not settings.hook_tweaker_enabled:
             selected_source = "judge"
@@ -367,6 +405,16 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         rejudged_reasons = validate_candidate(rejudged)
 
         if not rejudged_reasons:
+            _, rejudged_weighted_total = _score_with_weights(
+                rejudged,
+                reading=prepared_reading,
+                peers=[other.candidate for other in checked if other.candidate != rejudged],
+                settings=settings,
+            )
+            if rejudged_weighted_total < min_total_score:
+                rejudged_reasons.append("below_min_total_score")
+
+        if not rejudged_reasons:
             selected_source = "judge+tweaker_judge"
             selected_candidate = rejudged
             selected_angle = next((item.angle for item in shortlist if item.candidate == winner_before_tweak), "unknown")
@@ -418,6 +466,16 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
 
     repaired = normalize_hook_punctuation(_repair_hook(client, settings, judged))
     repaired_reasons = validate_candidate(repaired)
+    if not repaired_reasons:
+        _, repaired_weighted_total = _score_with_weights(
+            repaired,
+            reading=prepared_reading,
+            peers=[other.candidate for other in checked if other.candidate != repaired],
+            settings=settings,
+        )
+        if repaired_weighted_total < min_total_score_repaired:
+            repaired_reasons.append("below_min_total_score_repaired")
+
     if not repaired_reasons:
         selected_source = "repair"
         selected_candidate = repaired
