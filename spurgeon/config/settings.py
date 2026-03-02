@@ -89,6 +89,11 @@ class Settings(BaseSettings):
     # Intro audio
     intro_enabled: bool = Field(True)
     intro_cache_enabled: bool = Field(True)
+    hook_generator_model: str = Field("gpt-5.2", env="HOOK_GENERATOR_MODEL")
+    hook_judge_model: str = Field("gpt-5.2", env="HOOK_JUDGE_MODEL")
+    hook_generator_temperature: float = Field(0.9, ge=0.0, le=2.0)
+    hook_judge_temperature: float = Field(0.1, ge=0.0, le=2.0)
+    hook_num_candidates: int = Field(10, ge=8, le=12)
     intro_pause_pre_intro_ms: int = Field(120, ge=0)
     intro_pause_between_ms: int = Field(550, ge=0)
     intro_pause_after_credit_ms: int = Field(550, ge=0)
@@ -198,12 +203,6 @@ class Settings(BaseSettings):
     video_visualizer_margin_right: int = Field(40, gt=0)
     video_visualizer_ascale: str = Field("log", min_length=1)
     video_visualizer_fscale: str = Field("log", min_length=1)
-    reading_card_enabled: bool = Field(True)
-    reading_card_width_ratio: float = Field(0.74, gt=0.0, le=1.0)
-    reading_card_height_ratio: float = Field(0.40, gt=0.0, le=1.0)
-    reading_card_alpha: float = Field(0.65, ge=0.0, le=1.0)
-    reading_card_shadow_offset: int = Field(6, ge=0)
-    reading_card_shadow_alpha: float = Field(0.18, ge=0.0, le=1.0)
 
     # Subtitles (legacy defaults)
     srt_max_chars: int = Field(22, gt=0)
@@ -221,30 +220,30 @@ class Settings(BaseSettings):
     subtitle_size_wide: int = Field(84, gt=0)
     subtitle_style_extra_wide: str = (
         "WrapStyle=2,"
-        "PrimaryColour=&H00171A1C,"
-        "OutlineColour=&H00000000,"
+        "PrimaryColour=&H00FFFFFF,"
+        "OutlineColour=&H00000000,"  # volledig opaak zwart voor maximale contrast
         "BorderStyle=1,"
-        "Outline=0,"
+        "Outline=2,"
         "Shadow=0,"
-        "Alignment=5,"
+        "Alignment=2,"
         "MarginV=0,"
-        "MarginL=350,"
-        "MarginR=350"
+        "MarginL=120,"
+        "MarginR=120"
     )
 
     subtitle_font_short: str = Field("Inter", min_length=1)
     subtitle_size_short: int = Field(84, gt=0)
     subtitle_style_extra_short: str = (
         "WrapStyle=2,"
-        "PrimaryColour=&H00171A1C,"
+        "PrimaryColour=&H00FFFFFF,"
         "OutlineColour=&H00000000,"
         "BorderStyle=1,"
-        "Outline=0,"
+        "Outline=2,"
         "Shadow=0,"
-        "Alignment=5,"
+        "Alignment=2,"
         "MarginV=0,"
-        "MarginL=350,"
-        "MarginR=350"
+        "MarginL=100,"
+        "MarginR=100"
     )
 
     # Opschonen
