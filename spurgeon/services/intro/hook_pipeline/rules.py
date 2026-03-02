@@ -19,7 +19,7 @@ ANGLE_TAG_PATTERN: Final[re.Pattern[str]] = re.compile(r"^\[([a-z_]+)]\s*(.+)$",
 
 MAX_READING_CHARS: Final[int] = 3500
 WORD_PATTERN: Final[re.Pattern[str]] = re.compile(r"[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)?")
-NUMBERED_LINE_PATTERN: Final[re.Pattern[str]] = re.compile(r"^\s*\d+\)\s+(.+)$")
+NUMBERED_LINE_PATTERN: Final[re.Pattern[str]] = re.compile(r"^\s*\d+\)\s*(.+)$")
 OPTIONAL_NUMBERING_PATTERN: Final[re.Pattern[str]] = re.compile(r"^\s*(?:[-*•]\s+|\d+[.)]\s+)(.+)$")
 YEAR_PATTERN: Final[re.Pattern[str]] = re.compile(r"\b\d{4}\b")
 INVALID_CHAR_PATTERN: Final[re.Pattern[str]] = re.compile(r"[^A-Za-z0-9\s'’,.?!]")
