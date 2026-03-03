@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 import hashlib
+import logging
 
 from openai import OpenAI
 
@@ -24,6 +24,7 @@ from spurgeon.services.intro.hook_pipeline.prompts import (
 from spurgeon.services.intro.hook_pipeline.rules import (
     WORD_PATTERN,
     CandidateCheck,
+    HookOutcome,
     build_generator_user_input,
     build_intent_user_input,
     build_judge_user_input,
@@ -33,73 +34,12 @@ from spurgeon.services.intro.hook_pipeline.rules import (
     parse_numbered_candidates,
     parse_tweaker_variants,
     prepare_reading,
-    score_candidate,
     strip_angle_tag,
     validate_candidate,
-    HookOutcome,
 )
-from spurgeon.services.intro.hook_pipeline.telemetry import (
-    append_hook_event,
-    scorecard_to_dict,
-)
+from spurgeon.services.intro.hook_pipeline.telemetry import append_hook_event
 
 logger = logging.getLogger(__name__)
-
-
-def _summarize_candidate_rankings(
-    scored_stats: list[tuple[CandidateCheck, object, int]], limit: int = 3
-) -> list[dict[str, object]]:
-    """Return a compact, score-sorted view for logging and debugging."""
-
-    ordered = sorted(scored_stats, key=lambda item: item[2], reverse=True)
-    return [
-        {
-            "rank": idx + 1,
-            "candidate": item.candidate,
-            "angle": item.angle,
-            "weighted_total": weighted_total,
-            "valid": not item.reasons,
-            "reasons": item.reasons,
-        }
-        for idx, (item, _, weighted_total) in enumerate(ordered[:limit])
-    ]
-
-
-def _weighted_total_for_candidate(
-    scored_stats: list[tuple[CandidateCheck, object, int]], candidate: str
-) -> int | None:
-    for item, _, weighted_total in scored_stats:
-        if item.candidate == candidate:
-            return weighted_total
-    return None
-
-
-def _score_weights(settings: Settings) -> dict[str, int]:
-    return {
-        "curiosity": settings.hook_score_weight_curiosity,
-        "concreteness": settings.hook_score_weight_concreteness,
-        "viewer_relevance": settings.hook_score_weight_viewer_relevance,
-        "spoken_fluency": settings.hook_score_weight_spoken_fluency,
-        "novelty": settings.hook_score_weight_novelty,
-    }
-
-
-def _weighted_total(scorecard, settings: Settings) -> int:
-    weights = _score_weights(settings)
-    return scorecard.weighted_total(
-        curiosity=weights["curiosity"],
-        concreteness=weights["concreteness"],
-        viewer_relevance=weights["viewer_relevance"],
-        spoken_fluency=weights["spoken_fluency"],
-        novelty=weights["novelty"],
-    )
-
-
-def _score_with_weights(
-    candidate: str, *, reading: str, peers: list[str], settings: Settings
-) -> tuple[object, int]:
-    scorecard = score_candidate(candidate, reading=reading, peers=peers)
-    return scorecard, _weighted_total(scorecard, settings)
 
 
 class SpokenHookValidationError(ValueError):
@@ -170,24 +110,25 @@ def _build_tweak_pool(winner: str, variants: list[str]) -> list[str]:
     return pool
 
 
+def _select_best_effort_candidate(candidates: list[CandidateCheck]) -> CandidateCheck:
+    """Choose candidate with fewest validator failures for repair fallback."""
+
+    return sorted(candidates, key=lambda item: (len(item.reasons), item.candidate))[0]
+
+
 def generate_spoken_hook(reading: str, settings: Settings) -> str:
     """Return a validated spoken hook string for the supplied reading text."""
 
     client = OpenAI(api_key=settings.openai_api_key)
     prepared_reading = prepare_reading(reading)
-    selected_source = "fallback"
-    selected_angle = "unknown"
-    selected_candidate: str | None = None
-    outcome_status = "HOOK_WEAK_REPAIRED"
     reading_hash = hashlib.sha256(prepared_reading.encode("utf-8")).hexdigest()
     style_profile = settings.hook_style_profile
 
     logger.info(
-        "hook_pipeline.start generator_temperature=%.2f judge_temperature=%.2f tweaker_temperature=%.2f tweaker_enabled=%s tweaker_variants=%d style_profile=%s prompt_versions=%s",
+        "hook_pipeline.start generator_temperature=%.2f judge_temperature=%.2f tweaker_temperature=%.2f tweaker_variants=%d style_profile=%s prompt_versions=%s",
         settings.hook_generator_temperature,
         settings.hook_judge_temperature,
         settings.hook_tweaker_temperature,
-        settings.hook_tweaker_enabled,
         settings.hook_tweaker_num_variants,
         style_profile,
         PROMPT_VERSION_MAP,
@@ -263,12 +204,11 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         ],
     )
 
-    raw_candidates_text = extract_response_text(generator_response)
     parsed_candidates = [
         normalize_hook_punctuation(candidate)
-        for candidate in parse_numbered_candidates(raw_candidates_text)
+        for candidate in parse_numbered_candidates(extract_response_text(generator_response))
     ]
-    angled_candidates = []
+    angled_candidates: list[tuple[str, str]] = []
     for raw_candidate in parsed_candidates:
         angle, candidate_text = strip_angle_tag(raw_candidate)
         angled_candidates.append((angle, normalize_hook_punctuation(candidate_text)))
@@ -285,26 +225,15 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         for a, c in angled_candidates
     ]
     valid = [item for item in checked if not item.reasons]
-
-    scored_stats = []
-    for item in checked:
-        peers = [
-            other.candidate for other in checked if other.candidate != item.candidate
-        ]
-        scorecard, weighted_total = _score_with_weights(
-            item.candidate, reading=prepared_reading, peers=peers, settings=settings
-        )
-        scored_stats.append((item, scorecard, weighted_total))
-
     candidate_stats = [
         {
             "candidate": item.candidate,
             "angle": item.angle,
             "word_count": len(WORD_PATTERN.findall(item.candidate)),
             "reasons": item.reasons,
-            "score": {**scorecard_to_dict(score), "weighted_total": weighted_total},
+            "is_valid": not item.reasons,
         }
-        for item, score, weighted_total in scored_stats
+        for item in checked
     ]
     logger.info(
         "hook_pipeline.candidate_stats total=%d valid=%d stats=%s",
@@ -312,22 +241,17 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         len(valid),
         candidate_stats,
     )
-    logger.info(
-        "hook_pipeline.candidate_rankings top=%s",
-        _summarize_candidate_rankings(scored_stats),
-    )
-    intent_card_payload = {
-        "core_tension": intent_card.core_tension,
-        "implicit_choice": intent_card.implicit_choice,
-        "likely_consequence": intent_card.likely_consequence,
-        "emotional_tone": intent_card.emotional_tone,
-    }
 
     if not checked:
         _log_hook_event(
             settings,
             reading_hash=reading_hash,
-            intent_card=intent_card_payload,
+            intent_card={
+                "core_tension": intent_card.core_tension,
+                "implicit_choice": intent_card.implicit_choice,
+                "likely_consequence": intent_card.likely_consequence,
+                "emotional_tone": intent_card.emotional_tone,
+            },
             candidate_stats=candidate_stats,
             outcome_status="NARRATION_ONLY",
             selected_source="failure",
@@ -336,24 +260,8 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         )
         raise SpokenHookValidationError("no_candidates_generated")
 
-    if valid:
-        weighted_by_candidate = {
-            item.candidate: weighted_total for item, _, weighted_total in scored_stats
-        }
-        shortlist = sorted(
-            valid,
-            key=lambda item: weighted_by_candidate.get(item.candidate, 0),
-            reverse=True,
-        )
-        include_reasons = False
-    else:
-        shortlist = sorted(checked, key=lambda item: len(item.reasons))[
-            : min(3, len(checked))
-        ]
-        include_reasons = True
-
-    min_total_score = settings.hook_min_total_score
-    min_total_score_repaired = settings.hook_min_total_score_repaired
+    shortlist = valid if valid else [_select_best_effort_candidate(checked)]
+    include_reasons = not bool(valid)
 
     judge_response = create_response_with_transport_retries(
         client,
@@ -384,322 +292,204 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         normalize_judge_output(extract_response_text(judge_response))
     )
     judged_reasons = validate_candidate(judged)
-    judged_weighted_total = _weighted_total_for_candidate(scored_stats, judged)
     logger.info(
-        "hook_pipeline.judge_decision selected_candidate=%s selected_weighted_total=%s shortlist_top=%s",
+        "hook_pipeline.judge_decision selected_candidate=%s valid=%s shortlist_count=%d",
         judged,
-        judged_weighted_total,
-        _summarize_candidate_rankings(
-            [
-                (item, scorecard, weighted_total)
-                for item, scorecard, weighted_total in scored_stats
-                if item.candidate in {short.candidate for short in shortlist}
-            ]
-        ),
+        not judged_reasons,
+        len(shortlist),
     )
 
-    if not judged_reasons:
-        _, judged_weighted_total = _score_with_weights(
-            judged,
-            reading=prepared_reading,
-            peers=[other.candidate for other in checked if other.candidate != judged],
-            settings=settings,
-        )
-        if judged_weighted_total < min_total_score:
-            logger.info(
-                "hook_pipeline.judged_below_threshold weighted_total=%d threshold=%d",
-                judged_weighted_total,
-                min_total_score,
-            )
-            judged_reasons.append("below_min_total_score")
-        winner_before_tweak = judged
-        if not settings.hook_tweaker_enabled:
-            selected_source = "judge"
-            selected_candidate = judged
-            selected_angle = next(
-                (item.angle for item in shortlist if item.candidate == judged),
-                "unknown",
-            )
-            outcome_status = "FULL_INTRO_OK"
-            logger.info(
-                "hook_pipeline.selected_source=%s selected_candidate=%s tweaker_used=%s rejudge_used=%s",
-                selected_source,
-                judged,
-                False,
-                False,
-            )
+    if judged_reasons:
+        repaired = normalize_hook_punctuation(_repair_hook(client, settings, judged))
+        repaired_reasons = validate_candidate(repaired)
+        if not repaired_reasons:
             _log_hook_event(
                 settings,
                 reading_hash=reading_hash,
-                intent_card=intent_card_payload,
+                intent_card={
+                    "core_tension": intent_card.core_tension,
+                    "implicit_choice": intent_card.implicit_choice,
+                    "likely_consequence": intent_card.likely_consequence,
+                    "emotional_tone": intent_card.emotional_tone,
+                },
                 candidate_stats=candidate_stats,
-                outcome_status=outcome_status,
-                selected_source=selected_source,
-                selected_candidate=selected_candidate,
-                selected_angle=selected_angle,
+                outcome_status="HOOK_WEAK_REPAIRED",
+                selected_source="repair",
+                selected_candidate=repaired,
+                selected_angle="unknown",
             )
-            return normalize_hook_punctuation(judged)
+            logger.info("hook_pipeline.selected_source=repair selected_candidate=%s", repaired)
+            return normalize_hook_punctuation(repaired)
 
-        tweak_variants = _tweak_winner(
-            client, winner=winner_before_tweak, settings=settings
+        fallback_item = _select_best_effort_candidate(checked)
+        logger.warning(
+            "hook_pipeline.selected_source=failure judge_reasons=%s repair_reasons=%s fallback_reasons=%s",
+            judged_reasons,
+            repaired_reasons,
+            fallback_item.reasons,
         )
-        tweak_pool = _build_tweak_pool(winner_before_tweak, tweak_variants)
-        tweak_checked = [
-            CandidateCheck(candidate=c, reasons=validate_candidate(c))
-            for c in tweak_pool
-        ]
-        tweak_valid = [item for item in tweak_checked if not item.reasons]
-        tweak_stats = [
+        _log_hook_event(
+            settings,
+            reading_hash=reading_hash,
+            intent_card={
+                "core_tension": intent_card.core_tension,
+                "implicit_choice": intent_card.implicit_choice,
+                "likely_consequence": intent_card.likely_consequence,
+                "emotional_tone": intent_card.emotional_tone,
+            },
+            candidate_stats=candidate_stats,
+            outcome_status="CREDIT_ONLY",
+            selected_source="failure",
+            selected_candidate=None,
+            selected_angle="unknown",
+        )
+        raise SpokenHookValidationError("no_valid_hook_after_judge_and_repair")
+
+    winner_before_tweak = judged
+    tweak_variants = _tweak_winner(client, winner=winner_before_tweak, settings=settings)
+    tweak_pool = _build_tweak_pool(winner_before_tweak, tweak_variants)
+    tweak_checked = [
+        CandidateCheck(candidate=c, reasons=validate_candidate(c)) for c in tweak_pool
+    ]
+    tweak_valid = [item for item in tweak_checked if not item.reasons]
+    logger.info(
+        "hook_pipeline.tweak_stats total=%d valid=%d stats=%s",
+        len(tweak_checked),
+        len(tweak_valid),
+        [
             {
                 "candidate": item.candidate,
                 "word_count": len(WORD_PATTERN.findall(item.candidate)),
                 "reasons": item.reasons,
+                "is_valid": not item.reasons,
             }
             for item in tweak_checked
-        ]
-        logger.info(
-            "hook_pipeline.tweak_stats total=%d valid=%d stats=%s",
-            len(tweak_checked),
-            len(tweak_valid),
-            tweak_stats,
-        )
+        ],
+    )
 
-        if not tweak_valid:
-            selected_source = "judge"
-            selected_candidate = winner_before_tweak
-            selected_angle = next(
-                (
-                    item.angle
-                    for item in shortlist
-                    if item.candidate == winner_before_tweak
-                ),
-                "unknown",
-            )
-            outcome_status = "FULL_INTRO_OK"
-            logger.info(
-                "hook_pipeline.selected_source=%s selected_candidate=%s winner_before_tweak=%s tweaker_used=%s rejudge_used=%s",
-                selected_source,
-                winner_before_tweak,
-                winner_before_tweak,
-                True,
-                False,
-            )
-            _log_hook_event(
-                settings,
-                reading_hash=reading_hash,
-                intent_card=intent_card_payload,
-                candidate_stats=candidate_stats,
-                outcome_status=outcome_status,
-                selected_source=selected_source,
-                selected_candidate=selected_candidate,
-                selected_angle=selected_angle,
-            )
-            return normalize_hook_punctuation(winner_before_tweak)
-
-        if len(tweak_valid) == 1:
-            only_candidate = tweak_valid[0].candidate
-            selected_source = "judge+tweaker_single"
-            selected_candidate = only_candidate
-            selected_angle = next(
-                (
-                    item.angle
-                    for item in shortlist
-                    if item.candidate == winner_before_tweak
-                ),
-                "unknown",
-            )
-            outcome_status = "FULL_INTRO_OK"
-            logger.info(
-                "hook_pipeline.selected_source=%s selected_candidate=%s winner_before_tweak=%s tweaker_used=%s rejudge_used=%s",
-                selected_source,
-                only_candidate,
-                winner_before_tweak,
-                True,
-                False,
-            )
-            _log_hook_event(
-                settings,
-                reading_hash=reading_hash,
-                intent_card=intent_card_payload,
-                candidate_stats=candidate_stats,
-                outcome_status=outcome_status,
-                selected_source=selected_source,
-                selected_candidate=selected_candidate,
-                selected_angle=selected_angle,
-            )
-            return normalize_hook_punctuation(only_candidate)
-
-        rejudge_temperature = min(settings.hook_judge_temperature, 0.10)
-        rejudge_response = create_response_with_transport_retries(
-            client,
-            model=settings.hook_judge_model,
-            temperature=rejudge_temperature,
-            top_p=1.0,
-            max_output_tokens=60,
-            input=[
-                {
-                    "role": "developer",
-                    "content": [{"type": "input_text", "text": HOOK_JUDGE_DEVMSG}],
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": build_judge_user_input(
-                                prepared_reading, tweak_valid, False
-                            ),
-                        }
-                    ],
-                },
-            ],
-        )
-        rejudged = normalize_hook_punctuation(
-            normalize_judge_output(extract_response_text(rejudge_response))
-        )
-        rejudged_reasons = validate_candidate(rejudged)
-        rejudged_weighted_total = _score_with_weights(
-            rejudged,
-            reading=prepared_reading,
-            peers=[other.candidate for other in checked if other.candidate != rejudged],
-            settings=settings,
-        )[1]
-        tweak_rankings = []
-        for item in tweak_checked:
-            tweak_scorecard, tweak_weighted_total = _score_with_weights(
-                item.candidate,
-                reading=prepared_reading,
-                peers=[
-                    other.candidate
-                    for other in checked
-                    if other.candidate != item.candidate
-                ],
-                settings=settings,
-            )
-            tweak_rankings.append((item, tweak_scorecard, tweak_weighted_total))
-        logger.info(
-            "hook_pipeline.rejudge_decision selected_candidate=%s selected_weighted_total=%d tweak_rankings=%s",
-            rejudged,
-            rejudged_weighted_total,
-            _summarize_candidate_rankings(tweak_rankings, limit=len(tweak_rankings)),
-        )
-
-        if not rejudged_reasons:
-            if rejudged_weighted_total < min_total_score:
-                rejudged_reasons.append("below_min_total_score")
-
-        if not rejudged_reasons:
-            selected_source = "judge+tweaker_judge"
-            selected_candidate = rejudged
-            selected_angle = next(
-                (
-                    item.angle
-                    for item in shortlist
-                    if item.candidate == winner_before_tweak
-                ),
-                "unknown",
-            )
-            outcome_status = "FULL_INTRO_OK"
-            logger.info(
-                "hook_pipeline.selected_source=%s selected_candidate=%s winner_before_tweak=%s tweaker_used=%s rejudge_used=%s",
-                selected_source,
-                rejudged,
-                winner_before_tweak,
-                True,
-                True,
-            )
-            _log_hook_event(
-                settings,
-                reading_hash=reading_hash,
-                intent_card=intent_card_payload,
-                candidate_stats=candidate_stats,
-                outcome_status=outcome_status,
-                selected_source=selected_source,
-                selected_candidate=selected_candidate,
-                selected_angle=selected_angle,
-            )
-            return normalize_hook_punctuation(rejudged)
-
-        selected_source = "judge+tweaker_fallback"
+    if not tweak_valid:
         selected_candidate = winner_before_tweak
         selected_angle = next(
             (item.angle for item in shortlist if item.candidate == winner_before_tweak),
             "unknown",
         )
-        outcome_status = "FULL_INTRO_OK"
+        _log_hook_event(
+            settings,
+            reading_hash=reading_hash,
+            intent_card={
+                "core_tension": intent_card.core_tension,
+                "implicit_choice": intent_card.implicit_choice,
+                "likely_consequence": intent_card.likely_consequence,
+                "emotional_tone": intent_card.emotional_tone,
+            },
+            candidate_stats=candidate_stats,
+            outcome_status="FULL_INTRO_OK",
+            selected_source="judge+tweaker_fallback",
+            selected_candidate=selected_candidate,
+            selected_angle=selected_angle,
+        )
         logger.warning(
-            "hook_pipeline.selected_source=%s selected_candidate=%s winner_before_tweak=%s rejudge_reasons=%s tweaker_used=%s rejudge_used=%s",
-            selected_source,
+            "hook_pipeline.selected_source=judge+tweaker_fallback selected_candidate=%s winner_before_tweak=%s tweaker_used=%s rejudge_used=%s",
+            winner_before_tweak,
+            winner_before_tweak,
+            True,
+            False,
+        )
+        return normalize_hook_punctuation(winner_before_tweak)
+
+    rejudge_temperature = min(settings.hook_judge_temperature, 0.10)
+    rejudge_response = create_response_with_transport_retries(
+        client,
+        model=settings.hook_judge_model,
+        temperature=rejudge_temperature,
+        top_p=1.0,
+        max_output_tokens=60,
+        input=[
+            {
+                "role": "developer",
+                "content": [{"type": "input_text", "text": HOOK_JUDGE_DEVMSG}],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": build_judge_user_input(prepared_reading, tweak_valid, False),
+                    }
+                ],
+            },
+        ],
+    )
+
+    rejudged = normalize_hook_punctuation(
+        normalize_judge_output(extract_response_text(rejudge_response))
+    )
+    rejudged_reasons = validate_candidate(rejudged)
+    logger.info(
+        "hook_pipeline.rejudge_decision selected_candidate=%s valid=%s tweak_pool=%d",
+        rejudged,
+        not rejudged_reasons,
+        len(tweak_valid),
+    )
+
+    if rejudged_reasons:
+        selected_candidate = winner_before_tweak
+        selected_angle = next(
+            (item.angle for item in shortlist if item.candidate == winner_before_tweak),
+            "unknown",
+        )
+        _log_hook_event(
+            settings,
+            reading_hash=reading_hash,
+            intent_card={
+                "core_tension": intent_card.core_tension,
+                "implicit_choice": intent_card.implicit_choice,
+                "likely_consequence": intent_card.likely_consequence,
+                "emotional_tone": intent_card.emotional_tone,
+            },
+            candidate_stats=candidate_stats,
+            outcome_status="FULL_INTRO_OK",
+            selected_source="judge+tweaker_fallback",
+            selected_candidate=selected_candidate,
+            selected_angle=selected_angle,
+        )
+        logger.warning(
+            "hook_pipeline.selected_source=judge+tweaker_fallback selected_candidate=%s winner_before_tweak=%s rejudge_reasons=%s tweaker_used=%s rejudge_used=%s",
             winner_before_tweak,
             winner_before_tweak,
             rejudged_reasons,
             True,
             True,
         )
-        _log_hook_event(
-            settings,
-            reading_hash=reading_hash,
-            intent_card=intent_card_payload,
-            candidate_stats=candidate_stats,
-            outcome_status=outcome_status,
-            selected_source=selected_source,
-            selected_candidate=selected_candidate,
-            selected_angle=selected_angle,
-        )
         return normalize_hook_punctuation(winner_before_tweak)
 
-    repaired = normalize_hook_punctuation(_repair_hook(client, settings, judged))
-    repaired_reasons = validate_candidate(repaired)
-    if not repaired_reasons:
-        _, repaired_weighted_total = _score_with_weights(
-            repaired,
-            reading=prepared_reading,
-            peers=[other.candidate for other in checked if other.candidate != repaired],
-            settings=settings,
-        )
-        if repaired_weighted_total < min_total_score_repaired:
-            repaired_reasons.append("below_min_total_score_repaired")
-
-    if not repaired_reasons:
-        selected_source = "repair"
-        selected_candidate = repaired
-        selected_angle = next(
-            (item.angle for item in shortlist if item.candidate == judged), "unknown"
-        )
-        outcome_status = "HOOK_WEAK_REPAIRED"
-        logger.info("hook_pipeline.selected_source=%s", selected_source)
-        _log_hook_event(
-            settings,
-            reading_hash=reading_hash,
-            intent_card=intent_card_payload,
-            candidate_stats=candidate_stats,
-            outcome_status=outcome_status,
-            selected_source=selected_source,
-            selected_candidate=selected_candidate,
-            selected_angle=selected_angle,
-        )
-        return normalize_hook_punctuation(repaired)
-
-    fallback_item = sorted(checked, key=lambda item: len(item.reasons))[0]
-    selected_source = "failure"
-    logger.warning(
-        "hook_pipeline.selected_source=%s judge_reasons=%s repair_reasons=%s fallback_reasons=%s",
-        selected_source,
-        judged_reasons,
-        repaired_reasons,
-        fallback_item.reasons,
+    selected_angle = next(
+        (item.angle for item in shortlist if item.candidate == winner_before_tweak),
+        "unknown",
     )
     _log_hook_event(
         settings,
         reading_hash=reading_hash,
-        intent_card=intent_card_payload,
+        intent_card={
+            "core_tension": intent_card.core_tension,
+            "implicit_choice": intent_card.implicit_choice,
+            "likely_consequence": intent_card.likely_consequence,
+            "emotional_tone": intent_card.emotional_tone,
+        },
         candidate_stats=candidate_stats,
-        outcome_status="CREDIT_ONLY",
-        selected_source=selected_source,
-        selected_candidate=None,
-        selected_angle="unknown",
+        outcome_status="FULL_INTRO_OK",
+        selected_source="judge+tweaker_judge",
+        selected_candidate=rejudged,
+        selected_angle=selected_angle,
     )
-    raise SpokenHookValidationError("no_valid_hook_after_judge_and_repair")
+    logger.info(
+        "hook_pipeline.selected_source=judge+tweaker_judge selected_candidate=%s winner_before_tweak=%s tweaker_used=%s rejudge_used=%s",
+        rejudged,
+        winner_before_tweak,
+        True,
+        True,
+    )
+    return normalize_hook_punctuation(rejudged)
 
 
 def _log_hook_event(
