@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from spurgeon.services.intro.hook_pipeline.rules import HookOutcome, HookScoreCard
+from spurgeon.services.intro.hook_pipeline.rules import HookOutcome
 
 
 def _utc_now_iso() -> str:
@@ -36,14 +36,3 @@ def append_hook_event(
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
-
-def scorecard_to_dict(score: HookScoreCard) -> dict[str, int]:
-    return {
-        "compliance": score.compliance,
-        "curiosity_tension": score.curiosity_tension,
-        "concreteness": score.concreteness,
-        "viewer_relevance": score.viewer_relevance,
-        "spoken_fluency": score.spoken_fluency,
-        "novelty": score.novelty,
-        "total": score.total,
-    }

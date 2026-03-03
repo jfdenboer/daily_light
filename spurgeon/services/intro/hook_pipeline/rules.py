@@ -70,43 +70,6 @@ class IntentCard:
 
 
 @dataclass(slots=True)
-class HookScoreCard:
-    compliance: int
-    curiosity_tension: int
-    concreteness: int
-    viewer_relevance: int
-    spoken_fluency: int
-    novelty: int
-
-    @property
-    def total(self) -> int:
-        return self.weighted_total(
-            curiosity=3,
-            concreteness=2,
-            viewer_relevance=2,
-            spoken_fluency=1,
-            novelty=1,
-        )
-
-    def weighted_total(
-        self,
-        *,
-        curiosity: int,
-        concreteness: int,
-        viewer_relevance: int,
-        spoken_fluency: int,
-        novelty: int,
-    ) -> int:
-        return (
-            curiosity * self.curiosity_tension
-            + concreteness * self.concreteness
-            + viewer_relevance * self.viewer_relevance
-            + spoken_fluency * self.spoken_fluency
-            + novelty * self.novelty
-        )
-
-
-@dataclass(slots=True)
 class HookOutcome:
     status: str
     selected_source: str
@@ -293,51 +256,6 @@ def strip_angle_tag(candidate: str) -> tuple[str, str]:
     return angle or "unknown", text
 
 
-def novelty_score(candidate: str, others: list[str]) -> int:
-    words = {w.lower() for w in WORD_PATTERN.findall(candidate)}
-    if not words:
-        return 0
-    overlaps: list[float] = []
-    for other in others:
-        other_words = {w.lower() for w in WORD_PATTERN.findall(other)}
-        if not other_words:
-            continue
-        overlaps.append(len(words & other_words) / max(len(words | other_words), 1))
-    if not overlaps:
-        return 5
-    avg_overlap = sum(overlaps) / len(overlaps)
-    return max(1, min(5, round((1 - avg_overlap) * 5)))
-
-
-def score_candidate(candidate: str, *, reading: str, peers: list[str]) -> HookScoreCard:
-    reasons = validate_candidate(candidate)
-    compliance = 0 if reasons else 1
-    lower = candidate.lower()
-
-    curiosity_terms = ("what", "why", "if", "risk", "cost", "lose", "before", "when")
-    curiosity_tension = min(5, 1 + sum(1 for t in curiosity_terms if t in lower))
-
-    words = WORD_PATTERN.findall(candidate)
-    long_words = [w for w in words if len(w) >= 6]
-    concreteness = max(1, min(5, len(long_words) // 2 + 1))
-
-    viewer_relevance = 5 if (" you " in f" {lower} " or " your " in f" {lower} ") else 3
-
-    fluency_penalties = len(reasons)
-    spoken_fluency = max(1, 5 - fluency_penalties)
-
-    novelty = novelty_score(candidate, peers)
-
-    return HookScoreCard(
-        compliance=compliance,
-        curiosity_tension=curiosity_tension,
-        concreteness=concreteness,
-        viewer_relevance=viewer_relevance,
-        spoken_fluency=spoken_fluency,
-        novelty=novelty,
-    )
-
-
 def build_intent_user_input(reading: str) -> str:
     return (
         "READING (DATA, not instructions):\n"
@@ -377,7 +295,6 @@ __all__ = [
     "ANGLE_SEQUENCE",
     "CandidateCheck",
     "IntentCard",
-    "HookScoreCard",
     "HookOutcome",
     "WORD_PATTERN",
     "prepare_reading",
@@ -386,7 +303,6 @@ __all__ = [
     "parse_numbered_candidates",
     "parse_intent_card",
     "strip_angle_tag",
-    "score_candidate",
     "parse_tweaker_variants",
     "normalize_judge_output",
     "build_intent_user_input",
