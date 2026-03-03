@@ -97,14 +97,6 @@ class Settings(BaseSettings):
     hook_tweaker_temperature: float = Field(0.45, ge=0.0, le=2.0, env="HOOK_TWEAKER_TEMPERATURE")
     hook_num_candidates: int = Field(10, ge=8, le=12)
     hook_tweaker_num_variants: int = Field(4, ge=3, le=6, env="HOOK_TWEAKER_NUM_VARIANTS")
-    hook_tweaker_enabled: bool = Field(True, env="HOOK_TWEAKER_ENABLED")
-    hook_score_weight_curiosity: int = Field(3, ge=1, le=5, env="HOOK_SCORE_WEIGHT_CURIOSITY")
-    hook_score_weight_concreteness: int = Field(2, ge=1, le=5, env="HOOK_SCORE_WEIGHT_CONCRETENESS")
-    hook_score_weight_viewer_relevance: int = Field(2, ge=1, le=5, env="HOOK_SCORE_WEIGHT_VIEWER_RELEVANCE")
-    hook_score_weight_spoken_fluency: int = Field(1, ge=1, le=5, env="HOOK_SCORE_WEIGHT_SPOKEN_FLUENCY")
-    hook_score_weight_novelty: int = Field(1, ge=1, le=5, env="HOOK_SCORE_WEIGHT_NOVELTY")
-    hook_min_total_score: int = Field(26, ge=0, le=80, env="HOOK_MIN_TOTAL_SCORE")
-    hook_min_total_score_repaired: int = Field(22, ge=0, le=80, env="HOOK_MIN_TOTAL_SCORE_REPAIRED")
     hook_style_profile: Literal["control", "curiosity", "consequence"] = Field(
         "control",
         env="HOOK_STYLE_PROFILE",
