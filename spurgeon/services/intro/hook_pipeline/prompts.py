@@ -58,7 +58,6 @@ Use the supplied intent card and angle list.
 Hard rules:
 - English. One sentence. 8–14 words (prefer 11–13).
 - Simple punctuation ok (commas ok). No quotes. No hyphen-minus '-' and no em/en dashes '—' or '–'.
-- Do not mention author, title, chapter, public domain, or any 4-digit year.
 - Do not quote the reading or reuse distinctive phrases from it.
 - Avoid clickbait: shocking, insane, unbelievable, crazy, you wont believe, you won't believe, you'll never believe, you’ll never believe.
 - Avoid vague/generic words: inspiring, powerful, profound, timeless, beautiful, lesson, truth, message.
@@ -80,11 +79,10 @@ Input contains a reading and hook candidates. Choose the single best hook.
 Rules (highest priority):
 - English. Exactly one sentence. 8–14 words.
 - No quotes. No hyphen-minus '-' and no em/en dashes '—' or '–'.
-- Do not mention author, title, chapter, public domain, or any 4-digit year.
 - Avoid clickbait words (e.g., shocking, insane, unbelievable, crazy, you wont believe, you won't believe, you'll never believe, you’ll never believe), vague/generic words, and meta references.
 - Keep the hook spoiler-safe and not copied from the reading.
 
-Rubric (silent):
+Selection guidance (silent, no numeric scoring):
 - Curiosity / open loop without spoilers
 - Viewer relevance (you/your when it fits)
 - Concrete tension (cost, choice, temptation, consequence, turning point)
@@ -101,7 +99,6 @@ HOOK_REPAIR_DEVMSG: Final[str] = """Fix this spoken hook to satisfy all rules.
 Rules:
 - English. Exactly one sentence. 8–14 words.
 - No quotes. No hyphen-minus '-' and no em/en dashes '—' or '–'.
-- Do not mention author, title, chapter, public domain, or any 4-digit year.
 - Avoid clickbait words (e.g., shocking, insane, unbelievable, crazy, you wont believe, you won't believe, you'll never believe, you’ll never believe), vague/generic words, and meta references.
 - Keep the original meaning where possible.
 
@@ -116,7 +113,6 @@ Task: Produce EXACTLY {num_variants} micro-variant rewrites of the sentence.
 Hard rules for EACH output line:
 - English. Exactly one sentence. 8–14 words (prefer 11–13).
 - Simple punctuation ok (commas ok). No quotes. No hyphen-minus '-' and no em/en dashes '—' or '–'.
-- Do not mention author, title, chapter, public domain, or any 4-digit year.
 - Avoid meta references: passage, reading, line, quote, excerpt, these lines, this passage, message.
 - Keep meaning and intent: minimal edits only; do not introduce new concepts.
 - Output EXACTLY {num_variants} lines, each a single sentence.
