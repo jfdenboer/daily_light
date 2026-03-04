@@ -18,7 +18,6 @@ from spurgeon.services.intro.hook_pipeline.prompts import (
     HOOK_GENERATOR_DEVMSG,
     HOOK_INTENT_DEVMSG,
     HOOK_JUDGE_DEVMSG,
-    HOOK_REPAIR_DEVMSG,
     HOOK_TWEAKER_DEVMSG,
     PROMPT_VERSION_MAP,
     get_hook_style_instruction,
@@ -31,7 +30,6 @@ from spurgeon.services.intro.hook_pipeline.rules import (
     build_intent_user_input,
     build_judge_user_input,
     normalize_hook_punctuation,
-    normalize_judge_output,
     parse_intent_card,
     parse_numbered_candidates,
     parse_tweaker_variants,
@@ -76,24 +74,6 @@ def _tweak_winner(client: OpenAI, *, winner: str, settings: Settings) -> list[st
     )
 
 
-def _repair_hook(client: OpenAI, settings: Settings, hook: str) -> str:
-    response = create_response_with_transport_retries(
-        client,
-        model=settings.hook_judge_model,
-        temperature=0.2,
-        top_p=1.0,
-        max_output_tokens=220,
-        input=[
-            {
-                "role": "developer",
-                "content": [{"type": "input_text", "text": HOOK_REPAIR_DEVMSG}],
-            },
-            {"role": "user", "content": [{"type": "input_text", "text": hook}]},
-        ],
-    )
-    return normalize_judge_output(extract_response_text(response))
-
-
 def _build_tweak_pool(winner: str, variants: list[str]) -> list[str]:
     """Return a de-duplicated tweak pool with the original winner as first option."""
 
@@ -113,7 +93,7 @@ def _build_tweak_pool(winner: str, variants: list[str]) -> list[str]:
 
 
 def _select_best_effort_candidate(candidates: list[CandidateCheck]) -> CandidateCheck:
-    """Choose candidate with fewest validator failures for repair fallback."""
+    """Choose candidate with fewest validator failures as best-effort fallback."""
 
     return sorted(candidates, key=lambda item: (len(item.reasons), item.candidate))[0]
 
