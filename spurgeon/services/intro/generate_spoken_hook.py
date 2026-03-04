@@ -40,6 +40,7 @@ from spurgeon.services.intro.hook_pipeline.rules import (
 from spurgeon.services.intro.hook_pipeline.telemetry import append_hook_event
 
 logger = logging.getLogger(__name__)
+SCORE_JUDGE_MAX_OUTPUT_TOKENS = 360
 
 
 class SpokenHookValidationError(ValueError):
@@ -249,7 +250,7 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         model=settings.hook_judge_model,
         temperature=settings.hook_judge_temperature,
         top_p=1.0,
-        max_output_tokens=220,
+        max_output_tokens=SCORE_JUDGE_MAX_OUTPUT_TOKENS,
         input=[
             {
                 "role": "developer",
@@ -377,7 +378,7 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         model=settings.hook_judge_model,
         temperature=rejudge_temperature,
         top_p=1.0,
-        max_output_tokens=220,
+        max_output_tokens=SCORE_JUDGE_MAX_OUTPUT_TOKENS,
         input=[
             {
                 "role": "developer",
