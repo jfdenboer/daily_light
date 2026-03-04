@@ -19,7 +19,6 @@ from spurgeon.services.intro.hook_pipeline.prompts import (
     HOOK_INTENT_DEVMSG,
     HOOK_JUDGE_DEVMSG,
     HOOK_TWEAKER_DEVMSG,
-    PROMPT_VERSION_MAP,
     get_hook_style_instruction,
 )
 from spurgeon.services.intro.hook_pipeline.rules import (
@@ -108,13 +107,12 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
     style_profile = settings.hook_style_profile
 
     logger.info(
-        "hook_pipeline.start generator_temperature=%.2f judge_temperature=%.2f tweaker_temperature=%.2f tweaker_variants=%d style_profile=%s prompt_versions=%s",
+        "hook_pipeline.start generator_temperature=%.2f judge_temperature=%.2f tweaker_temperature=%.2f tweaker_variants=%d style_profile=%s",
         settings.hook_generator_temperature,
         settings.hook_judge_temperature,
         settings.hook_tweaker_temperature,
         settings.hook_tweaker_num_variants,
         style_profile,
-        PROMPT_VERSION_MAP,
     )
 
     intent_response = create_response_with_transport_retries(
@@ -479,7 +477,7 @@ def _log_hook_event(
     selected_candidate: str | None,
     selected_angle: str | None,
 ) -> None:
-    if not getattr(settings, "intro_telemetry_enabled", False):
+    if not getattr(settings, "intro_telemetry_enabled", True):
         return
 
     outcome = HookOutcome(
@@ -487,7 +485,6 @@ def _log_hook_event(
         selected_source=selected_source,
         selected_candidate=selected_candidate,
         selected_angle=selected_angle,
-        prompt_versions=dict(PROMPT_VERSION_MAP),
         style_profile=settings.hook_style_profile,
         model_generator=settings.hook_generator_model,
         model_judge=settings.hook_judge_model,
