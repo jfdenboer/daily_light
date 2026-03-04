@@ -7,7 +7,7 @@ from typing import Final
 PROMPT_VERSION_MAP: Final[dict[str, str]] = {
     "hook_intent": "v3",
     "hook_generate": "v3",
-    "hook_judge": "v3",
+    "hook_judge": "v4",
     "hook_repair": "v3",
     "hook_tweaker": "v3",
 }
@@ -26,6 +26,10 @@ HOOK_STYLE_PROFILES: Final[dict[str, str]] = {
     "consequence": (
         "Lead with cost/stakes: what it risks, costs, forfeits, or trades. "
         "Use concrete consequence verbs (lose, miss, trade, pay, drift) while staying spoiler-safe."
+    ),
+    "choice": (
+        "Use explicit fork-in-the-road framing: do X or do Y, now. "
+        "Make the immediate decision feel concrete and consequential without resolving it."
     ),
 }
 
@@ -83,36 +87,76 @@ Output format requirements:
 - Each candidate must be one sentence.
 """
 
-HOOK_JUDGE_DEVMSG: Final[str] = """You are an expert hook judge.
+HOOK_JUDGE_DEVMSG: Final[str] = """You are a scoring judge for spoken YouTube hook candidates.
 
-Input contains a reading and multiple hook candidates. Choose the single best hook.
+You will receive:
+- style_profile: one of {control, curiosity, consequence, choice}
+- intent_card with:
+  - core_tension
+  - implicit_choice
+  - likely_consequence
+  - emotional_tone
+- a numbered list of candidate hooks (each is ONE sentence).
 
-Hard rules (highest priority):
-- English. Exactly one sentence. 8–14 words.
-- No quotes. No exclamation marks.
-- No hyphen-minus '-' and no em/en dashes '—' or '–'.
-- Avoid clickbait words (e.g., shocking, insane, unbelievable, crazy, you wont believe).
-- Avoid vague/generic words (e.g., inspiring, profound, timeless, powerful, truth, message, lesson, excerpt).
-- Avoid meta references (passage, reading, line, quote, author, title, chapter, public domain, any 4-digit year).
-- Keep the hook spoiler-safe: do not state the resolution or moral.
-- Do not echo distinctive multiword phrases from the reading.
+Your job:
+Score EACH candidate for hook quality (dominant) and broad intent compatibility (secondary).
+Do NOT select a winner. Do NOT rewrite any candidate. Do NOT compute totals.
+Only output subscores in the strict format below.
 
-Selection guidance (silent; no numeric scoring in output):
-1) Rule compliance (prefer already-compliant candidates; do not rewrite unless required).
-2) Curiosity / open loop without spoilers.
-3) Viewer relevance (you/your when it fits naturally).
-4) Concrete tension (cost, choice, temptation, consequence, turning point).
-5) Concreteness (specific nouns/verbs) and spoken fluency.
+Scoring dimensions (each is an integer 0, 1, or 2):
+t = tension (concrete tension)
+o = open_loop (curiosity without spoilers)
+v = viewer (viewer relevance)
+f = fluency (spoken cadence)
+s = style_tone (match style_profile + emotional_tone)
+i = intent (broad compatibility with core_tension or implicit_choice)
 
-Punctuation:
-- Use '?' if the sentence is a question; otherwise end with '.'.
+How to score (0/1/2 anchors):
+tension (t):
+- 0: generic mood/encouragement; no clear conflict, cost, or decision.
+- 1: some tension is present but vague or familiar.
+- 2: specific, concrete conflict/cost/choice that feels immediate.
 
-Repair rule:
-- Only if ALL candidates violate hard rules: minimally edit the best candidate into full compliance.
-- Keep the original meaning and angle; do not invent a new hook.
+open_loop (o):
+- 0: resolves/declares the point, or has no unanswered outcome.
+- 1: hints at an unanswered outcome but it is mild.
+- 2: strong unfinished pull; clearly leaves an unanswered question/outcome.
 
-Output exactly one line with the chosen hook only. No numbering, no commentary.
-"""
+viewer relevance (v):
+- 0: detached/third-person; hard to map to the viewer.
+- 1: somewhat relatable but not directly addressed.
+- 2: directly viewer-facing (you/your) or unmistakably personal stakes.
+
+fluency (f):
+- 0: clunky/awkward phrasing; hard to say cleanly.
+- 1: mostly speakable with minor stiffness.
+- 2: clean rhythm; easy to read aloud; crisp.
+
+style & tone (s):
+- 0: noticeably off (too hyped, too harsh, wrong vibe).
+- 1: acceptable but not a great match.
+- 2: clearly matches the intended emotional_tone and style_profile:
+  - control: calm, balanced clarity + curiosity; implied stakes; no hype.
+  - curiosity: maximize the open loop; withhold the key detail.
+  - consequence: foreground cost/stakes; concrete consequence framing.
+  - choice: explicit fork-in-the-road framing; immediate decision feel.
+
+intent compatibility (i):
+- 0: clearly inconsistent with core_tension/implicit_choice.
+- 1: loosely aligned or only faintly related.
+- 2: clearly aligned (direct or close paraphrase).
+
+Normalization rules (important):
+- Scores are RELATIVE within this candidate set.
+- Use the full scale; avoid giving all 2s.
+- For each dimension (t/o/v/f/s/i), at most TWO candidates may receive a 2.
+
+Output format (STRICT; no extra text, no blank lines):
+SCORES
+1|t=<0-2>|o=<0-2>|v=<0-2>|f=<0-2>|s=<0-2>|i=<0-2>
+2|t=<0-2>|o=<0-2>|v=<0-2>|f=<0-2>|s=<0-2>|i=<0-2>
+...repeat for all candidates in order...
+END"""
 
 HOOK_REPAIR_DEVMSG: Final[str] = """You are a compliance repair tool for a single spoken YouTube hook sentence.
 

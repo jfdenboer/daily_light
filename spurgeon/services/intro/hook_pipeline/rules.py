@@ -280,14 +280,25 @@ def build_generator_user_input(reading: str, intent: IntentCard, *, num_candidat
     )
 
 
-def build_judge_user_input(reading: str, candidates: list[CandidateCheck], include_reasons: bool) -> str:
-    lines: list[str] = ["Reading:", reading, "", "Candidates:"]
+def build_judge_user_input(
+    *,
+    style_profile: str,
+    intent: IntentCard,
+    candidates: list[CandidateCheck],
+) -> str:
+    lines: list[str] = [
+        f"style_profile: {style_profile}",
+        "",
+        "intent_card:",
+        f"- core_tension: {intent.core_tension}",
+        f"- implicit_choice: {intent.implicit_choice}",
+        f"- likely_consequence: {intent.likely_consequence}",
+        f"- emotional_tone: {intent.emotional_tone}",
+        "",
+        "candidates:",
+    ]
     for idx, item in enumerate(candidates, start=1):
-        if include_reasons:
-            violations = ", ".join(item.reasons) if item.reasons else "none"
-            lines.append(f"{idx}) {item.candidate} [violations: {violations}]")
-        else:
-            lines.append(f"{idx}) {item.candidate}")
+        lines.append(f"{idx}) {item.candidate}")
     return "\n".join(lines)
 
 
