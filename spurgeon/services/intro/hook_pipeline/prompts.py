@@ -4,13 +4,6 @@ from __future__ import annotations
 
 from typing import Final
 
-PROMPT_VERSION_MAP: Final[dict[str, str]] = {
-    "hook_intent": "v3",
-    "hook_generate": "v3",
-    "hook_judge": "v4",
-    "hook_tweaker": "v3",
-}
-
 HOOK_STYLE_PROFILES: Final[dict[str, str]] = {
     "control": (
         "Default profile. Balanced clarity + curiosity: one clean tension, calm delivery, no hype. "
@@ -192,7 +185,6 @@ __all__ = [
     "HOOK_GENERATOR_DEVMSG",
     "HOOK_JUDGE_DEVMSG",
     "HOOK_TWEAKER_DEVMSG",
-    "PROMPT_VERSION_MAP",
     "HOOK_STYLE_PROFILES",
     "get_hook_style_instruction",
 ]

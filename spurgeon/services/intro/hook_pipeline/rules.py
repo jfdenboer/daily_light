@@ -75,7 +75,6 @@ class HookOutcome:
     selected_source: str
     selected_candidate: str | None
     selected_angle: str | None
-    prompt_versions: dict[str, str]
     style_profile: str
     model_generator: str
     model_judge: str
