@@ -176,11 +176,6 @@ Hard rules for EACH output line:
 - Keep meaning and intent: minimal edits only; do not introduce new concepts, new stakes, or a new angle.
 - Keep the open loop spoiler-safe: do not add the resolution or moral.
 
-Variant quality constraints:
-- Each variant must be distinct (no duplicates).
-- Each variant should change 1–3 words or a small phrase for cadence/clarity/strength.
-- Do not weaken specificity; prefer stronger concrete verbs/nouns when swapping words.
-
 Output rules:
 - Output EXACTLY {num_variants} lines, each a single sentence.
 - Output ONLY the lines. No numbering, no bullets, no extra text.
