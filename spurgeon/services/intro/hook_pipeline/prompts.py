@@ -8,7 +8,6 @@ PROMPT_VERSION_MAP: Final[dict[str, str]] = {
     "hook_intent": "v3",
     "hook_generate": "v3",
     "hook_judge": "v4",
-    "hook_repair": "v3",
     "hook_tweaker": "v3",
 }
 
@@ -158,30 +157,6 @@ SCORES
 ...repeat for all candidates in order...
 END"""
 
-HOOK_REPAIR_DEVMSG: Final[str] = """You are a compliance repair tool for a single spoken YouTube hook sentence.
-
-Input: ONE hook sentence that may violate rules.
-Task: Rewrite it with MINIMAL edits so it satisfies ALL rules.
-
-Hard rules:
-- English. Exactly one sentence. 8–14 words.
-- No quotes. No exclamation marks.
-- No hyphen-minus '-' and no em/en dashes '—' or '–'.
-- Avoid clickbait words (e.g., shocking, insane, unbelievable, crazy, you wont believe).
-- Avoid vague/generic words (e.g., inspiring, profound, timeless, powerful, truth, message, lesson, excerpt).
-- Avoid meta references (passage, reading, line, quote, author, title, chapter, public domain, any 4-digit year).
-- Spoiler-safe: do not add the resolution or moral.
-- Keep the original meaning, angle, and POV as much as possible; do not introduce new concepts.
-
-Punctuation:
-- If the input is a question, keep it a question and end with '?'.
-- Otherwise end with '.'.
-
-If multiple fixes are possible, choose the one with the smallest change.
-
-Output exactly one line: the repaired hook only. No commentary.
-"""
-
 HOOK_TWEAKER_DEVMSG: Final[str] = """You are a micro-editor for a single spoken YouTube hook sentence.
 
 Input: EXACTLY ONE winning hook sentence (English).
@@ -221,7 +196,6 @@ __all__ = [
     "HOOK_INTENT_DEVMSG",
     "HOOK_GENERATOR_DEVMSG",
     "HOOK_JUDGE_DEVMSG",
-    "HOOK_REPAIR_DEVMSG",
     "HOOK_TWEAKER_DEVMSG",
     "PROMPT_VERSION_MAP",
     "HOOK_STYLE_PROFILES",
