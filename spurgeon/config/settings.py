@@ -25,38 +25,17 @@ class Settings(BaseSettings):
     rev_ai_token: str = Field(..., env="REV_AI_TOKEN")
     gcs_credentials_path: Path = Field(..., env="GCS_CREDENTIALS_PATH")
 
-    # Bannerbear thumbnail generation
-    bannerbear_api_key: str | None = Field(default=None, env="BANNERBEAR_API_KEY")
-    bannerbear_project_name: str = Field(
-        "spurgeon",
-        min_length=1,
-        env="BANNERBEAR_PROJECT_NAME",
-        description="Naam van het Bannerbear-project waarin onze templates leven.",
+    # Thumbnail generation
+    thumbnail_enabled: bool = Field(True, env="THUMBNAIL_ENABLED")
+    thumbnail_image_model: Literal["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"] = (
+        "gpt-image-1.5"
     )
-    bannerbear_template_id: str | None = Field(
-        default="RnxGpW5l7NXyZEXrJ1",
-        min_length=1,
-        env="BANNERBEAR_TEMPLATE_ID",
-        description="UID van het Bannerbear-image-template dat als basis dient voor thumbnails.",
-    )
-    bannerbear_webhook_url: str | None = Field(
-        default=None,
-        env="BANNERBEAR_WEBHOOK",
-        description="Optional webhook URL configured on the Bannerbear template.",
-    )
-    bannerbear_use_sync_api: bool = Field(
-        False,
-        env="BANNERBEAR_USE_SYNC_API",
-        description="Switch between synchronous and asynchronous Bannerbear API endpoints.",
-    )
-    bannerbear_poll_interval: float = Field(2.0, gt=0.0)
-    bannerbear_timeout_seconds: int = Field(90, gt=0)
-    bannerbear_modifications: list[dict[str, str]] = Field(
-        default_factory=lambda: [
-            {"name": "title", "text": "{thumbnail_text}"},
-            {"name": "date_text", "text": "{date_text}"},
-        ]
-    )
+    thumbnail_image_size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1536x1024"
+    thumbnail_image_quality: Literal["low", "medium", "high", "auto"] = "medium"
+    thumbnail_image_background: Literal["transparent", "opaque", "auto"] = "opaque"
+    thumbnail_max_retries: int = Field(3, ge=0)
+    thumbnail_retry_backoff: float = Field(1.0, gt=0.0)
+    thumbnail_font_path: str | None = Field(default=None, env="THUMBNAIL_FONT_PATH")
 
     # Bucket name
     gcs_bucket_name: str = Field("spurgeon_bucket", min_length=1)
@@ -74,7 +53,7 @@ class Settings(BaseSettings):
 
     # ElevenLabs
     elevenlabs_enable_v3: bool = Field(True)
-    elevenlabs_voice_id: str = Field("onwK4e9ZLuTAKqWW03F9", min_length=1)
+    elevenlabs_voice_id: str = Field("pNInz6obpgDQGcFmaJgB", min_length=1)
     elevenlabs_model_id: str = Field("eleven_v3", min_length=1)
     elevenlabs_voice_speed: float = Field(0.95, gt=0.0)
     elevenlabs_output_format: str = Field("mp3_44100_128", min_length=1)
@@ -276,53 +255,13 @@ class Settings(BaseSettings):
             return value.expanduser().resolve()
         return Path(value).expanduser().resolve()
 
-    @field_validator("bannerbear_project_name")
-    @classmethod
-    def _normalise_project_name(cls, value: str | None) -> str:
-        if value is None:
-            raise ValueError("bannerbear_project_name cannot be empty")
-        cleaned = str(value).strip()
-        if not cleaned:
-            raise ValueError("bannerbear_project_name cannot be empty")
-        return cleaned
-
-    @field_validator("bannerbear_api_key", "bannerbear_template_id", mode="before")
+    @field_validator("thumbnail_font_path", mode="before")
     @classmethod
     def _empty_to_none(cls, value: str | None):
         if isinstance(value, str):
             cleaned = value.strip()
             return cleaned or None
         return value
-
-    @field_validator("bannerbear_modifications", mode="before")
-    @classmethod
-    def _parse_modifications(cls, value):
-        if value is None:
-            return None
-        if isinstance(value, str):
-            try:
-                import json
-
-                parsed = json.loads(value)
-            except Exception as exc:  # pragma: no cover - defensive guard
-                raise ValueError(
-                    "BANNERBEAR_MODIFICATIONS must be valid JSON"
-                ) from exc
-            if not isinstance(parsed, list):
-                raise ValueError("BANNERBEAR_MODIFICATIONS must decode to a list")
-            value = parsed
-
-        if not isinstance(value, list):
-            raise TypeError("bannerbear_modifications must be a list of mappings")
-
-        cleaned: list[dict[str, str]] = []
-        for entry in value:
-            if not isinstance(entry, dict):
-                raise TypeError("Each Bannerbear modification must be a mapping")
-            if "name" not in entry or not str(entry["name"]).strip():
-                raise ValueError("Each Bannerbear modification requires a non-empty name")
-            cleaned.append({str(k): str(v) for k, v in entry.items()})
-        return cleaned
 
     @model_validator(mode="after")
     def _post_validate(self) -> Settings:
@@ -340,11 +279,6 @@ class Settings(BaseSettings):
         zoom_delta = abs(self.video_zoom_wide_end - self.video_zoom_wide_start)
         if zoom_delta - 0.12 > 1e-9:
             raise ValueError("video_zoom_wide range must stay within 0.12 to prevent extreme motion")
-
-        if self.bannerbear_api_key and not self.bannerbear_template_id:
-            raise ValueError(
-                "bannerbear_template_id must be configured when bannerbear_api_key is provided"
-            )
 
         return self
 
