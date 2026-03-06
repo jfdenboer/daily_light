@@ -26,14 +26,47 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
-THUMBNAIL_IMAGE_SYSTEM_PROMPT = (
-    "Create a cinematic, realistic, high-clarity thumbnail background for a Christian devotional video.\n"
-    "No text, letters, numbers, logos, watermarks, icons, emblems, or typographic shapes.\n"
-    "Use exactly one clear focal subject.\n"
-    "Place the focal subject on the right or center-right, and keep the left 40 percent clean, dark enough, and low-detail for text overlay.\n"
-    "Use natural lighting, strong depth, atmospheric realism, and a composition that reads clearly on small screens.\n"
-    "Avoid clutter, multiple subjects, busy textures, collage-like storytelling, extreme blur, fantasy illustration styles, surrealism, or artificial CGI looks.\n"
-    "Do not literally illustrate the full devotional text; imply a single emotionally resonant scene instead."
+THUMBNAIL_STYLE_LINE = (
+    "Style: modern cinematic stillframe; naturalistic realism with a calm, contemplative mood; "
+    "subtle highlight bloom/halation without overall softness; focal subject remains crisp, distinct, and readable at small size; "
+    "fine, subtle film-like grain; matte finish; natural materials with slight imperfections; "
+    "avoid hyper-clarity, micro-contrast, crunchy edges, sharpening halos, heavy vignettes, HDR, smeary detail, and heavy diffusion; "
+    "no illustration/paper/paint look; no CGI/3D/glossy rendering."
+)
+
+THUMBNAIL_BACKGROUND_LINE = (
+    "Setting: believable outdoor environment with depth and atmosphere; uncluttered but not empty; "
+    "favor broad landforms and natural materials (rock, coast, dunes, hills, snow, water, weathered stone/wood) over dense foliage; "
+    "subtle haze for distance separation; keep the left side and center-left simple, calm, and low-detail for text overlay; "
+    "avoid close foliage, prominent branches framing the scene, staged studio backdrops, and vintage/sepia/antique cues."
+)
+
+THUMBNAIL_COMPOSITION_LINE = (
+    "Composition: 16:9 wide; exactly one clear focal subject placed on the right or center-right; "
+    "strong depth (foreground/midground/background) with minimal elements; "
+    "reserve a clean vertical text safe-zone across roughly the left 40 percent with no key subject, no busy textures, and no high-detail edges; "
+    "keep the focal subject clearly outside the text zone; "
+    "avoid competing focal points, tight crops, edge tangents, horizon lines distracting behind the text area, and collage-like storytelling; "
+    "readable at a glance on small screens."
+)
+
+THUMBNAIL_CONSTRAINTS_LINE = (
+    "Constraints: no visible text, captions, lettering, numbers, pseudo-text, watermarks, logos, readable signage, icons, emblems, frames, or UI overlays; "
+    "prefer no close human portraits; if a person appears, use at most one solitary non-identifiable figure with a clear silhouette; "
+    "avoid exaggerated shallow depth-of-field, bokeh balls, cut-out subject separation, neon colors, oversharpening, repeating patterns, banding in skies/gradients, and high-frequency texture behind the text area."
+)
+
+THUMBNAIL_PALETTE_LINE = (
+    "Color grade: warm-neutral cinematic palette with restrained saturation; natural earth/stone/sky/water tones; "
+    "gentle contrast with clean highlights and soft shadows; subtle warm highlight accents without orange cast; "
+    "avoid overly lush greens, yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
+)
+
+THUMBNAIL_LIGHTING_LINE = (
+    "Lighting: soft overcast daylight or gentle natural directional light, with calm luminous highlights and subtle atmospheric haze; "
+    "soft shadows and controlled highlights; gentle subject-background separation without extreme backlight; "
+    "maintain calm shape definition on the focal subject; "
+    "avoid visible rays/beams, harsh spotlighting, and theatrical drama."
 )
 
 THUMBNAIL_INTENT_CARD_DEVMSG = """You extract a compact thumbnail intent card for image prompting.
@@ -370,15 +403,23 @@ class ThumbnailGenerator:
         thumbnail_text: str,
         intent_card: ThumbnailIntentCard,
     ) -> str:
-        return (
-            f"{THUMBNAIL_IMAGE_SYSTEM_PROMPT}\n\n"
-            f"Devotional type: {reading.reading_type.value}\n"
-            f"Visual theme: {thumbnail_text}\n"
-            f"Core tension: {intent_card.core_tension}\n"
-            f"Emotional tone: {intent_card.emotional_tone}\n"
-            f"Visual motif: {intent_card.visual_motif}\n"
-            f"Scene direction: {intent_card.scene_direction}\n"
-            f"Avoid: {intent_card.avoid}"
+        return "\n".join(
+            [
+                THUMBNAIL_STYLE_LINE,
+                THUMBNAIL_BACKGROUND_LINE,
+                THUMBNAIL_COMPOSITION_LINE,
+                THUMBNAIL_CONSTRAINTS_LINE,
+                THUMBNAIL_PALETTE_LINE,
+                THUMBNAIL_LIGHTING_LINE,
+                "",
+                f"Devotional type: {reading.reading_type.value}.",
+                f"Visual theme: {thumbnail_text}.",
+                f"Core tension: {intent_card.core_tension}.",
+                f"Emotional tone: {intent_card.emotional_tone}.",
+                f"Visual motif: {intent_card.visual_motif}.",
+                f"Scene direction: {intent_card.scene_direction}.",
+                f"Avoid: {intent_card.avoid}.",
+            ]
         )
 
     @staticmethod
@@ -421,5 +462,10 @@ __all__ = [
     "ThumbnailGenerator",
     "ThumbnailGenerationError",
     "ThumbnailIntentCard",
-    "THUMBNAIL_IMAGE_SYSTEM_PROMPT",
+    "THUMBNAIL_STYLE_LINE",
+    "THUMBNAIL_BACKGROUND_LINE",
+    "THUMBNAIL_COMPOSITION_LINE",
+    "THUMBNAIL_CONSTRAINTS_LINE",
+    "THUMBNAIL_PALETTE_LINE",
+    "THUMBNAIL_LIGHTING_LINE",
 ]
