@@ -155,9 +155,9 @@ HOOK_EDITORIAL_SELECTOR_DEVMSG: Final[str] = """You are an editorial selector fo
 You will receive:
 - intent_card
 - style_profile
-- exactly 3 shortlisted candidates
+- exactly 4 shortlisted candidates
 
-Choose EXACTLY ONE winner from those 3 candidates.
+Choose EXACTLY ONE winner from those 4 candidates.
 
 Editorial criteria:
 - natural spoken English
@@ -176,7 +176,7 @@ Preferences:
 
 Output format (STRICT, no extra text):
 EDITORIAL_SELECTION
-winner=<1-3>
+winner=<1-4>
 rationale=<one sentence>
 END"""
 
