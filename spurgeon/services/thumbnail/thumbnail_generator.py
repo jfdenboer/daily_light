@@ -438,7 +438,6 @@ class ThumbnailGenerator:
             ]
         )
 
-    @staticmethod
     def _normalize_clip_reading_text(text: str, *, max_chars: int) -> str:
         normalized = " ".join(text.split())
         if len(normalized) <= max_chars:
@@ -455,22 +454,47 @@ class ThumbnailGenerator:
             return "Daily Light"
         return "\n".join(wrapped[:3])
 
-    def _select_font_for_text(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-        return self._load_font(THUMBNAIL_TEXT_FONT_SIZE)
+    def _select_font_for_text(
+            self, draw: ImageDraw.ImageDraw, wrapped_text: str
+    ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        max_text_width = 620
+        max_text_height = 560
+
+        for font_size in range(118, 63, -6):
+            font = self._load_font(font_size)
+            text_bbox = draw.multiline_textbbox(
+                (0, 0), wrapped_text, font=font, spacing=8, stroke_width=5
+            )
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+            if text_width <= max_text_width and text_height <= max_text_height:
+                return font
+
+        return self._load_font(64)
+
+
 
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+
         if self.settings.thumbnail_font_path:
             try:
                 return ImageFont.truetype(self.settings.thumbnail_font_path, size=size)
+
             except OSError:
                 logger.warning(
                     "Configured THUMBNAIL_FONT_PATH could not be loaded (%s). Falling back to default font.",
                     self.settings.thumbnail_font_path,
                 )
+
+
         try:
             return ImageFont.truetype("DejaVuSans-Bold.ttf", size=size)
         except OSError:
-            return ImageFont.load_default()
+            logger.warning(
+                "Fallback font DejaVuSans-Bold.ttf is unavailable. Falling back to Pillow default bitmap font."
+            )
+        return ImageFont.load_default()
+
 
     def _find_existing_thumbnail(self, slug: str) -> Path | None:
         for ext in (".jpg", ".jpeg", ".png"):
