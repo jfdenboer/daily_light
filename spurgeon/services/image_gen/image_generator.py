@@ -30,46 +30,48 @@ logger = logging.getLogger(__name__)
 
 STYLE_LINE = (
     "Style: modern cinematic stillframe; naturalistic realism with a calm, contemplative mood; "
-    "subtle highlight bloom/halation (not overall blur); subject remains crisp and readable; "
-    "fine, subtle film-like grain (avoid digital noise or speckling); matte finish; natural materials with slight imperfections; "
-    "avoid hyper-clarity, micro-contrast, crunchy edges, sharpening halos, heavy vignettes, and HDR; "
-    "no smeary detail or heavy diffusion; "
-    "no illustration/paper/paint look; no CGI/3D/glossy rendering."
+    "subtle highlight bloom/halation without overall softness; the focal subject remains clear, distinct, and readable; "
+    "fine, subtle film-like grain; matte finish; natural materials and believable surfaces with slight imperfections; "
+    "favor subject clarity over global sharpness; "
+    "avoid hyper-clarity, micro-contrast, crunchy edges, sharpening halos, heavy vignettes, HDR, smeary detail, and heavy diffusion; "
+    "no illustration, paper, paint, stylized concept-art, or CGI/3D/glossy rendering."
 )
 
 BACKGROUND_LINE = (
-    "Setting: outdoor environment with depth and atmosphere; believable and not staged; uncluttered but not empty; "
-    "favor broad landforms and materials (rock, coast, dunes, hills, snow, water, weathered stone/wood) over foliage; "
-    "subtle haze for distance separation; keep the central band simple and low-detail; "
-    "avoid prominent flowers, close foliage, or branches framing the scene; "
-    "no studio backdrops; no vintage/sepia/antique cues."
+    "Setting: believable outdoor environment with depth and atmosphere; uncluttered but not empty; "
+    "prefer simple, restrained exterior settings with varied but plausible terrain and context such as paths, fields, meadows, moorland, shorelines, village edges, courtyards, walls, gates, orchards, sparse woodland edges, quiet roads, weathered stone, wood, water, or garden margins; "
+    "do not repeatedly default to the same rocky coast, dune, hill, cliffside, or snow-scene look; "
+    "subtle haze may be used for distance separation; keep the central band calm, simple, and low-detail; "
+    "avoid close foliage, prominent branches framing the scene, dense leafy clutter, decorative flowers, staged studio backdrops, and vintage, sepia, or antique cues."
 )
 
 COMPOSITION_LINE = (
-    "Composition: 16:9 wide; one clear focal subject placed off-center; strong depth (foreground/midground/background) with minimal elements; "
-    "reserve a calm, low-contrast horizontal subtitle safe-zone across the exact center (no key subject, no high-detail edges, no busy textures); "
+    "Composition: 16:9 wide; one clear focal subject placed off-center; strong depth with simple foreground, midground, and background; minimal elements; "
+    "reserve a calm, low-contrast horizontal subtitle safe-zone across the exact center, with no key subject, no busy textures, and no high-detail edges; "
     "keep the focal subject clearly above or below the subtitle safe-zone; "
-    "avoid tight crops, edge tangents, horizon lines cutting through the subtitle zone, and competing focal points; readable at a glance."
+    "avoid tight crops, edge tangents, horizon lines cutting through the subtitle zone, competing focal points, and collage-like storytelling; "
+    "the image should read clearly at a glance."
 )
 
 CONSTRAINTS_LINE = (
     "Constraints: no visible text, captions, lettering, numbers, pseudo-text, watermarks, logos, readable signage, icons, emblems, frames, or UI overlays; "
-    "prefer no people—if humans appear, they must be extremely small distant silhouettes with no faces or identifiable features; "
-    "avoid exaggerated shallow depth-of-field, bokeh balls, or cut-out subject separation; "
-    "avoid neon colors, oversharpening, repeating patterns, banding in skies/gradients, and high-frequency texture behind the subtitle area."
+    "do not default to a solitary adult man, traveler, pilgrim, hiker, or figure with a backpack, staff, or obvious travel gear; "
+    "human figures are optional, not required; prefer non-human or environmental focal subjects when suitable; "
+    "if a person appears, vary age and presentation, keep the figure small, distant, non-identifiable, and naturally integrated into the setting, with no visible face or modern gear; "
+    "avoid exaggerated shallow depth of field, bokeh balls, cut-out subject separation, neon colors, oversharpening, repeating patterns, banding in skies or gradients, and high-frequency texture behind the subtitle area."
 )
 
 PALETTE_LINE = (
-    "Color grade: warm-neutral cinematic palette with restrained saturation; natural earth/stone/sky/water tones; "
-    "gentle contrast with clean highlights and soft shadows, subtle warm highlight accents (no orange cast); "
-    "avoid overly lush greens, yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
+    "Color grade: warm-neutral cinematic palette with restrained saturation; natural earth, stone, sky, water, wood, and muted vegetation tones; "
+    "gentle contrast with clean highlights and soft shadows; subtle warm highlight accents without orange cast; "
+    "avoid overly lush greens, yellowed vintage tones, teal-orange gimmicks, heavy color casts, or overly picturesque postcard color."
 )
 
 LIGHTING_LINE = (
-    "Lighting: soft overcast daylight with gentle direction; occasional subtle brightening for luminous highlights (no visible rays/beams); "
-    "subtle atmospheric haze; soft shadows; controlled highlights; gentle subject-background separation without extreme backlight; "
-    "maintain gentle shape definition on the subject (not flat); "
-    "calm mood—no dramatic 'god rays' or harsh spotlighting."
+    "Lighting: soft overcast daylight or gentle natural directional light, with calm luminous highlights and subtle atmospheric haze; "
+    "soft shadows and controlled highlights; gentle subject-background separation without extreme backlight; "
+    "maintain gentle shape definition on the focal subject without flattening it; "
+    "avoid visible rays or beams, harsh spotlighting, theatrical drama, or sensational god-ray lighting."
 )
 
 
