@@ -289,7 +289,7 @@ def _build_publication_payload(
 
     thumbnail_path = None
     try:
-        thumbnail_text = thumb_text_gen.generate(reading)
+        thumbnail_text = thumb_text_gen.generate(reading, title=title)
     except (ThumbnailTextGenerationError, Exception) as exc:
         logger.warning(
             "Thumbnail text generation failed for %s (%s)",
