@@ -28,45 +28,47 @@ logger = logging.getLogger(__name__)
 
 THUMBNAIL_STYLE_LINE = (
     "Style: modern cinematic stillframe; naturalistic realism with a calm, contemplative mood; "
-    "subtle highlight bloom/halation without overall softness; focal subject remains crisp, distinct, and readable at small size; "
-    "fine, subtle film-like grain; matte finish; natural materials with slight imperfections; "
+    "subtle highlight bloom/halation without overall softness; the focal subject remains clear, distinct, and easily readable at small size; "
+    "fine, subtle film-like grain; matte finish; natural materials and believable surfaces with slight imperfections; "
+    "favor clarity of subject over global sharpness; "
     "avoid hyper-clarity, micro-contrast, crunchy edges, sharpening halos, heavy vignettes, HDR, smeary detail, and heavy diffusion; "
-    "no illustration/paper/paint look; no CGI/3D/glossy rendering."
+    "no illustration, paper, paint, stylized concept-art, or CGI/3D/glossy rendering."
 )
 
 THUMBNAIL_BACKGROUND_LINE = (
-    "Setting: believable outdoor environment with depth and atmosphere; uncluttered but not empty; "
-    "favor broad landforms and natural materials (rock, coast, dunes, hills, snow, water, weathered stone/wood) over dense foliage; "
-    "subtle haze for distance separation; keep the left side and center-left simple, calm, and low-detail for text overlay; "
-    "avoid close foliage, prominent branches framing the scene, staged studio backdrops, and vintage/sepia/antique cues."
+    "Setting: believable outdoor environment with depth, atmosphere, and natural scale; uncluttered but not empty; "
+    "prefer simple, restrained exterior settings and natural materials, with varied but plausible terrain and context such as paths, fields, moorland, shorelines, village edges, walls, gates, sparse trees at distance, weathered stone, or quiet garden edges; "
+    "avoid repeatedly defaulting to the same rocky coast, dune, hill, or snow-scene look; "
+    "subtle haze may be used for distance separation; keep the left side and center-left calm, simple, and low-detail for text overlay; "
+    "avoid close foliage, prominent branches framing the scene, dense leafy clutter, decorative flowers, staged studio backdrops, and vintage/sepia/antique cues."
 )
 
 THUMBNAIL_COMPOSITION_LINE = (
     "Composition: 16:9 wide; exactly one clear focal subject placed on the right or center-right; "
-    "strong depth (foreground/midground/background) with minimal elements; "
-    "reserve a clean vertical text safe-zone across roughly the left 40 percent with no key subject, no busy textures, and no high-detail edges; "
+    "strong depth with a simple foreground, midground, and background; minimal elements; "
+    "reserve a clean vertical text safe-zone across roughly the left 55 to 60 percent, with no key subject, no busy textures, and no high-detail edges; "
     "keep the focal subject clearly outside the text zone; "
-    "avoid competing focal points, tight crops, edge tangents, horizon lines distracting behind the text area, and collage-like storytelling; "
-    "readable at a glance on small screens."
+    "avoid competing focal points, tight crops, edge tangents, distracting horizon placement behind the text area, and collage-like storytelling; "
+    "the image must read instantly on small screens."
 )
 
 THUMBNAIL_CONSTRAINTS_LINE = (
     "Constraints: no visible text, captions, lettering, numbers, pseudo-text, watermarks, logos, readable signage, icons, emblems, frames, or UI overlays; "
-    "prefer no close human portraits; if a person appears, use at most one solitary non-identifiable figure with a clear silhouette; "
-    "avoid exaggerated shallow depth-of-field, bokeh balls, cut-out subject separation, neon colors, oversharpening, repeating patterns, banding in skies/gradients, and high-frequency texture behind the text area."
+    "prefer no close human portraits; if a person appears, use at most one solitary non-identifiable figure with a clear silhouette and natural integration into the scene; "
+    "avoid exaggerated shallow depth of field, bokeh balls, cut-out subject separation, neon colors, oversharpening, repeating patterns, banding in skies or gradients, and high-frequency texture behind the text area."
 )
 
 THUMBNAIL_PALETTE_LINE = (
-    "Color grade: warm-neutral cinematic palette with restrained saturation; natural earth/stone/sky/water tones; "
+    "Color grade: warm-neutral cinematic palette with restrained saturation; natural earth, stone, sky, water, wood, and muted vegetation tones; "
     "gentle contrast with clean highlights and soft shadows; subtle warm highlight accents without orange cast; "
-    "avoid overly lush greens, yellowed vintage tones, teal-orange gimmicks, and heavy color casts."
+    "avoid overly lush greens, yellowed vintage tones, teal-orange gimmicks, heavy color casts, or overly picturesque postcard color."
 )
 
 THUMBNAIL_LIGHTING_LINE = (
     "Lighting: soft overcast daylight or gentle natural directional light, with calm luminous highlights and subtle atmospheric haze; "
     "soft shadows and controlled highlights; gentle subject-background separation without extreme backlight; "
     "maintain calm shape definition on the focal subject; "
-    "avoid visible rays/beams, harsh spotlighting, and theatrical drama."
+    "avoid visible rays or beams, harsh spotlighting, theatrical drama, or sensational 'god-ray' lighting."
 )
 
 THUMBNAIL_INTENT_CARD_DEVMSG = """You extract a compact thumbnail intent card for image prompting.
@@ -81,19 +83,22 @@ Return exactly five lines in this exact format:
 5) avoid: <comma-separated short phrases>
 
 Rules:
-- Focus on visual intent, not theological summary.
+- Focus on visual intent, not theological summary or moral explanation.
 - Compress the reading into one simple thumbnail direction.
 - Prefer implication over literal narrative retelling.
-- Suggest one emotionally resonant scene, not multiple moments.
-- scene_direction should describe one simple scene, setting, or moment that could be shown in a single thumbnail.
-- Keep every field compact and concrete.
-- Avoid camera jargon and prompt-engineering jargon.
-- Avoid mentioning text, typography, title, headline, poster, or layout.
-- Avoid generic Christian stock cliches unless strongly justified by the reading.
-- The avoid line should name likely cliches or unwanted literal elements.
+- Suggest one emotionally resonant scene, not multiple moments, symbols, or story beats.
+- scene_direction must describe one simple scene, setting, or moment that could be shown clearly in a single thumbnail.
+- Prefer concrete visual guidance over abstract religious language.
+- Keep every field compact, concrete, and imageable.
+- Do not invent specific plot details that are not grounded in the reading.
+- Avoid camera jargon, lens jargon, and prompt-engineering jargon.
+- Avoid mentioning text, typography, title, headline, poster, thumbnail, or layout.
+- Avoid generic Christian stock clichés unless strongly justified by the reading.
+- Do not default to crosses, open Bibles, praying hands, church interiors, dramatic sunbeams, or worship-poster imagery unless the reading clearly calls for them.
+- Allow varied but believable outdoor settings; do not over-default to the same rocky coast, dune, hill, or snow scene.
+- The avoid line should name likely clichés, overly literal elements, or unwanted scene defaults.
 - Output only the five lines.
 """
-
 
 @dataclass(frozen=True)
 class ThumbnailIntentCard:
