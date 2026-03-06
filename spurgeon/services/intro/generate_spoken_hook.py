@@ -85,7 +85,7 @@ def _pick_editorial_winner(
     settings: Settings,
     style_profile: str,
     intent_card: IntentCard,
-    shortlist_top3: list[CandidateCheck],
+    shortlist_top4: list[CandidateCheck],
 ) -> tuple[CandidateCheck, str, bool]:
     response = create_response_with_transport_retries(
         client,
@@ -106,7 +106,7 @@ def _pick_editorial_winner(
                         "text": build_editorial_selector_user_input(
                             style_profile=style_profile,
                             intent=intent_card,
-                            candidates=shortlist_top3,
+                            candidates=shortlist_top4,
                         ),
                     }
                 ],
@@ -116,13 +116,13 @@ def _pick_editorial_winner(
 
     parsed = _parse_selection_output(
         extract_response_text(response),
-        max_winner=len(shortlist_top3),
+        max_winner=len(shortlist_top4),
     )
     if parsed is None:
-        return shortlist_top3[0], "Editorial parse fallback kept first shortlist option.", False
+        return shortlist_top4[0], "Editorial parse fallback kept first shortlist option.", False
 
     winner_idx, rationale = parsed
-    return shortlist_top3[winner_idx - 1], rationale, True
+    return shortlist_top4[winner_idx - 1], rationale, True
 
 
 def _tweak_winner(client: OpenAI, *, winner: str, settings: Settings) -> list[str]:
@@ -398,16 +398,16 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
             "hook_pipeline.scorecard_parse_fallback shortlist_count=%d",
             len(scoring_pool),
         )
-        for idx, item in enumerate(scoring_pool[:3], start=1):
+        for idx, item in enumerate(scoring_pool[:4], start=1):
             logger.info(
-                "hook_pipeline.shortlist_top3 candidate_idx=%d weighted_total=%s subscores=%s angle=%s candidate=%s",
+                "hook_pipeline.shortlist_top4 candidate_idx=%d weighted_total=%s subscores=%s angle=%s candidate=%s",
                 idx,
                 "n/a",
                 "n/a",
                 item.angle,
                 item.candidate,
             )
-        shortlist_top3 = scoring_pool[:3]
+        shortlist_top4 = scoring_pool[:4]
         selected_source_prefix = "mechanical_shortlist_parse_fallback"
     else:
         selection = select_by_scorecard(scoring_pool, score_rows)
@@ -428,14 +428,14 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
                 ranked.word_count,
                 ranked.candidate,
             )
-        shortlist_ranked = ranked_for_shortlist[:3]
-        shortlist_top3 = [
+        shortlist_ranked = ranked_for_shortlist[:4]
+        shortlist_top4 = [
             CandidateCheck(candidate=item.candidate, reasons=[], angle=item.angle)
             for item in shortlist_ranked
         ]
         for ranked in shortlist_ranked:
             logger.info(
-                "hook_pipeline.shortlist_top3 candidate_idx=%d weighted_total=%d subscores=t:%d,o:%d,v:%d,f:%d,s:%d,i:%d angle=%s candidate=%s",
+                "hook_pipeline.shortlist_top4 candidate_idx=%d weighted_total=%d subscores=t:%d,o:%d,v:%d,f:%d,s:%d,i:%d angle=%s candidate=%s",
                 ranked.candidate_idx,
                 ranked.weighted_total,
                 ranked.score.tension,
@@ -454,11 +454,11 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         settings=settings,
         style_profile=style_profile,
         intent_card=intent_card,
-        shortlist_top3=shortlist_top3,
+        shortlist_top4=shortlist_top4,
     )
     logger.info(
         "hook_pipeline.editorial_winner selected_candidate_idx=%d selected_candidate=%s selected_angle=%s rationale=%s",
-        shortlist_top3.index(editorial_winner) + 1,
+        shortlist_top4.index(editorial_winner) + 1,
         editorial_winner.candidate,
         editorial_winner.angle,
         editorial_rationale,
