@@ -72,6 +72,8 @@ Daily Light is een Python-project dat een volledige *text-to-video* pipeline bie
    - `GCS_BUCKET_NAME`
    - `THUMBNAIL_ENABLED` (standaard `true`)
    - `THUMBNAIL_IMAGE_MODEL` (standaard `gpt-image-1.5`)
+   - `THUMBNAIL_INTENT_CARD_MODEL` (standaard `gpt-4o`)
+   - `THUMBNAIL_INTENT_CARD_TEMPERATURE` (standaard `0.2`)
    - `THUMBNAIL_FONT_PATH` (optioneel, voor custom typografie)
    - `VIDEO_ZOOM_WIDE_START` (standaard `1.00`)
    - `VIDEO_ZOOM_WIDE_END` (standaard `1.10`, aanbevolen bereikverschil maximaal `0.12`)
@@ -103,6 +105,8 @@ Optionele `.env` variabelen:
 - `THUMBNAIL_IMAGE_MODEL=gpt-image-1.5`
 - `THUMBNAIL_IMAGE_SIZE=1536x1024`
 - `THUMBNAIL_IMAGE_QUALITY=medium`
+- `THUMBNAIL_INTENT_CARD_MODEL=gpt-4o`
+- `THUMBNAIL_INTENT_CARD_TEMPERATURE=0.2`
 - `THUMBNAIL_FONT_PATH=/abs/path/to/font.ttf`
 
 ---
