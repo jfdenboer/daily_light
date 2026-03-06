@@ -70,8 +70,9 @@ Daily Light is een Python-project dat een volledige *text-to-video* pipeline bie
 
    - `ELEVENLABS_VOICE_ID`
    - `GCS_BUCKET_NAME`
-   - `BANNERBEAR_API_KEY`
-   - `BANNERBEAR_TEMPLATE_ID`
+   - `THUMBNAIL_ENABLED` (standaard `true`)
+   - `THUMBNAIL_IMAGE_MODEL` (standaard `gpt-image-1.5`)
+   - `THUMBNAIL_FONT_PATH` (optioneel, voor custom typografie)
    - `VIDEO_ZOOM_WIDE_START` (standaard `1.00`)
    - `VIDEO_ZOOM_WIDE_END` (standaard `1.10`, aanbevolen bereikverschil maximaal `0.12`)
 
@@ -87,12 +88,22 @@ Daily Light is een Python-project dat een volledige *text-to-video* pipeline bie
 
 ---
 
-## 🖼️ Bannerbear-configuratie
+## 🖼️ Thumbnail-configuratie
 
-1. **Projectnaam** – In Bannerbear gebruiken we het project `spurgeon`. Dit kun je aanpassen via `BANNERBEAR_PROJECT_NAME` in `.env`.
-2. **Template** – Maak in het `spurgeon`-project een *Image Template* aan met YouTube-thumbnailformaat `1280 × 720`.
-3. **Template-ID** – Noteer de UID van dit template en vul deze in als `BANNERBEAR_TEMPLATE_ID` in `.env`.
-4. **Modifications** – Optioneel kun je eigen text-/image-layers configureren. Zonder extra configuratie gebruikt de code fallback-waarden voor titel en subtitel.
+Thumbnails worden nu volledig in de pipeline gemaakt:
+
+1. **Thumbnailtekst** via OpenAI chatmodel.
+2. **Achtergrondafbeelding** via OpenAI `gpt-image-*` Images API.
+3. **Compositie (image + tekst)** lokaal in Python.
+4. **Upload** als YouTube thumbnail tijdens publicatie.
+
+Optionele `.env` variabelen:
+
+- `THUMBNAIL_ENABLED=true`
+- `THUMBNAIL_IMAGE_MODEL=gpt-image-1.5`
+- `THUMBNAIL_IMAGE_SIZE=1536x1024`
+- `THUMBNAIL_IMAGE_QUALITY=medium`
+- `THUMBNAIL_FONT_PATH=/abs/path/to/font.ttf`
 
 ---
 
@@ -209,3 +220,30 @@ GCS_CREDENTIALS_PATH=/path/to/google_gcs.json
 
 ---
 
+## ✅ TODO / Roadmap
+
+- [x] Refactor naar `services/`-structuur
+- [x] Ondersteuning voor `.srt` op woordniveau
+- [x] Retry-logica geïntegreerd
+- [ ] Whisper fallback bij afwezigheid ondertiteling
+- [ ] Unit tests voor parser/subtitles
+- [ ] YouTube upload integratie
+- [ ] Web-based configuratie-interface
+
+---
+
+## 🤝 Contributie
+
+Contributies zijn welkom. Maak een fork, open een PR, en houd code zoveel mogelijk PEP8-conform.
+
+---
+
+## 📄 Licentie
+
+MIT License – vrij te gebruiken, wijzigen en delen. Zie `LICENSE`.
+
+---
+
+## ✝️ Waarom Spurgeon?
+
+C.H. Spurgeon’s *Morning and Evening* is een tijdloos dagboek dat mensen inspireert tot dagelijkse overdenking. Met deze pipeline brengen we zijn woorden naar een nieuw publiek: visueel, auditief en toegankelijk via moderne technologie.

@@ -27,6 +27,7 @@ google-auth-httplib2 = "^0.2.0"
 google-api-python-client = "^2.175.0"
 pytz = "^2025.2"
 yt-dlp = "^2025.3.10"
+pillow = "^11.3.0"
 
 [tool.poetry.scripts]
 daily = "spurgeon.cli:app"
