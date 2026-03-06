@@ -375,7 +375,7 @@ class ThumbnailGenerator:
 
         draw = ImageDraw.Draw(canvas)
         wrapped_text = self._wrap_text_for_thumbnail(text)
-        font = self._load_font()
+        font = self._select_font_for_text(draw, wrapped_text)
 
         text_bbox = draw.multiline_textbbox(
             (0, 0), wrapped_text, font=font, spacing=8, stroke_width=5
@@ -439,10 +439,31 @@ class ThumbnailGenerator:
             return "Daily Light"
         return "\n".join(wrapped[:3])
 
-    def _load_font(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    def _select_font_for_text(
+        self, draw: ImageDraw.ImageDraw, wrapped_text: str
+    ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        if not self.settings.thumbnail_font_path:
+            return ImageFont.load_default()
+
+        max_text_width = 620
+        max_text_height = 560
+
+        for font_size in range(118, 63, -6):
+            font = self._load_font(font_size)
+            text_bbox = draw.multiline_textbbox(
+                (0, 0), wrapped_text, font=font, spacing=8, stroke_width=5
+            )
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+            if text_width <= max_text_width and text_height <= max_text_height:
+                return font
+
+        return self._load_font(64)
+
+    def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         if self.settings.thumbnail_font_path:
             try:
-                return ImageFont.truetype(self.settings.thumbnail_font_path, size=118)
+                return ImageFont.truetype(self.settings.thumbnail_font_path, size=size)
             except OSError:
                 logger.warning(
                     "Configured THUMBNAIL_FONT_PATH could not be loaded (%s). Falling back to default font.",
