@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 
 from openai import OpenAI
 
 from spurgeon.config.settings import Settings
 from spurgeon.services.intro.hook_judge_scorecard import parse_hook_judge_scorecard
-from spurgeon.services.intro.hook_selector import select_by_scorecard
+from spurgeon.services.intro.hook_selector import RankedHookCandidate, select_by_scorecard
 from spurgeon.services.intro.hook_pipeline.openai_utils import (
     create_response_with_transport_retries,
     extract_response_text,
 )
 from spurgeon.services.intro.hook_pipeline.prompts import (
+    HOOK_EDITORIAL_SELECTOR_DEVMSG,
+    HOOK_FINAL_RESELECT_DEVMSG,
     HOOK_GENERATOR_DEVMSG,
     HOOK_INTENT_DEVMSG,
     HOOK_JUDGE_DEVMSG,
@@ -25,6 +28,9 @@ from spurgeon.services.intro.hook_pipeline.rules import (
     WORD_PATTERN,
     CandidateCheck,
     HookOutcome,
+    IntentCard,
+    build_editorial_selector_user_input,
+    build_final_reselection_user_input,
     build_generator_user_input,
     build_intent_user_input,
     build_judge_user_input,
@@ -40,10 +46,83 @@ from spurgeon.services.intro.hook_pipeline.telemetry import append_hook_event
 
 logger = logging.getLogger(__name__)
 SCORE_JUDGE_MAX_OUTPUT_TOKENS = 360
+SELECTOR_WINNER_PATTERN = re.compile(r"^winner\s*=\s*(\d+)\s*$", re.IGNORECASE)
+SELECTOR_RATIONALE_PATTERN = re.compile(r"^rationale\s*=\s*(.+)$", re.IGNORECASE)
 
 
 class SpokenHookValidationError(ValueError):
     """Raised when generated spoken hook violates output constraints."""
+
+
+def _parse_selection_output(raw_output: str, *, max_winner: int) -> tuple[int, str] | None:
+    winner: int | None = None
+    rationale: str | None = None
+
+    for line in raw_output.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        winner_match = SELECTOR_WINNER_PATTERN.match(stripped)
+        if winner_match:
+            winner = int(winner_match.group(1))
+            continue
+
+        rationale_match = SELECTOR_RATIONALE_PATTERN.match(stripped)
+        if rationale_match:
+            rationale = " ".join(rationale_match.group(1).split())
+
+    if winner is None or rationale is None:
+        return None
+    if not 1 <= winner <= max_winner:
+        return None
+    return winner, rationale
+
+
+def _pick_editorial_winner(
+    client: OpenAI,
+    *,
+    settings: Settings,
+    style_profile: str,
+    intent_card: IntentCard,
+    shortlist_top3: list[CandidateCheck],
+) -> tuple[CandidateCheck, str, bool]:
+    response = create_response_with_transport_retries(
+        client,
+        model=settings.hook_judge_model,
+        temperature=min(settings.hook_judge_temperature, 0.20),
+        top_p=1.0,
+        max_output_tokens=200,
+        input=[
+            {
+                "role": "developer",
+                "content": [{"type": "input_text", "text": HOOK_EDITORIAL_SELECTOR_DEVMSG}],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": build_editorial_selector_user_input(
+                            style_profile=style_profile,
+                            intent=intent_card,
+                            candidates=shortlist_top3,
+                        ),
+                    }
+                ],
+            },
+        ],
+    )
+
+    parsed = _parse_selection_output(
+        extract_response_text(response),
+        max_winner=len(shortlist_top3),
+    )
+    if parsed is None:
+        return shortlist_top3[0], "Editorial parse fallback kept first shortlist option.", False
+
+    winner_idx, rationale = parsed
+    return shortlist_top3[winner_idx - 1], rationale, True
 
 
 def _tweak_winner(client: OpenAI, *, winner: str, settings: Settings) -> list[str]:
@@ -90,6 +169,43 @@ def _build_tweak_pool(winner: str, variants: list[str]) -> list[str]:
         pool.append(normalized_variant)
 
     return pool
+
+
+def _select_final_variant(
+    client: OpenAI,
+    *,
+    settings: Settings,
+    candidates: list[CandidateCheck],
+) -> tuple[str, str, bool]:
+    response = create_response_with_transport_retries(
+        client,
+        model=settings.hook_judge_model,
+        temperature=min(settings.hook_judge_temperature, 0.10),
+        top_p=1.0,
+        max_output_tokens=200,
+        input=[
+            {
+                "role": "developer",
+                "content": [{"type": "input_text", "text": HOOK_FINAL_RESELECT_DEVMSG}],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": build_final_reselection_user_input(candidates),
+                    }
+                ],
+            },
+        ],
+    )
+
+    parsed = _parse_selection_output(extract_response_text(response), max_winner=len(candidates))
+    if parsed is None:
+        return candidates[0].candidate, "Final selection parse fallback kept original winner.", False
+
+    winner_idx, rationale = parsed
+    return candidates[winner_idx - 1].candidate, rationale, True
 
 
 def _select_best_effort_candidate(candidates: list[CandidateCheck]) -> CandidateCheck:
@@ -241,7 +357,7 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         )
         raise SpokenHookValidationError("no_candidates_generated")
 
-    shortlist = valid if valid else [_select_best_effort_candidate(checked)]
+    scoring_pool = valid if valid else [_select_best_effort_candidate(checked)]
 
     judge_response = create_response_with_transport_retries(
         client,
@@ -262,7 +378,7 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
                         "text": build_judge_user_input(
                             style_profile=style_profile,
                             intent=intent_card,
-                            candidates=shortlist,
+                            candidates=scoring_pool,
                         ),
                     }
                 ],
@@ -273,20 +389,30 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
     judge_raw_output = extract_response_text(judge_response)
     score_rows = parse_hook_judge_scorecard(
         judge_raw_output,
-        expected_count=len(shortlist),
+        expected_count=len(scoring_pool),
     )
 
+    ranked_for_shortlist: list[RankedHookCandidate] = []
     if score_rows is None:
         logger.warning(
             "hook_pipeline.scorecard_parse_fallback shortlist_count=%d",
-            len(shortlist),
+            len(scoring_pool),
         )
-        selected_item = shortlist[0]
-        selected_source = "score_judge_parse_fallback"
-        winner_before_tweak = selected_item.candidate
+        for idx, item in enumerate(scoring_pool[:3], start=1):
+            logger.info(
+                "hook_pipeline.shortlist_top3 candidate_idx=%d weighted_total=%s subscores=%s angle=%s candidate=%s",
+                idx,
+                "n/a",
+                "n/a",
+                item.angle,
+                item.candidate,
+            )
+        shortlist_top3 = scoring_pool[:3]
+        selected_source_prefix = "mechanical_shortlist_parse_fallback"
     else:
-        selection = select_by_scorecard(shortlist, score_rows)
-        for ranked in selection.ranked:
+        selection = select_by_scorecard(scoring_pool, score_rows)
+        ranked_for_shortlist = selection.ranked
+        for ranked in ranked_for_shortlist:
             logger.info(
                 "hook_pipeline.scorecard rank=%d candidate_idx=%d weighted_total=%d subscores=t:%d,o:%d,v:%d,f:%d,s:%d,i:%d angle=%s word_count=%d candidate=%s",
                 ranked.rank,
@@ -302,28 +428,50 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
                 ranked.word_count,
                 ranked.candidate,
             )
-        selected_ranked = selection.selected
-        logger.info(
-            "hook_pipeline.selector_winner selected_candidate_idx=%d selected_total=%d selected_candidate=%s selected_angle=%s selected_subscores=t:%d,o:%d,v:%d,f:%d,s:%d,i:%d",
-            selected_ranked.candidate_idx,
-            selected_ranked.weighted_total,
-            selected_ranked.candidate,
-            selected_ranked.angle,
-            selected_ranked.score.tension,
-            selected_ranked.score.open_loop,
-            selected_ranked.score.viewer,
-            selected_ranked.score.fluency,
-            selected_ranked.score.tone,
-            selected_ranked.score.intent,
-        )
-        winner_before_tweak = selected_ranked.candidate
-        selected_source = "score_judge+selector"
+        shortlist_ranked = ranked_for_shortlist[:3]
+        shortlist_top3 = [
+            CandidateCheck(candidate=item.candidate, reasons=[], angle=item.angle)
+            for item in shortlist_ranked
+        ]
+        for ranked in shortlist_ranked:
+            logger.info(
+                "hook_pipeline.shortlist_top3 candidate_idx=%d weighted_total=%d subscores=t:%d,o:%d,v:%d,f:%d,s:%d,i:%d angle=%s candidate=%s",
+                ranked.candidate_idx,
+                ranked.weighted_total,
+                ranked.score.tension,
+                ranked.score.open_loop,
+                ranked.score.viewer,
+                ranked.score.fluency,
+                ranked.score.tone,
+                ranked.score.intent,
+                ranked.angle,
+                ranked.candidate,
+            )
+        selected_source_prefix = "mechanical_shortlist"
+
+    editorial_winner, editorial_rationale, editorial_used = _pick_editorial_winner(
+        client,
+        settings=settings,
+        style_profile=style_profile,
+        intent_card=intent_card,
+        shortlist_top3=shortlist_top3,
+    )
+    logger.info(
+        "hook_pipeline.editorial_winner selected_candidate_idx=%d selected_candidate=%s selected_angle=%s rationale=%s",
+        shortlist_top3.index(editorial_winner) + 1,
+        editorial_winner.candidate,
+        editorial_winner.angle,
+        editorial_rationale,
+    )
+
+    winner_before_tweak = editorial_winner.candidate
     tweak_variants = _tweak_winner(client, winner=winner_before_tweak, settings=settings)
     tweak_pool = _build_tweak_pool(winner_before_tweak, tweak_variants)
     tweak_checked = [
-        CandidateCheck(candidate=c, reasons=validate_candidate(c)) for c in tweak_pool
+        CandidateCheck(candidate=c, reasons=validate_candidate(c), angle=editorial_winner.angle)
+        for c in tweak_pool
     ]
-    tweak_valid = [item for item in tweak_checked if not item.reasons]
+    tweak_valid = [item for item in tweak_checked if not item.reasons][:5]
     logger.info(
         "hook_pipeline.tweak_stats total=%d valid=%d stats=%s",
         len(tweak_checked),
@@ -341,10 +489,6 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
 
     if not tweak_valid:
         selected_candidate = winner_before_tweak
-        selected_angle = next(
-            (item.angle for item in shortlist if item.candidate == winner_before_tweak),
-            "unknown",
-        )
         _log_hook_event(
             settings,
             reading_hash=reading_hash,
@@ -356,90 +500,35 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
             },
             candidate_stats=candidate_stats,
             outcome_status="FULL_INTRO_OK",
-            selected_source=f"{selected_source}+tweaker_fallback",
+            selected_source=f"{selected_source_prefix}+editorial_pick+tweaker_fallback",
             selected_candidate=selected_candidate,
-            selected_angle=selected_angle,
+            selected_angle=editorial_winner.angle,
         )
         logger.warning(
-            "hook_pipeline.selected_source=%s+tweaker_fallback selected_candidate=%s winner_before_tweak=%s tweaker_used=%s rejudge_used=%s",
-            selected_source,
+            "hook_pipeline.final_selected_source winner_before_tweak=%s final_selected_candidate=%s tweaker_used=%s rejudge_used=%s final_selection_reason=%s",
             winner_before_tweak,
             winner_before_tweak,
             True,
             False,
+            "No valid tweak variants; retained editorial winner.",
         )
         return normalize_hook_punctuation(winner_before_tweak)
 
-    rejudge_temperature = min(settings.hook_judge_temperature, 0.10)
-    rejudge_response = create_response_with_transport_retries(
+    final_selected_candidate, final_reason, rejudge_used = _select_final_variant(
         client,
-        model=settings.hook_judge_model,
-        temperature=rejudge_temperature,
-        top_p=1.0,
-        max_output_tokens=SCORE_JUDGE_MAX_OUTPUT_TOKENS,
-        input=[
-            {
-                "role": "developer",
-                "content": [{"type": "input_text", "text": HOOK_JUDGE_DEVMSG}],
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": build_judge_user_input(
-                            style_profile=style_profile,
-                            intent=intent_card,
-                            candidates=tweak_valid,
-                        ),
-                    }
-                ],
-            },
-        ],
+        settings=settings,
+        candidates=tweak_valid,
     )
 
-    tweak_score_rows = parse_hook_judge_scorecard(
-        extract_response_text(rejudge_response),
-        expected_count=len(tweak_valid),
-    )
+    for rank, item in enumerate(tweak_valid, start=1):
+        logger.info(
+            "hook_pipeline.final_variant_scorecard rank=%d candidate=%s score=%s rationale=%s",
+            rank,
+            item.candidate,
+            "winner" if item.candidate == final_selected_candidate else "not_selected",
+            final_reason if item.candidate == final_selected_candidate else "",
+        )
 
-    if tweak_score_rows is None:
-        selected_candidate = winner_before_tweak
-        selected_angle = next(
-            (item.angle for item in shortlist if item.candidate == winner_before_tweak),
-            "unknown",
-        )
-        _log_hook_event(
-            settings,
-            reading_hash=reading_hash,
-            intent_card={
-                "core_tension": intent_card.core_tension,
-                "implicit_choice": intent_card.implicit_choice,
-                "likely_consequence": intent_card.likely_consequence,
-                "emotional_tone": intent_card.emotional_tone,
-            },
-            candidate_stats=candidate_stats,
-            outcome_status="FULL_INTRO_OK",
-            selected_source=f"{selected_source}+tweaker_fallback",
-            selected_candidate=selected_candidate,
-            selected_angle=selected_angle,
-        )
-        logger.warning(
-            "hook_pipeline.selected_source=%s+tweaker_fallback selected_candidate=%s winner_before_tweak=%s tweaker_used=%s rejudge_used=%s",
-            selected_source,
-            winner_before_tweak,
-            winner_before_tweak,
-            True,
-            True,
-        )
-        return normalize_hook_punctuation(winner_before_tweak)
-
-    tweak_selection = select_by_scorecard(tweak_valid, tweak_score_rows)
-    reselected = tweak_selection.selected.candidate
-    selected_angle = next(
-        (item.angle for item in shortlist if item.candidate == winner_before_tweak),
-        "unknown",
-    )
     _log_hook_event(
         settings,
         reading_hash=reading_hash,
@@ -451,19 +540,19 @@ def generate_spoken_hook(reading: str, settings: Settings) -> str:
         },
         candidate_stats=candidate_stats,
         outcome_status="FULL_INTRO_OK",
-        selected_source=f"{selected_source}+tweaker_selector",
-        selected_candidate=reselected,
-        selected_angle=selected_angle,
+        selected_source=f"{selected_source_prefix}+editorial_pick+tweaker_selector",
+        selected_candidate=final_selected_candidate,
+        selected_angle=editorial_winner.angle,
     )
     logger.info(
-        "hook_pipeline.selected_source=%s+tweaker_selector selected_candidate=%s winner_before_tweak=%s tweaker_used=%s rejudge_used=%s",
-        selected_source,
-        reselected,
+        "hook_pipeline.final_selected_source winner_before_tweak=%s final_selected_candidate=%s tweaker_used=%s rejudge_used=%s final_selection_reason=%s",
         winner_before_tweak,
+        final_selected_candidate,
         True,
-        True,
+        rejudge_used,
+        final_reason,
     )
-    return normalize_hook_punctuation(reselected)
+    return normalize_hook_punctuation(final_selected_candidate)
 
 
 def _log_hook_event(
