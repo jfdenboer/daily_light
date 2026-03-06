@@ -391,7 +391,7 @@ class ThumbnailGenerator:
 
         draw = ImageDraw.Draw(canvas)
         wrapped_text = self._wrap_text_for_thumbnail(text)
-        font = self._select_font_for_text()
+        font = self._select_font_for_text(draw, wrapped_text)
 
         text_bbox = draw.multiline_textbbox(
             (0, 0), wrapped_text, font=font, spacing=8, stroke_width=5
@@ -438,6 +438,7 @@ class ThumbnailGenerator:
             ]
         )
 
+    @staticmethod
     def _normalize_clip_reading_text(text: str, *, max_chars: int) -> str:
         normalized = " ".join(text.split())
         if len(normalized) <= max_chars:
@@ -455,7 +456,7 @@ class ThumbnailGenerator:
         return "\n".join(wrapped[:3])
 
     def _select_font_for_text(
-            self, draw: ImageDraw.ImageDraw, wrapped_text: str
+        self, draw: ImageDraw.ImageDraw, wrapped_text: str
     ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         max_text_width = 620
         max_text_height = 560
@@ -472,20 +473,15 @@ class ThumbnailGenerator:
 
         return self._load_font(64)
 
-
-
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-
         if self.settings.thumbnail_font_path:
             try:
                 return ImageFont.truetype(self.settings.thumbnail_font_path, size=size)
-
             except OSError:
                 logger.warning(
                     "Configured THUMBNAIL_FONT_PATH could not be loaded (%s). Falling back to default font.",
                     self.settings.thumbnail_font_path,
                 )
-
 
         try:
             return ImageFont.truetype("DejaVuSans-Bold.ttf", size=size)
@@ -495,14 +491,12 @@ class ThumbnailGenerator:
             )
         return ImageFont.load_default()
 
-
     def _find_existing_thumbnail(self, slug: str) -> Path | None:
         for ext in (".jpg", ".jpeg", ".png"):
             candidate = self.output_dir / f"{slug}{ext}"
             if candidate.exists():
                 return candidate
         return None
-
 
 __all__ = [
     "ThumbnailGenerator",
