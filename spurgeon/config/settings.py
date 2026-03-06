@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     thumbnail_image_size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1536x1024"
     thumbnail_image_quality: Literal["low", "medium", "high", "auto"] = "medium"
     thumbnail_image_background: Literal["transparent", "opaque", "auto"] = "opaque"
-    thumbnail_intent_card_model: Literal["gpt-4o"] = "gpt-4o"
+    thumbnail_intent_card_model: Literal["gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.2"
     thumbnail_intent_card_temperature: float = Field(0.2, ge=0.0, le=2.0)
     thumbnail_max_retries: int = Field(3, ge=0)
     thumbnail_retry_backoff: float = Field(1.0, gt=0.0)
