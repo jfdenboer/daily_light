@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Generate short thumbnail copy using the OpenAI API."""
+"""Generate short thumbnail copy using a two-step OpenAI pipeline."""
 
 import logging
 import re
@@ -14,33 +14,35 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT_THUMBNAIL: Final[str] = r"""
+SYSTEM_PROMPT_THUMBNAIL_GENERATOR: Final[str] = r"""
 You are writing thumbnail text for YouTube browse surfaces, not search.
-Your job is to make people feel something and stop scrolling.
+Generate multiple candidate thumbnail phrases for one video.
 Do NOT explain the video, summarize the lesson, or write a sermon heading.
 
 Output rules:
-- Exactly one line.
+- Output exactly one candidate per line.
+- Output exactly {num_candidates} lines.
 - English only.
-- 1-3 words only (prefer 2-3).
+- 1-3 words per line (prefer 2-3 words).
 - Title Case.
 - No punctuation, emojis, dates, verse references, author names, or numbers.
-- Keep it short enough for a thumbnail (about <= 24 characters when possible).
+- Keep each line short enough for thumbnail use (about <= 24 characters when possible).
+- No numbering, bullets, prefixes, or commentary.
 
 Creative direction:
-- Favor emotional signal, tension, ache, nearness, weakness, waiting, refuge, return, surrender, rest, mercy, hiddenness, turning point.
-- Evoke a moment or feeling.
-- Keep it minimal and curious.
+- Favor emotional signal, tension, ache, nearness, weakness, waiting, refuge, return, surrender, rest, mercy.
+- Evoke a felt moment, not a topic label.
+- Keep phrases minimal and browse-first.
 - Avoid repeating the provided title.
-- Avoid closely copying devotional wording.
+- Avoid near-duplicates. Explore varied emotional angles.
 
 Explicitly avoid:
 - Search/tutorial phrasing: How To, Why, Guide, Tips, Steps, Best.
-- Explanatory phrasing and SEO language.
+- Explanatory/SEO language.
 - Generic devotional stacks like: Daily Light Devotional, Faith Hope Grace, Trust in God.
 - Cleaned-up title fragments.
 
-Good examples:
+Strong examples:
 - Still He Holds
 - When Strength Fails
 - Not Left Alone
@@ -53,6 +55,30 @@ Bad examples:
 - Trust in God
 - How To Find Peace
 - Morning Devotional Hope
+"""
+
+SYSTEM_PROMPT_THUMBNAIL_SELECTOR: Final[str] = r"""
+You are selecting one thumbnail phrase for YouTube browse packaging.
+Choose the strongest candidate from the provided list.
+Do NOT explain the video.
+Do NOT write a new phrase unless every candidate is unusable.
+
+Selection criteria:
+- Strong emotional signal and resonance.
+- Curiosity/tension for browse CTR packaging.
+- Brief and readable for a thumbnail (1-3 words ideal).
+- Distinctive and non-generic.
+- Complements the title without repeating it.
+
+Reject candidates that are:
+- Tutorial/search style.
+- Generic devotional abstractions.
+- Sermon-heading or category labels.
+- Overlapping too much with the title.
+
+Output rules:
+- Output exactly one line only: the winning phrase.
+- No explanations, labels, numbering, or extra text.
 """
 
 
@@ -89,9 +115,13 @@ class ThumbnailTextGenerator:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.client = OpenAI(api_key=settings.openai_api_key)
-        self.model = settings.prompt_model
-        self.temperature = settings.prompt_temperature
-        self.max_tokens = 16
+        self.generator_model = settings.thumbnail_text_generator_model
+        self.selector_model = settings.thumbnail_text_selector_model
+        self.generator_temperature = settings.thumbnail_text_generator_temperature
+        self.selector_temperature = settings.thumbnail_text_selector_temperature
+        self.num_candidates = settings.thumbnail_text_num_candidates
+        self.generator_max_tokens = 120
+        self.selector_max_tokens = 16
 
         self._search_terms = {"how", "why", "guide", "tips", "steps", "best", "tutorial"}
         self._generic_terms = {
@@ -136,44 +166,154 @@ class ThumbnailTextGenerator:
             "dawn",
             "silence",
             "stays",
+            "left",
+            "mercy",
+            "strength",
         }
 
     def generate(self, reading: Reading, title: str | None = None) -> str:
-        """Return thumbnail copy for *reading* via OpenAI."""
+        """Return one final thumbnail phrase using generate-then-select."""
 
         def call_openai() -> str:
-            user_sections = []
-            if title:
-                user_sections.append(f"Working Video Title:\n{title.strip()}")
-            user_sections.append(f"Devotional Text:\n{reading.text}")
+            candidates = self._generate_candidates(reading, title=title)
+            winner = self._select_candidate(reading, candidates, title=title)
+            final_text = self._sanitize_thumbnail_text(winner, title=title)
+            if not final_text:
+                raise ThumbnailTextGenerationError(
+                    "Selected thumbnail text sanitized to empty or weak output."
+                )
+            logger.debug("Final thumbnail phrase: %r", final_text)
+            return final_text
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT_THUMBNAIL},
-                    {"role": "user", "content": "\n\n".join(user_sections)},
-                ],
+        try:
+            return retry_with_backoff(
+                func=call_openai,
+                max_retries=3,
+                backoff=1.0,
+                error_types=(OpenAIError, ThumbnailTextGenerationError),
+                context="OpenAI thumbnail text generation",
+            )
+        except (OpenAIError, ThumbnailTextGenerationError) as exc:
+            logger.warning("Thumbnail text pipeline failed, using fallback: %s", exc)
+            return self.fallback(reading, title or "")
+
+    def _generate_candidates(self, reading: Reading, title: str | None = None) -> list[str]:
+        user_sections = []
+        if title:
+            user_sections.append(f"Working Video Title:\n{title.strip()}")
+        user_sections.append(f"Devotional Text:\n{reading.text}")
+
+        response = self.client.chat.completions.create(
+            model=self.generator_model,
+            temperature=self.generator_temperature,
+            max_tokens=self.generator_max_tokens,
+            messages=[
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT_THUMBNAIL_GENERATOR.format(
+                        num_candidates=self.num_candidates
+                    ),
+                },
+                {"role": "user", "content": "\n\n".join(user_sections)},
+            ],
+        )
+
+        raw_output = response.choices[0].message.content or ""
+        logger.debug("Raw thumbnail generator output: %r", raw_output)
+        candidates = self._parse_candidates(raw_output, title=title)
+        logger.debug("Parsed valid thumbnail candidates (%d): %s", len(candidates), candidates)
+
+        if len(candidates) < 3:
+            raise ThumbnailTextGenerationError(
+                f"Insufficient valid thumbnail candidates after parsing: {len(candidates)}"
             )
 
-            content = response.choices[0].message.content or ""
-            logger.debug("Raw thumbnail model output: %r", content)
-            thumbnail_text = self._sanitize_thumbnail_text(content, title=title)
-            logger.debug("Sanitized thumbnail candidate: %r", thumbnail_text)
-            if not thumbnail_text:
-                raise ThumbnailTextGenerationError(
-                    "Generated thumbnail text was empty or rejected as weak browse copy."
-                )
-            return thumbnail_text
+        return candidates
 
-        return retry_with_backoff(
-            func=call_openai,
-            max_retries=3,
-            backoff=1.0,
-            error_types=(OpenAIError, ThumbnailTextGenerationError),
-            context="OpenAI thumbnail text generation",
+    def _select_candidate(
+        self,
+        reading: Reading,
+        candidates: list[str],
+        *,
+        title: str | None = None,
+    ) -> str:
+        viable_candidates = [c for c in candidates if not self._is_weak_browse_phrase(c, title=title)[0]]
+        logger.debug(
+            "Candidate count before/after quality prefilter: %d -> %d",
+            len(candidates),
+            len(viable_candidates),
         )
+        if not viable_candidates:
+            raise ThumbnailTextGenerationError("All generated candidates were rejected as weak/generic.")
+
+        user_sections = []
+        if title:
+            user_sections.append(f"Working Video Title:\n{title.strip()}")
+        user_sections.append(f"Devotional Text:\n{reading.text}")
+        user_sections.append("Candidates:\n" + "\n".join(viable_candidates))
+
+        response = self.client.chat.completions.create(
+            model=self.selector_model,
+            temperature=self.selector_temperature,
+            max_tokens=self.selector_max_tokens,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT_THUMBNAIL_SELECTOR},
+                {"role": "user", "content": "\n\n".join(user_sections)},
+            ],
+        )
+
+        raw_winner = response.choices[0].message.content or ""
+        logger.debug("Raw thumbnail selector output: %r", raw_winner)
+        winner = self._extract_selector_winner(raw_winner)
+        if not winner:
+            raise ThumbnailTextGenerationError("Selector output could not be parsed into a winner.")
+
+        winner = self._sanitize_thumbnail_text(winner, title=title)
+        if winner and winner in viable_candidates:
+            logger.debug("Selector winner accepted: %s", winner)
+            return winner
+
+        if winner and not self._is_weak_browse_phrase(winner, title=title)[0]:
+            logger.debug("Selector winner accepted after sanitization normalization: %s", winner)
+            return winner
+
+        for candidate in viable_candidates:
+            normalized = self._sanitize_thumbnail_text(candidate, title=title)
+            if normalized:
+                logger.debug("Selector winner rejected; fallback to best viable candidate: %s", normalized)
+                return normalized
+
+        raise ThumbnailTextGenerationError("Selector winner invalid and no viable candidates remained.")
+
+    def _extract_selector_winner(self, raw_text: str) -> str:
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+        if not lines:
+            return ""
+        first_line = lines[0]
+        first_line = re.sub(r"^(?:winner\s*:\s*)", "", first_line, flags=re.IGNORECASE)
+        return first_line.strip()
+
+    def _parse_candidates(self, raw_text: str, title: str | None = None) -> list[str]:
+        parsed: list[str] = []
+        seen: set[str] = set()
+        for line in raw_text.splitlines():
+            cleaned = line.strip()
+            if not cleaned:
+                continue
+            cleaned = re.sub(r"^[-*•]+\s*", "", cleaned)
+            cleaned = re.sub(r"^\d+[\.)]\s*", "", cleaned)
+            sanitized = self._sanitize_thumbnail_text(cleaned, title=title)
+            if not sanitized:
+                continue
+            key = self._normalize_for_dedup(sanitized)
+            if key in seen:
+                continue
+            seen.add(key)
+            parsed.append(sanitized)
+        return parsed
+
+    def _normalize_for_dedup(self, text: str) -> str:
+        return re.sub(r"[^a-z]", "", text.lower())
 
     def fallback(self, reading: Reading, title: str) -> str:
         """Return a browse-first fallback phrase based on title + devotional signals."""
@@ -341,4 +481,10 @@ class ThumbnailTextGenerator:
             return lower
         return lower.capitalize()
 
-__all__ = ["ThumbnailTextGenerator", "ThumbnailTextGenerationError", "SYSTEM_PROMPT_THUMBNAIL"]
+
+__all__ = [
+    "ThumbnailTextGenerator",
+    "ThumbnailTextGenerationError",
+    "SYSTEM_PROMPT_THUMBNAIL_GENERATOR",
+    "SYSTEM_PROMPT_THUMBNAIL_SELECTOR",
+]

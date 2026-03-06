@@ -1,7 +1,8 @@
 """Thumbnail generation services."""
 
 from .generate_thumbnail_text import (
-    SYSTEM_PROMPT_THUMBNAIL,
+    SYSTEM_PROMPT_THUMBNAIL_GENERATOR,
+    SYSTEM_PROMPT_THUMBNAIL_SELECTOR,
     ThumbnailTextGenerationError,
     ThumbnailTextGenerator,
 )
@@ -21,7 +22,8 @@ __all__ = [
     "ThumbnailGenerationError",
     "ThumbnailTextGenerator",
     "ThumbnailTextGenerationError",
-    "SYSTEM_PROMPT_THUMBNAIL",
+    "SYSTEM_PROMPT_THUMBNAIL_GENERATOR",
+    "SYSTEM_PROMPT_THUMBNAIL_SELECTOR",
     "THUMBNAIL_STYLE_LINE",
     "THUMBNAIL_BACKGROUND_LINE",
     "THUMBNAIL_COMPOSITION_LINE",
