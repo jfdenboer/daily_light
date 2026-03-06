@@ -52,6 +52,7 @@ Rules:
 - Compress the reading into one simple thumbnail direction.
 - Prefer implication over literal narrative retelling.
 - Suggest one emotionally resonant scene, not multiple moments.
+- scene_direction should describe one simple scene, setting, or moment that could be shown in a single thumbnail.
 - Keep every field compact and concrete.
 - Avoid camera jargon and prompt-engineering jargon.
 - Avoid mentioning text, typography, title, headline, poster, or layout.
@@ -83,8 +84,8 @@ class ThumbnailGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.enabled = settings.thumbnail_enabled
         self.client = OpenAI(api_key=settings.openai_api_key)
-        self.model = settings.prompt_model
-        self.temperature = settings.prompt_temperature
+        self.intent_card_model = settings.thumbnail_intent_card_model
+        self.intent_card_temperature = settings.thumbnail_intent_card_temperature
 
     def generate_thumbnail(
         self,
@@ -219,8 +220,8 @@ class ThumbnailGenerator:
     ) -> str:
         try:
             response = self.client.chat.completions.create(
-                model=self.model,
-                temperature=self.temperature,
+                model=self.intent_card_model,
+                temperature=self.intent_card_temperature,
                 max_tokens=220,
                 user=user,
                 messages=[
@@ -275,6 +276,16 @@ class ThumbnailGenerator:
 
             ordinal, key, raw_value = match.groups()
             expected_key = expected[ordinal]
+            if expected_key in fields:
+                logger.warning(
+                    "thumbnail_pipeline.intent_card_parse_error reason=duplicate_ordinal_or_key ordinal=%s key=%s",
+                    ordinal,
+                    expected_key,
+                )
+                raise ThumbnailGenerationError(
+                    f"Malformed thumbnail intent-card output: duplicate field '{expected_key}'"
+                )
+
             if key.strip().lower() != expected_key:
                 logger.warning(
                     "thumbnail_pipeline.intent_card_parse_error reason=unexpected_key ordinal=%s got=%s expected=%s",
@@ -292,6 +303,16 @@ class ThumbnailGenerator:
                     f"Malformed thumbnail intent-card line {ordinal}: value is empty"
                 )
             fields[expected_key] = value
+
+        missing = [name for name in expected.values() if name not in fields]
+        if missing:
+            logger.warning(
+                "thumbnail_pipeline.intent_card_parse_error reason=missing_fields missing=%s",
+                ",".join(missing),
+            )
+            raise ThumbnailGenerationError(
+                f"Malformed thumbnail intent-card output: missing fields {missing}"
+            )
 
         return ThumbnailIntentCard(
             core_tension=fields["core_tension"],
