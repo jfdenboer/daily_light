@@ -1,132 +1,36 @@
-"""Integration with Bannerbear to produce YouTube-ready thumbnails."""
+"""Generate YouTube thumbnails with OpenAI Images and local text compositing."""
 
 from __future__ import annotations
 
+import base64
+import io
 import logging
-import time
-from dataclasses import dataclass
+import textwrap
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping
-from urllib.parse import urlparse
 
-import requests
+from openai import (
+    APIConnectionError,
+    APIError,
+    APITimeoutError,
+    OpenAI,
+    OpenAIError,
+    RateLimitError,
+)
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from spurgeon.config.settings import Settings
 from spurgeon.models import Reading
+from spurgeon.utils.retry_utils import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
-
-class BannerbearAPIError(RuntimeError):
-    """Raised when the Bannerbear API returns an error response."""
-
-
-class BannerbearTimeoutError(TimeoutError):
-    """Raised when polling Bannerbear exceeds the configured timeout."""
-
-
-@dataclass(slots=True)
-class _BannerbearJob:
-    uid: str
-    status: str
-    image_url: str | None = None
-
-
-class BannerbearClient:
-    """Minimal wrapper around the Bannerbear REST API."""
-
-    def __init__(self, api_key: str, *, base_url: str = "https://api.bannerbear.com/v2") -> None:
-        self.api_key = api_key
-        self.base_url = base_url.rstrip("/")
-        self._session = requests.Session()
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-    def create_image(
-        self,
-        template_id: str,
-        modifications: Iterable[Mapping[str, Any]],
-        *,
-        metadata: Mapping[str, Any] | None = None,
-        webhook_url: str | None = None,
-    ) -> _BannerbearJob:
-        payload: Dict[str, Any] = {
-            "template": template_id,
-            "modifications": list(modifications),
-        }
-        if metadata:
-            payload["metadata"] = dict(metadata)
-        if webhook_url:
-            payload["webhook_url"] = webhook_url
-
-        try:
-            response = self._session.post(
-                f"{self.base_url}/images",
-                json=payload,
-                headers=self._headers,
-                timeout=30,
-            )
-        except requests.RequestException as exc:
-            raise BannerbearAPIError(f"Failed to call Bannerbear images endpoint: {exc}") from exc
-        data = self._handle_response(response)
-        uid = data.get("uid")
-        if not isinstance(uid, str) or not uid:
-            raise BannerbearAPIError("Bannerbear response missing job uid")
-        status = data.get("status", "queued")
-        image_url = data.get("image_url") or data.get("image_url_png")
-        return _BannerbearJob(uid=uid, status=status, image_url=image_url)
-
-    def retrieve_image(self, uid: str) -> _BannerbearJob:
-        try:
-            response = self._session.get(
-                f"{self.base_url}/images/{uid}",
-                headers=self._headers,
-                timeout=30,
-            )
-        except requests.RequestException as exc:
-            raise BannerbearAPIError(f"Failed to retrieve Bannerbear image {uid}: {exc}") from exc
-        data = self._handle_response(response)
-        status = data.get("status", "")
-        image_url = data.get("image_url") or data.get("image_url_png")
-        return _BannerbearJob(uid=uid, status=status, image_url=image_url)
-
-    def download(self, url: str, destination: Path) -> None:
-        try:
-            with self._session.get(url, timeout=60, stream=True) as response:
-                if not response.ok:
-                    raise BannerbearAPIError(
-                        f"Failed to download thumbnail from Bannerbear: HTTP {response.status_code}"
-                    )
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                with destination.open("wb") as fh:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            fh.write(chunk)
-        except requests.RequestException as exc:
-            raise BannerbearAPIError(f"Failed to download thumbnail from Bannerbear: {exc}") from exc
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-    @property
-    def _headers(self) -> Dict[str, str]:
-        return {"Authorization": f"Bearer {self.api_key}"}
-
-    @staticmethod
-    def _handle_response(response: requests.Response) -> Dict[str, Any]:
-        try:
-            data = response.json()
-        except ValueError as exc:  # pragma: no cover - defensive guard
-            raise BannerbearAPIError("Invalid JSON response from Bannerbear") from exc
-
-        if response.status_code >= 400:
-            message = data.get("message") or data.get("error") or "Bannerbear API error"
-            raise BannerbearAPIError(f"{message} (status={response.status_code})")
-
-        if not isinstance(data, dict):
-            raise BannerbearAPIError("Unexpected payload from Bannerbear")
-        return data
+THUMBNAIL_IMAGE_SYSTEM_PROMPT = (
+    "Create a cinematic, realistic, high-clarity YouTube thumbnail background for a Christian devotional. "
+    "No text, letters, logos, watermarks, or symbols. "
+    "Use one clear focal subject with depth and atmosphere, readable on small screens. "
+    "Leave clean negative space on the left/center-left so overlaid text remains highly legible. "
+    "Avoid clutter, busy textures, extreme blur, fantasy illustration styles, or artificial CGI looks."
+)
 
 
 class ThumbnailGenerationError(RuntimeError):
@@ -134,25 +38,14 @@ class ThumbnailGenerationError(RuntimeError):
 
 
 class ThumbnailGenerator:
-    """Create thumbnails for readings using Bannerbear templates."""
+    """Create thumbnails for readings using OpenAI Images and local compositing."""
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.output_dir = Path(settings.output_dir) / "thumbnails"
         self.output_dir.mkdir(parents=True, exist_ok=True)
-
-        if not settings.bannerbear_api_key:
-            logger.info("Bannerbear API key missing – thumbnail generation disabled")
-            self.client = None
-        else:
-            base_url = (
-                "https://sync.api.bannerbear.com/v2"
-                if settings.bannerbear_use_sync_api
-                else "https://api.bannerbear.com/v2"
-            )
-            if settings.bannerbear_use_sync_api:
-                logger.debug("Using synchronous Bannerbear API endpoint")
-            self.client = BannerbearClient(settings.bannerbear_api_key, base_url=base_url)
+        self.enabled = settings.thumbnail_enabled
+        self.client = OpenAI(api_key=settings.openai_api_key)
 
     def generate_thumbnail(
         self,
@@ -162,12 +55,8 @@ class ThumbnailGenerator:
         hero_image: Path | None = None,
         thumbnail_text: str | None = None,
     ) -> Path | None:
-        if not self.client:
-            return None
-
-        template_id = self.settings.bannerbear_template_id
-        if not template_id:
-            logger.warning("Bannerbear template id missing – skipping thumbnail for %s", reading.slug)
+        if not self.enabled:
+            logger.info("Thumbnail generation disabled by configuration")
             return None
 
         cached = self._find_existing_thumbnail(reading.slug)
@@ -175,166 +64,133 @@ class ThumbnailGenerator:
             logger.debug("Reusing existing thumbnail %s", cached.name)
             return cached
 
-        modifications = self._build_modifications(
-            reading,
-            title,
-            hero_image,
-            thumbnail_text,
-        )
-        metadata = {
-            "slug": reading.slug,
-            "reading_type": reading.reading_type.value,
-            "date": reading.date.isoformat(),
-            "project_name": self.settings.bannerbear_project_name,
-            "template_id": template_id,
-        }
+        text = thumbnail_text or title
+        prompt = self._build_prompt(reading, text)
 
         try:
-            job = self.client.create_image(
-                template_id,
-                modifications,
-                metadata=metadata,
-                webhook_url=self.settings.bannerbear_webhook_url,
+            image_bytes = retry_with_backoff(
+                func=lambda: self._call_openai(prompt, user=reading.slug),
+                max_retries=self.settings.thumbnail_max_retries,
+                backoff=self.settings.thumbnail_retry_backoff,
+                error_types=(
+                    APIError,
+                    RateLimitError,
+                    APIConnectionError,
+                    APITimeoutError,
+                    OpenAIError,
+                    ThumbnailGenerationError,
+                ),
+                context=f"thumbnail_image_{reading.slug}",
             )
-        except BannerbearAPIError as exc:
+            thumbnail_path = self.output_dir / f"{reading.slug}.jpg"
+            self._compose_thumbnail(image_bytes=image_bytes, text=text, destination=thumbnail_path)
+            logger.info("Saved thumbnail: %s", thumbnail_path.name)
+            return thumbnail_path
+        except Exception as exc:
             raise ThumbnailGenerationError(str(exc)) from exc
 
-        if job.status == "completed" and job.image_url:
-            completed = job
-        else:
-            try:
-                completed = self._wait_for_completion(job.uid)
-            except (BannerbearAPIError, BannerbearTimeoutError) as exc:
-                raise ThumbnailGenerationError(str(exc)) from exc
-
-        if not completed.image_url:
-            raise ThumbnailGenerationError("Bannerbear job completed without an image URL")
-
-        thumbnail_path = self._build_thumbnail_path(reading.slug, completed.image_url)
+    def _call_openai(self, prompt: str, *, user: str | None = None) -> bytes:
         try:
-            self.client.download(completed.image_url, thumbnail_path)
-        except BannerbearAPIError as exc:
-            raise ThumbnailGenerationError(str(exc)) from exc
+            response = self.client.images.generate(
+                model=self.settings.thumbnail_image_model,
+                prompt=prompt,
+                n=1,
+                size=self.settings.thumbnail_image_size,
+                user=user,
+                quality=self.settings.thumbnail_image_quality,
+                background=self.settings.thumbnail_image_background,
+            )
+        except OpenAIError as exc:
+            raise ThumbnailGenerationError(
+                f"OpenAI thumbnail image call failed: {getattr(exc, 'message', exc)}"
+            ) from exc
 
-        logger.info("Saved thumbnail: %s", thumbnail_path.name)
-        return thumbnail_path
+        data = getattr(response, "data", None)
+        if not data:
+            raise ThumbnailGenerationError("No thumbnail image data returned from OpenAI")
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-    def _wait_for_completion(self, uid: str) -> _BannerbearJob:
-        assert self.client is not None  # appease type checkers
+        b64_payload = getattr(data[0], "b64_json", None)
+        if not b64_payload:
+            raise ThumbnailGenerationError("No base64 payload returned from OpenAI thumbnail response")
 
-        timeout = float(self.settings.bannerbear_timeout_seconds)
-        poll_interval = float(self.settings.bannerbear_poll_interval)
-        deadline = time.monotonic() + timeout
+        try:
+            return base64.b64decode(b64_payload)
+        except (ValueError, TypeError) as exc:
+            raise ThumbnailGenerationError("Invalid base64 thumbnail payload") from exc
 
-        last_status = "queued"
-        while True:
-            if time.monotonic() > deadline:
-                raise BannerbearTimeoutError(
-                    f"Timeout waiting for Bannerbear image {uid} (last status={last_status})"
+    def _compose_thumbnail(self, *, image_bytes: bytes, text: str, destination: Path) -> None:
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as source:
+                canvas = ImageOps.fit(source.convert("RGB"), (1280, 720), method=Image.Resampling.LANCZOS)
+        except OSError as exc:
+            raise ThumbnailGenerationError("Failed to decode generated thumbnail image") from exc
+
+        overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+        draw_overlay = ImageDraw.Draw(overlay)
+        draw_overlay.rectangle((0, 0, 760, 720), fill=(0, 0, 0, 105))
+        canvas = Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
+
+        draw = ImageDraw.Draw(canvas)
+        wrapped_text = self._wrap_text_for_thumbnail(text)
+        font = self._load_font()
+
+        text_bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=8, stroke_width=5)
+        text_height = text_bbox[3] - text_bbox[1]
+        y = max(40, int((720 - text_height) / 2))
+
+        draw.multiline_text(
+            (74, y),
+            wrapped_text,
+            font=font,
+            fill="#FFFFFF",
+            spacing=8,
+            stroke_width=5,
+            stroke_fill="#000000",
+            align="left",
+        )
+
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        canvas.save(destination, format="JPEG", quality=95)
+
+    def _build_prompt(self, reading: Reading, thumbnail_text: str) -> str:
+        excerpt = " ".join(reading.text.split())[:700]
+        return (
+            f"{THUMBNAIL_IMAGE_SYSTEM_PROMPT}\n\n"
+            f"Devotional type: {reading.reading_type.value}.\n"
+            f"Date: {reading.date.isoformat()}.\n"
+            f"Thumbnail headline theme: {thumbnail_text}.\n"
+            f"Devotional excerpt: {excerpt}"
+        )
+
+    @staticmethod
+    def _wrap_text_for_thumbnail(text: str) -> str:
+        normalised = " ".join(text.replace("\n", " ").split())
+        wrapped = textwrap.wrap(normalised, width=14)
+        if not wrapped:
+            return "Daily Light"
+        return "\n".join(wrapped[:3])
+
+    def _load_font(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        if self.settings.thumbnail_font_path:
+            try:
+                return ImageFont.truetype(self.settings.thumbnail_font_path, size=118)
+            except OSError:
+                logger.warning(
+                    "Configured THUMBNAIL_FONT_PATH could not be loaded (%s). Falling back to default font.",
+                    self.settings.thumbnail_font_path,
                 )
-
-            job = self.client.retrieve_image(uid)
-            last_status = job.status
-            if job.status == "completed":
-                return job
-            if job.status in {"failed", "errored", "error", "cancelled"}:
-                raise BannerbearAPIError(
-                    f"Bannerbear image {uid} failed with status '{job.status}'"
-                )
-
-            if job.status not in {"pending", "processing", "queued"}:
-                logger.debug(
-                    "Bannerbear image %s reported status %s – treating as pending",
-                    uid,
-                    job.status,
-                )
-
-            logger.debug("Bannerbear image %s status=%s – waiting", uid, job.status)
-            time.sleep(poll_interval)
+        return ImageFont.load_default()
 
     def _find_existing_thumbnail(self, slug: str) -> Path | None:
-        for ext in (".png", ".jpg", ".jpeg"):
+        for ext in (".jpg", ".jpeg", ".png"):
             candidate = self.output_dir / f"{slug}{ext}"
             if candidate.exists():
                 return candidate
         return None
 
-    def _build_thumbnail_path(self, slug: str, image_url: str) -> Path:
-        suffix = Path(urlparse(image_url).path).suffix.lower()
-        if suffix not in {".png", ".jpg", ".jpeg"}:
-            suffix = ".png"
-        return self.output_dir / f"{slug}{suffix}"
-
-    def _build_modifications(
-            self,
-            reading: Reading,
-            title: str,
-            hero_image: Path | None,
-            thumbnail_text: str | None,
-    ) -> List[Dict[str, Any]]:
-        config_mods = self.settings.bannerbear_modifications or []
-        if not config_mods:
-            logger.warning(
-                "No Bannerbear modifications configured – using fallback values"
-            )
-            config_mods = [
-                {"name": "title", "text": "{thumbnail_text}"},
-                {"name": "date_text", "text": "{date_text}"},
-            ]
-
-        context = self._build_context(reading, title, hero_image, thumbnail_text)
-        resolved: List[Dict[str, Any]] = []
-        for raw_mod in config_mods:
-            mod: Dict[str, Any] = {}
-            for key, value in raw_mod.items():
-                if isinstance(value, str):
-                    mod[key] = self._safe_format(value, context)
-                else:
-                    mod[key] = value
-            resolved.append(mod)
-
-        return resolved
-
-    def _build_context(
-            self,
-            reading: Reading,
-            title: str,
-            hero_image: Path | None,
-            thumbnail_text: str | None,
-    ) -> Dict[str, Any]:
-        date_long = reading.date.strftime("%B %d, %Y")
-        month_name = reading.date.strftime("%B").upper()
-        date_text = f"{month_name} {reading.date.day}"
-        context: Dict[str, Any] = {
-            "title": thumbnail_text or title,
-            "thumbnail_text": thumbnail_text or title,
-            "video_title": title,
-            "date_iso": reading.date.isoformat(),
-            "date_long": date_long,
-            "date_text": date_text,
-            "reading_type": reading.reading_type.value,
-            "slug": reading.slug,
-        }
-        if hero_image:
-            context["hero_image_path"] = str(hero_image)
-            context["hero_image_name"] = hero_image.name
-        return context
-
-    @staticmethod
-    def _safe_format(template: str, context: Mapping[str, Any]) -> str:
-        class _SafeDict(dict):
-            def __missing__(self, key: str) -> str:  # pragma: no cover - simple helper
-                return "{" + key + "}"
-
-        return template.format_map(_SafeDict(context))
 
 __all__ = [
     "ThumbnailGenerator",
     "ThumbnailGenerationError",
-    "BannerbearClient",
-    "BannerbearAPIError",
-    "BannerbearTimeoutError",
+    "THUMBNAIL_IMAGE_SYSTEM_PROMPT",
 ]

@@ -5,7 +5,11 @@ from .generate_thumbnail_text import (
     ThumbnailTextGenerationError,
     ThumbnailTextGenerator,
 )
-from .thumbnail_generator import ThumbnailGenerationError, ThumbnailGenerator
+from .thumbnail_generator import (
+    THUMBNAIL_IMAGE_SYSTEM_PROMPT,
+    ThumbnailGenerationError,
+    ThumbnailGenerator,
+)
 
 __all__ = [
     "ThumbnailGenerator",
@@ -13,4 +17,5 @@ __all__ = [
     "ThumbnailTextGenerator",
     "ThumbnailTextGenerationError",
     "SYSTEM_PROMPT_THUMBNAIL",
+    "THUMBNAIL_IMAGE_SYSTEM_PROMPT",
 ]
