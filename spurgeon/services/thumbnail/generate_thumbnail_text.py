@@ -15,25 +15,44 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT_THUMBNAIL: Final[str] = r"""
-You are a thumbnail copywriter for the YouTube channel “Daily Light”.
-You will receive the FULL devotional text (either morning or evening) as the user message.
-Your task: produce **one** short key phrase for the **thumbnail image** only.
+You are writing thumbnail text for YouTube browse surfaces, not search.
+Your job is to make people feel something and stop scrolling.
+Do NOT explain the video, summarize the lesson, or write a sermon heading.
 
-OUTPUT RULES
-- Return ONE line of text only (no quotes, no JSON, no extra words).
-- 3–4 words, Title Case (Capitalize Major Words).
-- No emojis, no verse numbers, no dates, no author names, no references (e.g., “John 3:16”), no punctuation.
-- Aim for ≤ 28 characters if possible; never exceed 4 words.
-- If your first idea uses more than four words, revise it by merging or removing filler words until it fits.
-- Language: English.
+Output rules:
+- Exactly one line.
+- English only.
+- 1-3 words only (prefer 2-3).
+- Title Case.
+- No punctuation, emojis, dates, verse references, author names, or numbers.
+- Keep it short enough for a thumbnail (about <= 24 characters when possible).
 
-CREATIVE DIRECTION
-- Read the devotional and abstract its heart (comfort, repentance, assurance, trust, grace, holiness, hope).
-- Prefer concrete devotional nouns/verbs (Light, Mercy, Shepherd, Refuge, Grace, Rest, Trust, Faithful, Delight).
-- Avoid repeating long phrases verbatim from the text; distill the essence instead.
+Creative direction:
+- Favor emotional signal, tension, ache, nearness, weakness, waiting, refuge, return, surrender, rest, mercy, hiddenness, turning point.
+- Evoke a moment or feeling.
+- Keep it minimal and curious.
+- Avoid repeating the provided title.
+- Avoid closely copying devotional wording.
 
-RETURN FORMAT
-- Plain text only, exactly the key phrase line.
+Explicitly avoid:
+- Search/tutorial phrasing: How To, Why, Guide, Tips, Steps, Best.
+- Explanatory phrasing and SEO language.
+- Generic devotional stacks like: Daily Light Devotional, Faith Hope Grace, Trust in God.
+- Cleaned-up title fragments.
+
+Good examples:
+- Still He Holds
+- When Strength Fails
+- Not Left Alone
+- Under His Shadow
+- Before the Dawn
+
+Bad examples:
+- Daily Light Devotional
+- Faith Hope Grace
+- Trust in God
+- How To Find Peace
+- Morning Devotional Hope
 """
 
 
@@ -72,26 +91,80 @@ class ThumbnailTextGenerator:
         self.client = OpenAI(api_key=settings.openai_api_key)
         self.model = settings.prompt_model
         self.temperature = settings.prompt_temperature
-        self.max_tokens = 25
+        self.max_tokens = 16
 
-    def generate(self, reading: Reading) -> str:
+        self._search_terms = {"how", "why", "guide", "tips", "steps", "best", "tutorial"}
+        self._generic_terms = {
+            "daily",
+            "light",
+            "devotional",
+            "morning",
+            "evening",
+            "bible",
+            "god",
+        }
+        self._abstract_terms = {
+            "faith",
+            "grace",
+            "hope",
+            "mercy",
+            "peace",
+            "trust",
+            "love",
+            "joy",
+            "renewal",
+            "blessing",
+        }
+        self._signal_terms = {
+            "still",
+            "when",
+            "not",
+            "before",
+            "under",
+            "near",
+            "alone",
+            "shadow",
+            "rest",
+            "waiting",
+            "weary",
+            "broken",
+            "hidden",
+            "holds",
+            "fails",
+            "finds",
+            "return",
+            "dawn",
+            "silence",
+            "stays",
+        }
+
+    def generate(self, reading: Reading, title: str | None = None) -> str:
         """Return thumbnail copy for *reading* via OpenAI."""
 
         def call_openai() -> str:
+            user_sections = []
+            if title:
+                user_sections.append(f"Working Video Title:\n{title.strip()}")
+            user_sections.append(f"Devotional Text:\n{reading.text}")
+
             response = self.client.chat.completions.create(
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT_THUMBNAIL},
-                    {"role": "user", "content": reading.text},
+                    {"role": "user", "content": "\n\n".join(user_sections)},
                 ],
             )
 
             content = response.choices[0].message.content or ""
-            thumbnail_text = self._sanitize_thumbnail_text(content)
+            logger.debug("Raw thumbnail model output: %r", content)
+            thumbnail_text = self._sanitize_thumbnail_text(content, title=title)
+            logger.debug("Sanitized thumbnail candidate: %r", thumbnail_text)
             if not thumbnail_text:
-                raise ThumbnailTextGenerationError("Ontvangen thumbnailtekst is leeg.")
+                raise ThumbnailTextGenerationError(
+                    "Generated thumbnail text was empty or rejected as weak browse copy."
+                )
             return thumbnail_text
 
         return retry_with_backoff(
@@ -103,108 +176,169 @@ class ThumbnailTextGenerator:
         )
 
     def fallback(self, reading: Reading, title: str) -> str:
-        """Derive a sensible fallback thumbnail text from the title."""
+        """Return a browse-first fallback phrase based on title + devotional signals."""
 
-        base = title.split("|")[0].strip()
-        base = re.sub(r"[\-–—]", " ", base)
-        base = re.sub(r"[^\w\s]", " ", base)
-        base = re.sub(r"\s+", " ", base).strip()
-        if not base:
-            base = f"{reading.reading_type.value} Devotional Hope"
+        corpus = f"{title} {reading.text}".lower()
+        keyword_map: list[tuple[set[str], str]] = [
+            ({"weary", "burden", "rest", "faint", "tired"}, "When Strength Fails"),
+            ({"shepherd", "hold", "holds", "keep", "kept"}, "Still He Holds"),
+            ({"near", "presence", "abide", "with", "close"}, "He Stays Near"),
+            ({"refuge", "shadow", "shelter", "cover"}, "Under His Shadow"),
+            ({"wait", "watch", "hope", "waiting"}, "Still Waiting Here"),
+            ({"wander", "return", "stray"}, "When Hearts Wander"),
+            ({"night", "dark", "dawn"}, "Before the Dawn"),
+            ({"cry", "prayer", "silence", "silent"}, "Held in Silence"),
+            ({"mercy", "forgive", "forgiven", "grace"}, "Mercy Finds Me"),
+            ({"fear", "storm", "trouble", "afraid"}, "Not Left Alone"),
+        ]
 
-        fallback_text = self._sanitize_thumbnail_text(base)
-        if fallback_text:
-            return fallback_text
+        for keywords, phrase in keyword_map:
+            if any(keyword in corpus for keyword in keywords):
+                logger.debug("Fallback trigger matched (%s): %s", sorted(keywords), phrase)
+                return phrase
 
-        logger.debug("Fallback thumbnail text sanitization resulted in empty string.")
-        return self._sanitize_thumbnail_text(f"{reading.reading_type.value} Faith Renewal") or (
-            f"{reading.reading_type.value} Faith Renewal"
-        )
+        logger.debug("Fallback default selected: He Stays Near")
+        return "He Stays Near"
 
-    def _sanitize_thumbnail_text(self, raw_text: str) -> str:
+    def _sanitize_thumbnail_text(self, raw_text: str, title: str | None = None) -> str:
         """Normalise *raw_text* to comply with thumbnail constraints."""
 
-        text = raw_text.replace("\n", " ")
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+        text = (lines[0] if lines else raw_text).replace("\n", " ")
         text = re.sub(r"^['\"“”‘’`]+|['\"“”‘’`]+$", "", text)
         text = re.sub(r"\s+", " ", text).strip()
         if not text:
             return ""
 
-        text = re.sub(r"[^\w\s]", "", text)
+        text = re.sub(r"[^A-Za-z\s]", " ", text)
         text = re.sub(r"\d+", "", text)
         text = re.sub(r"\s+", " ", text).strip()
         words = [word for word in text.split() if word]
         if not words:
             return ""
 
-        if len(words) > 4:
-            logger.debug("Thumbnail text too long (%d words) – refining", len(words))
-            words = self._refine_word_count(words, max_words=4)
-
-        fillers = ["Grace", "Hope", "Faith", "Mercy"]
-        filler_index = 0
-        while len(words) < 3:
-            filler = fillers[filler_index % len(fillers)]
-            if not words or words[-1].lower() != filler.lower():
-                words.append(filler)
-            filler_index += 1
+        words = self._refine_words(words, max_words=3)
+        if not words:
+            return ""
 
         title_cased_words = [
             self._title_case_word(word, index) for index, word in enumerate(words)
         ]
         candidate = " ".join(title_cased_words)
+        candidate = self._shrink_to_char_limit(candidate)
 
-        if len(candidate) > 28 and len(words) > 3:
-            logger.debug("Thumbnail text exceeds 28 characters – trimming")
-            while len(candidate) > 28 and len(words) > 3:
-                words = words[:-1]
-                title_cased_words = [
-                    self._title_case_word(word, index) for index, word in enumerate(words)
-                ]
-                candidate = " ".join(title_cased_words)
+        if not candidate:
+            return ""
+
+        is_weak, reason = self._is_weak_browse_phrase(candidate, title=title)
+        if is_weak:
+            logger.debug("Rejected weak thumbnail phrase (%s): %s", reason, candidate)
+            return ""
 
         return candidate.strip()
+
+    def _shrink_to_char_limit(self, candidate: str, char_limit: int = 24) -> str:
+        words = candidate.split()
+        while len(" ".join(words)) > char_limit and len(words) > 1:
+            scored = [(self._word_priority(word), idx) for idx, word in enumerate(words)]
+            _, drop_idx = min(scored, key=lambda item: (item[0], -item[1]))
+            del words[drop_idx]
+        compact = " ".join(words)
+        return "" if len(compact) > char_limit else compact
+
+    def _title_words(self, text: str) -> set[str]:
+        return {
+            token
+            for token in re.findall(r"[a-z]+", text.lower())
+            if token not in self._SMALL_WORDS and len(token) > 2
+        }
+
+    def _is_weak_browse_phrase(
+        self,
+        candidate: str,
+        *,
+        title: str | None = None,
+    ) -> tuple[bool, str]:
+        lower = candidate.lower()
+        words = lower.split()
+
+        if not words or len(words) > 3:
+            return True, "invalid_length"
+
+        if any(term in words for term in self._search_terms):
+            return True, "search_term"
+        if lower.startswith("how to") or lower.startswith("why "):
+            return True, "tutorial_phrase"
+        if "find" in words and any(word in self._abstract_terms for word in words):
+            return True, "search_like_find"
+
+        if all(word in self._abstract_terms for word in words) and len(words) >= 2:
+            return True, "abstract_stack"
+
+        generic_labels = {
+            "trust in god",
+            "gods mercy",
+            "faith renewal",
+            "morning hope",
+            "devotional peace",
+            "daily light devotional",
+            "morning devotional hope",
+        }
+        if lower in generic_labels:
+            return True, "generic_label"
+
+        if len(words) == 1 and words[0] in self._abstract_terms:
+            return True, "single_bland_abstract"
+
+        if len(words) >= 2 and all(
+            word in self._abstract_terms or word in self._generic_terms for word in words
+        ):
+            return True, "generic_stack"
+
+        if not any(word in self._signal_terms for word in words) and all(
+            word in self._abstract_terms or word in self._generic_terms for word in words
+        ):
+            return True, "low_signal"
+
+        if title:
+            candidate_words = self._title_words(candidate)
+            title_words = self._title_words(title)
+            if candidate_words and title_words:
+                overlap = len(candidate_words & title_words) / len(candidate_words)
+                if candidate_words.issubset(title_words) or overlap >= 0.67:
+                    return True, "title_overlap"
+
+        return False, ""
+
+    def _word_priority(self, word: str) -> int:
+        lower = word.lower()
+        score = 0
+        if lower in self._search_terms:
+            score -= 4
+        if lower in self._generic_terms:
+            score -= 3
+        if lower in self._SMALL_WORDS:
+            score -= 2
+        if lower in self._abstract_terms:
+            score -= 1
+        if lower in self._signal_terms:
+            score += 3
+        if len(lower) <= 2 and lower not in {"he", "me"}:
+            score -= 1
+        return score
+
+    def _refine_words(self, words: list[str], max_words: int) -> list[str]:
+        refined = words[:]
+        while len(refined) > max_words:
+            scored = [(self._word_priority(word), idx) for idx, word in enumerate(refined)]
+            _, drop_idx = min(scored, key=lambda item: (item[0], -item[1]))
+            del refined[drop_idx]
+        return refined
 
     def _title_case_word(self, word: str, index: int) -> str:
         lower = word.lower()
         if index != 0 and lower in self._SMALL_WORDS:
             return lower
         return lower.capitalize()
-
-    def _refine_word_count(self, words: list[str], max_words: int) -> list[str]:
-        """Reduce *words* to *max_words* while preserving salient terms."""
-
-        refined = words[:]
-
-        def remove_matching(predicate) -> bool:
-            for idx in range(len(refined) - 1, 0, -1):
-                if predicate(idx):
-                    del refined[idx]
-                    return True
-            return False
-
-        while len(refined) > max_words:
-            if remove_matching(lambda idx: refined[idx].lower() in self._SMALL_WORDS):
-                continue
-
-            # Remove duplicate words (case-insensitive) while preferring later occurrences.
-            lower_seen: set[str] = set()
-            duplicate_index = None
-            for idx in range(len(refined) - 1, 0, -1):
-                lower_word = refined[idx].lower()
-                if lower_word in lower_seen:
-                    duplicate_index = idx
-                    break
-                lower_seen.add(lower_word)
-            if duplicate_index is not None:
-                del refined[duplicate_index]
-                continue
-
-            shortest_index = min(
-                range(1, len(refined)), key=lambda idx: (len(refined[idx]), idx)
-            )
-            del refined[shortest_index]
-
-        return refined
 
 __all__ = ["ThumbnailTextGenerator", "ThumbnailTextGenerationError", "SYSTEM_PROMPT_THUMBNAIL"]
