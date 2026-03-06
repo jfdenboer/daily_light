@@ -26,49 +26,65 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
+THUMBNAIL_TEXT_FONT_SIZE = 110
+
 THUMBNAIL_STYLE_LINE = (
-    "Style: modern cinematic stillframe; naturalistic realism with a calm, contemplative mood; "
-    "subtle highlight bloom/halation without overall softness; the focal subject remains clear, distinct, and easily readable at small size; "
-    "fine, subtle film-like grain; matte finish; natural materials and believable surfaces with slight imperfections; "
-    "favor clarity of subject over global sharpness; "
-    "avoid hyper-clarity, micro-contrast, crunchy edges, sharpening halos, heavy vignettes, HDR, smeary detail, and heavy diffusion; "
+    "Style: thumbnail-first cinematic realism; calm, contemplative, emotionally immediate, and premium; "
+    "naturalistic detail with large readable shapes, clean silhouette separation, and strong visual hierarchy; "
+    "subtle highlight bloom/halation without overall softness; the main subject must remain clear, distinct, and instantly legible at small size; "
+    "fine restrained film-like grain; matte finish; believable materials, surfaces, and natural imperfections; "
+    "favor subject clarity, shape readability, and compositional simplicity over spectacle, atmosphere, or fine texture; "
+    "avoid hyper-clarity, micro-contrast, crunchy edges, sharpening halos, HDR, smeary detail, heavy diffusion, and muddy softness; "
     "no illustration, paper, paint, stylized concept-art, or CGI/3D/glossy rendering."
 )
 
+THUMBNAIL_SUBJECT_LINE = (
+    "Subject: exactly one dominant visual anchor only; prefer one clearly readable person, object, gesture, or symbolic form with immediate emotional clarity; "
+    "any secondary elements must remain unmistakably subordinate in scale, contrast, and attention; "
+    "the image should communicate one idea, not several equal ideas at once; "
+    "if a person appears, favor a readable silhouette, pose, or partial profile with presence and emotional weight; "
+    "avoid vague, fragmented, or weakly defined subjects, and avoid compositions where the supposed subject is too small, too distant, or visually overpowered by the setting."
+)
+
 THUMBNAIL_BACKGROUND_LINE = (
-    "Setting: believable outdoor environment with depth, atmosphere, and natural scale; uncluttered but not empty; "
-    "prefer simple, restrained exterior settings and natural materials, with varied but plausible terrain and context such as paths, fields, moorland, shorelines, village edges, walls, gates, sparse trees at distance, weathered stone, or quiet garden edges; "
-    "avoid repeatedly defaulting to the same rocky coast, dune, hill, or snow-scene look; "
-    "subtle haze may be used for distance separation; keep the left side and center-left calm, simple, and low-detail for text overlay; "
-    "avoid close foliage, prominent branches framing the scene, dense leafy clutter, decorative flowers, staged studio backdrops, and vintage/sepia/antique cues."
+    "Setting: believable, simple environment with depth, atmosphere, and natural scale; may be interior or exterior depending on the reading, but always restrained and secondary to the main subject; "
+    "prefer uncluttered, human-scale settings that support mood without competing for attention; "
+    "background elements should reinforce the emotional tone and visual motif while remaining calm, coherent, and low-drama; "
+    "subtle haze may be used only for depth separation, never as a flat wash that weakens readability; "
+    "keep the text side calm, even-toned, and low-detail; "
+    "avoid scenic excess, symbolic overload, and environments that become more memorable than the subject itself."
 )
 
 THUMBNAIL_COMPOSITION_LINE = (
-    "Composition: 16:9 wide; exactly one clear focal subject placed on the right or center-right; "
-    "strong depth with a simple foreground, midground, and background; minimal elements; "
-    "reserve a clean vertical text safe-zone across roughly the left 55 to 60 percent, with no key subject, no busy textures, and no high-detail edges; "
+    "Composition: 16:9 wide; exactly one dominant focal anchor placed on the right or center-right, with enough visual weight to read instantly on small screens; "
+    "use clear foreground, midground, and background with large simple masses rather than many small details; "
+    "reserve a calm, readable text safe-zone across roughly the left 55 to 60 percent, with no key subject, no bright hotspot, no busy texture, and no strong structural split behind the copy; "
     "keep the focal subject clearly outside the text zone; "
-    "avoid competing focal points, tight crops, edge tangents, distracting horizon placement behind the text area, and collage-like storytelling; "
-    "the image must read instantly on small screens."
+    "maintain strong visual hierarchy, clean balance, and immediate comprehension; "
+    "avoid competing focal points, scattered storytelling, cramped framing, and compositions that feel like a cinematic still rather than a thumbnail."
 )
 
 THUMBNAIL_CONSTRAINTS_LINE = (
     "Constraints: no visible text, captions, lettering, numbers, pseudo-text, watermarks, logos, readable signage, icons, emblems, frames, or UI overlays; "
-    "prefer no close human portraits; if a person appears, use at most one solitary non-identifiable figure with a clear silhouette and natural integration into the scene; "
-    "avoid exaggerated shallow depth of field, bokeh balls, cut-out subject separation, neon colors, oversharpening, repeating patterns, banding in skies or gradients, and high-frequency texture behind the text area."
+    "prefer simple, unified scenes over multi-part narratives; "
+    "human presence, if used, should feel natural, non-identifiable, and integrated rather than posed or theatrical; "
+    "preserve tonal cleanliness and separation around the subject and within the text zone; "
+    "avoid visual noise, artificial emphasis, attention fragmentation, and any detail pattern that weakens small-size readability."
 )
 
 THUMBNAIL_PALETTE_LINE = (
-    "Color grade: warm-neutral cinematic palette with restrained saturation; natural earth, stone, sky, water, wood, and muted vegetation tones; "
-    "gentle contrast with clean highlights and soft shadows; subtle warm highlight accents without orange cast; "
-    "avoid overly lush greens, yellowed vintage tones, teal-orange gimmicks, heavy color casts, or overly picturesque postcard color."
+    "Color grade: warm-neutral cinematic palette with restrained saturation and clean tonal separation; natural earth, stone, sky, water, wood, fabric, and muted vegetation tones; "
+    "gentle contrast with clean highlights, soft shadows, and controlled mids; subtle warm highlight accents without orange cast; "
+    "preserve a calm, readable value structure across the text side and a clear tonal anchor around the subject; "
+    "avoid heavy color casts, gimmicky contrast, postcard prettiness, or monochrome murkiness."
 )
 
 THUMBNAIL_LIGHTING_LINE = (
-    "Lighting: soft overcast daylight or gentle natural directional light, with calm luminous highlights and subtle atmospheric haze; "
-    "soft shadows and controlled highlights; gentle subject-background separation without extreme backlight; "
-    "maintain calm shape definition on the focal subject; "
-    "avoid visible rays or beams, harsh spotlighting, theatrical drama, or sensational 'god-ray' lighting."
+    "Lighting: soft overcast daylight or gentle natural directional light, with calm luminous highlights and subtle atmosphere; "
+    "maintain clean local contrast around the main subject and quieter, more even lighting across the text side; "
+    "soft shadows and controlled highlights; gentle subject-background separation without extreme backlight or overpowering glow; "
+    "preserve calm shape definition on the focal subject and keep the lighting emotionally resonant but visually disciplined; "
+    "avoid theatrical light effects, sensational drama, and lighting that overwhelms the subject or disrupts copy readability."
 )
 
 THUMBNAIL_INTENT_CARD_DEVMSG = """You extract a compact thumbnail intent card for image prompting.
@@ -83,20 +99,20 @@ Return exactly five lines in this exact format:
 5) avoid: <comma-separated short phrases>
 
 Rules:
-- Focus on visual intent, not theological summary or moral explanation.
-- Compress the reading into one simple thumbnail direction.
+- Focus on visual promise, not theological summary, doctrine, or moral explanation.
+- Compress the reading into one simple thumbnail direction with one dominant visual anchor.
 - Prefer implication over literal narrative retelling.
 - Suggest one emotionally resonant scene, not multiple moments, symbols, or story beats.
-- scene_direction must describe one simple scene, setting, or moment that could be shown clearly in a single thumbnail.
+- visual_motif must name one main anchor or one central visual idea, not a list.
+- scene_direction must describe one simple scene, setting, or moment that can be shown clearly in a single thumbnail.
 - Prefer concrete visual guidance over abstract religious language.
 - Keep every field compact, concrete, and imageable.
 - Do not invent specific plot details that are not grounded in the reading.
 - Avoid camera jargon, lens jargon, and prompt-engineering jargon.
 - Avoid mentioning text, typography, title, headline, poster, thumbnail, or layout.
-- Avoid generic Christian stock clichés unless strongly justified by the reading.
-- Do not default to crosses, open Bibles, praying hands, church interiors, dramatic sunbeams, or worship-poster imagery unless the reading clearly calls for them.
-- Allow varied but believable outdoor settings; do not over-default to the same rocky coast, dune, hill, or snow scene.
-- The avoid line should name likely clichés, overly literal elements, or unwanted scene defaults.
+- Avoid generic stock imagery and avoid defaulting to symbolic scenes that feel familiar but emotionally weak.
+- Prefer one clear subject with emotional presence over scenic scale, narrative complexity, or symbolic accumulation.
+- The avoid line should name likely clichés, weak defaults, or distracting secondary ideas.
 - Output only the five lines.
 """
 
@@ -260,7 +276,7 @@ class ThumbnailGenerator:
             response = self.client.chat.completions.create(
                 model=self.intent_card_model,
                 temperature=self.intent_card_temperature,
-                max_tokens=220,
+                max_completion_tokens=220,
                 user=user,
                 messages=[
                     {"role": "system", "content": THUMBNAIL_INTENT_CARD_DEVMSG},
@@ -373,14 +389,9 @@ class ThumbnailGenerator:
                 "Failed to decode generated thumbnail image"
             ) from exc
 
-        overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-        draw_overlay = ImageDraw.Draw(overlay)
-        draw_overlay.rectangle((0, 0, 760, 720), fill=(0, 0, 0, 105))
-        canvas = Image.alpha_composite(canvas.convert("RGBA"), overlay).convert("RGB")
-
         draw = ImageDraw.Draw(canvas)
         wrapped_text = self._wrap_text_for_thumbnail(text)
-        font = self._select_font_for_text(draw, wrapped_text)
+        font = self._select_font_for_text()
 
         text_bbox = draw.multiline_textbbox(
             (0, 0), wrapped_text, font=font, spacing=8, stroke_width=5
@@ -444,26 +455,8 @@ class ThumbnailGenerator:
             return "Daily Light"
         return "\n".join(wrapped[:3])
 
-    def _select_font_for_text(
-        self, draw: ImageDraw.ImageDraw, wrapped_text: str
-    ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-        if not self.settings.thumbnail_font_path:
-            return ImageFont.load_default()
-
-        max_text_width = 620
-        max_text_height = 560
-
-        for font_size in range(118, 63, -6):
-            font = self._load_font(font_size)
-            text_bbox = draw.multiline_textbbox(
-                (0, 0), wrapped_text, font=font, spacing=8, stroke_width=5
-            )
-            text_width = text_bbox[2] - text_bbox[0]
-            text_height = text_bbox[3] - text_bbox[1]
-            if text_width <= max_text_width and text_height <= max_text_height:
-                return font
-
-        return self._load_font(64)
+    def _select_font_for_text(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        return self._load_font(THUMBNAIL_TEXT_FONT_SIZE)
 
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         if self.settings.thumbnail_font_path:
@@ -474,7 +467,10 @@ class ThumbnailGenerator:
                     "Configured THUMBNAIL_FONT_PATH could not be loaded (%s). Falling back to default font.",
                     self.settings.thumbnail_font_path,
                 )
-        return ImageFont.load_default()
+        try:
+            return ImageFont.truetype("DejaVuSans-Bold.ttf", size=size)
+        except OSError:
+            return ImageFont.load_default()
 
     def _find_existing_thumbnail(self, slug: str) -> Path | None:
         for ext in (".jpg", ".jpeg", ".png"):
