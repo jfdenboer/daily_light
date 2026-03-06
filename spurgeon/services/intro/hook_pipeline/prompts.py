@@ -150,6 +150,36 @@ SCORES
 ...repeat for all candidates in order...
 END"""
 
+HOOK_EDITORIAL_SELECTOR_DEVMSG: Final[str] = """You are an editorial selector for spoken devotional hook lines.
+
+You will receive:
+- intent_card
+- style_profile
+- exactly 3 shortlisted candidates
+
+Choose EXACTLY ONE winner from those 3 candidates.
+
+Editorial criteria:
+- natural spoken English
+- human-sounding phrasing
+- non-templated language
+- elegance and simplicity
+- memorability without gimmicks
+- devotional seriousness without stiffness
+- emotional truth
+- clean spoken cadence
+
+Preferences:
+- prefer the line that feels more human, calm, wise, and less mechanically engineered
+- do not automatically reward the most aggressive curiosity framing
+- lightly penalize lines that sound coined, tricky, gimmicky, or LLM-like
+
+Output format (STRICT, no extra text):
+EDITORIAL_SELECTION
+winner=<1-3>
+rationale=<one sentence>
+END"""
+
 HOOK_TWEAKER_DEVMSG: Final[str] = """You are a micro-editor for a single spoken YouTube hook sentence.
 
 Input: EXACTLY ONE winning hook sentence (English).
@@ -168,11 +198,35 @@ Hard rules for EACH output line:
   - Do not switch between you/I/they framing.
 - Keep meaning and intent: minimal edits only; do not introduce new concepts, new stakes, or a new angle.
 - Keep the open loop spoiler-safe: do not add the resolution or moral.
+- Preserve emotional posture and sentence type.
+- Do not intensify stakes.
+- Do not make it more clicky, more clever, or more engineered.
+- Do not introduce meta language.
+- Do not shift the angle.
+- Stay very close to the original sentence.
 
 Output rules:
 - Output EXACTLY {num_variants} lines, each a single sentence.
 - Output ONLY the lines. No numbering, no bullets, no extra text.
 """
+
+HOOK_FINAL_RESELECT_DEVMSG: Final[str] = """You are a conservative final selector for micro-edited spoken hook variants.
+
+You will receive exactly 5 candidates:
+1) the original editorial winner
+2-5) micro-tweaked variants
+
+Goal:
+- Keep the original winner by default.
+- Select a tweak ONLY if it is clearly more natural and more speakable than the original.
+- Do not reward variants just for sounding hookier, sharper, cleverer, or more engineered.
+- If the difference is minor or uncertain, keep the original.
+
+Output format (STRICT, no extra text):
+FINAL_SELECTION
+winner=<1-5>
+rationale=<one sentence>
+END"""
 
 
 def get_hook_style_instruction(profile: str) -> str:
@@ -184,7 +238,9 @@ __all__ = [
     "HOOK_INTENT_DEVMSG",
     "HOOK_GENERATOR_DEVMSG",
     "HOOK_JUDGE_DEVMSG",
+    "HOOK_EDITORIAL_SELECTOR_DEVMSG",
     "HOOK_TWEAKER_DEVMSG",
+    "HOOK_FINAL_RESELECT_DEVMSG",
     "HOOK_STYLE_PROFILES",
     "get_hook_style_instruction",
 ]

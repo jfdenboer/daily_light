@@ -301,6 +301,40 @@ def build_judge_user_input(
     return "\n".join(lines)
 
 
+def build_editorial_selector_user_input(
+    *,
+    style_profile: str,
+    intent: IntentCard,
+    candidates: list[CandidateCheck],
+) -> str:
+    lines: list[str] = [
+        f"style_profile: {style_profile}",
+        "",
+        "intent_card:",
+        f"- core_tension: {intent.core_tension}",
+        f"- implicit_choice: {intent.implicit_choice}",
+        f"- likely_consequence: {intent.likely_consequence}",
+        f"- emotional_tone: {intent.emotional_tone}",
+        "",
+        "shortlist_candidates:",
+    ]
+    for idx, item in enumerate(candidates, start=1):
+        lines.append(f"{idx}) {item.candidate}")
+    return "\n".join(lines)
+
+
+def build_final_reselection_user_input(candidates: list[CandidateCheck]) -> str:
+    lines = [
+        "candidates:",
+        "1) Original editorial winner",
+        "2-5) Micro tweaked variants",
+        "",
+    ]
+    for idx, item in enumerate(candidates, start=1):
+        lines.append(f"{idx}) {item.candidate}")
+    return "\n".join(lines)
+
+
 __all__ = [
     "ANGLE_SEQUENCE",
     "CandidateCheck",
@@ -318,4 +352,6 @@ __all__ = [
     "build_intent_user_input",
     "build_generator_user_input",
     "build_judge_user_input",
+    "build_editorial_selector_user_input",
+    "build_final_reselection_user_input",
 ]
