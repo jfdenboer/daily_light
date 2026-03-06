@@ -131,6 +131,8 @@ class ThumbnailTextGenerator:
             return ""
 
         text = re.sub(r"[^\w\s]", "", text)
+        text = re.sub(r"\d+", "", text)
+        text = re.sub(r"\s+", " ", text).strip()
         words = [word for word in text.split() if word]
         if not words:
             return ""
@@ -161,7 +163,7 @@ class ThumbnailTextGenerator:
                 ]
                 candidate = " ".join(title_cased_words)
 
-        return candidate.strip().replace(" ", "\n")
+        return candidate.strip()
 
     def _title_case_word(self, word: str, index: int) -> str:
         lower = word.lower()
