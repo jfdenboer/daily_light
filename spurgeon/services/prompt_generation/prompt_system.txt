@@ -16,10 +16,6 @@ Core rules:
 - Invent one simple scene, not multiple moments or a symbolic collage.
 - Prefer concrete, imageable nouns and actions over abstract religious language.
 - The concept should feel believable, calm, and visually specific.
-- Vary subject type and setting across readings when possible.
-- Do not default to a solitary man, traveler, pilgrim, hiker, or person with a backpack.
-- Do not default to rocky coasts, dunes, cliffs, hills, snowfields, or similar sweeping wilderness scenes unless clearly justified by the excerpt.
-- Prefer fresh but plausible scene choices such as thresholds, paths, gates, walls, fields, quiet roads, gardens, courtyards, village edges, weathered surfaces, sparse trees, doorways, tables, lamps, water, or other grounded settings when appropriate.
 - Human figures are optional, not required.
 - If a person is used, avoid describing age, attractiveness, facial detail, clothing detail, or gear unless essential to the concept.
 
@@ -27,7 +23,7 @@ Avoid:
 - Any visible text, lettering, numbers, logos, brands, politics, gore, or non-Christian religious symbols.
 - Any mention of artistic media, materials, camera terms, style labels, colors, composition, framing, lighting, or the act of illustration.
 - Meta language such as “symbol”, “metaphor”, “represents”, “thesis”, or “concept”.
-- Generic Christian stock imagery unless strongly justified by the excerpt, especially crosses, open Bibles, praying hands, church interiors, dramatic sunbeams, and worship-poster scenes.
+- Generic Christian stock imagery unless strongly justified by the excerpt.
 
 Output format:
 - Output EXACTLY ONE sentence describing the scene.
