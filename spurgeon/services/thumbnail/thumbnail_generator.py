@@ -30,7 +30,16 @@ from .thumbnail_contracts import (
     ThumbnailRenderer,
     ThumbnailRepository,
 )
+from .thumbnail_errors import (
+    ImageProviderError,
+    IntentCardError,
+    PromptBuildError,
+    RenderError,
+    StorageError,
+    ThumbnailGenerationError,
+)
 from .thumbnail_intent_card import ThumbnailIntentCard
+from .thumbnail_observability import ThumbnailEvent, log_thumbnail_event
 from .thumbnail_prompting import (
     THUMBNAIL_BACKGROUND_LINE,
     THUMBNAIL_COMPOSITION_LINE,
@@ -43,10 +52,6 @@ from .thumbnail_prompting import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-class ThumbnailGenerationError(RuntimeError):
-    """Raised when thumbnail generation fails in a recoverable way."""
 
 
 class ThumbnailGenerator:
@@ -90,26 +95,40 @@ class ThumbnailGenerator:
 
         cached = self.repository.get_existing(reading.slug)
         if cached:
-            logger.debug("Reusing existing thumbnail %s", cached.name)
+            log_thumbnail_event(
+                ThumbnailEvent.CACHE_HIT,
+                slug=reading.slug,
+                path=cached.name,
+            )
             return cached
 
         text = thumbnail_text or title
-        logger.info("thumbnail_pipeline.start slug=%s", reading.slug)
-
-        intent_card = self._generate_thumbnail_intent_card(reading, text)
-        logger.info(
-            "thumbnail_pipeline.intent_card core_tension=%s emotional_tone=%s visual_motif=%s scene_direction=%s avoid=%s",
-            intent_card.core_tension,
-            intent_card.emotional_tone,
-            intent_card.visual_motif,
-            intent_card.scene_direction,
-            intent_card.avoid,
+        log_thumbnail_event(
+            ThumbnailEvent.START,
+            slug=reading.slug,
+            title=text,
+            reading_type=reading.reading_type.value,
         )
 
-        prompt = self._build_prompt(reading, text, intent_card)
-        logger.info("thumbnail_pipeline.image_prompt_ready theme=%s", text)
-
         try:
+            intent_card = self._generate_thumbnail_intent_card(reading, text)
+            log_thumbnail_event(
+                ThumbnailEvent.INTENT_CARD_READY,
+                slug=reading.slug,
+                core_tension=intent_card.core_tension,
+                emotional_tone=intent_card.emotional_tone,
+                visual_motif=intent_card.visual_motif,
+                scene_direction=intent_card.scene_direction,
+                avoid=intent_card.avoid,
+            )
+
+            prompt = self._build_prompt(reading, text, intent_card)
+            log_thumbnail_event(
+                ThumbnailEvent.PROMPT_READY,
+                slug=reading.slug,
+                prompt_char_count=len(prompt),
+            )
+
             image_bytes = retry_with_backoff(
                 func=lambda: self.image_provider.generate(prompt, user=reading.slug),
                 max_retries=self.settings.thumbnail_max_retries,
@@ -120,16 +139,42 @@ class ThumbnailGenerator:
                     APIConnectionError,
                     APITimeoutError,
                     OpenAIError,
-                    RuntimeError,
+                    ImageProviderError,
                 ),
                 context=f"thumbnail_image_{reading.slug}",
             )
+            log_thumbnail_event(
+                ThumbnailEvent.IMAGE_READY,
+                slug=reading.slug,
+                image_byte_count=len(image_bytes),
+            )
             rendered = self.renderer.render(image_bytes=image_bytes, text=text)
+            log_thumbnail_event(ThumbnailEvent.RENDER_READY, slug=reading.slug)
             thumbnail_path = self.repository.save(reading.slug, rendered)
-            logger.info("Saved thumbnail: %s", thumbnail_path.name)
+            log_thumbnail_event(
+                ThumbnailEvent.SAVED,
+                slug=reading.slug,
+                path=thumbnail_path.name,
+            )
             return thumbnail_path
-        except Exception as exc:
+        except (IntentCardError, PromptBuildError, ImageProviderError, RenderError, StorageError) as exc:
+            log_thumbnail_event(
+                ThumbnailEvent.FAILED,
+                slug=reading.slug,
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
             raise ThumbnailGenerationError(str(exc)) from exc
+        except Exception as exc:
+            log_thumbnail_event(
+                ThumbnailEvent.FAILED,
+                slug=reading.slug,
+                error_type=type(exc).__name__,
+                error_message=str(exc),
+            )
+            raise ThumbnailGenerationError(
+                f"Unexpected thumbnail pipeline failure: {exc}"
+            ) from exc
 
     def _generate_thumbnail_intent_card(
         self,
@@ -147,12 +192,12 @@ class ThumbnailGenerator:
                     APIConnectionError,
                     APITimeoutError,
                     OpenAIError,
-                    RuntimeError,
+                    IntentCardError,
                 ),
                 context=f"thumbnail_intent_card_{reading.slug}",
             )
         except Exception as exc:
-            raise ThumbnailGenerationError(str(exc)) from exc
+            raise IntentCardError(str(exc)) from exc
 
     @staticmethod
     def _build_prompt(
@@ -160,7 +205,10 @@ class ThumbnailGenerator:
         thumbnail_text: str,
         intent_card: ThumbnailIntentCard,
     ) -> str:
-        return build_thumbnail_prompt(reading, thumbnail_text, intent_card)
+        try:
+            return build_thumbnail_prompt(reading, thumbnail_text, intent_card)
+        except Exception as exc:
+            raise PromptBuildError(str(exc)) from exc
 
 
 __all__ = [

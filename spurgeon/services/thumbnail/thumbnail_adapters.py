@@ -19,6 +19,7 @@ from .thumbnail_contracts import (
     ThumbnailRenderer,
     ThumbnailRepository,
 )
+from .thumbnail_errors import ImageProviderError, IntentCardError, RenderError, StorageError
 from .thumbnail_intent_card import (
     THUMBNAIL_INTENT_CARD_DEVMSG,
     IntentCardParseError,
@@ -69,20 +70,20 @@ class OpenAIIntentCardProvider(IntentCardProvider):
                 ],
             )
         except OpenAIError as exc:
-            raise RuntimeError(
+            raise IntentCardError(
                 f"OpenAI thumbnail intent-card call failed: {getattr(exc, 'message', exc)}"
             ) from exc
 
         content = response.choices[0].message.content or ""
         normalized = content.strip()
         if not normalized:
-            raise RuntimeError("Received empty thumbnail intent-card output")
+            raise IntentCardError("Received empty thumbnail intent-card output")
 
         logger.debug("thumbnail_pipeline.intent_card_raw_output=%r", normalized)
         try:
             return parse_thumbnail_intent_card(normalized)
         except IntentCardParseError as exc:
-            raise RuntimeError(str(exc)) from exc
+            raise IntentCardError(str(exc)) from exc
 
 
 class OpenAIImageProvider(ImageProvider):
@@ -104,22 +105,24 @@ class OpenAIImageProvider(ImageProvider):
                 background=self.settings.thumbnail_image_background,
             )
         except OpenAIError as exc:
-            raise RuntimeError(
+            raise ImageProviderError(
                 f"OpenAI thumbnail image call failed: {getattr(exc, 'message', exc)}"
             ) from exc
 
         data = getattr(response, "data", None)
         if not data:
-            raise RuntimeError("No thumbnail image data returned from OpenAI")
+            raise ImageProviderError("No thumbnail image data returned from OpenAI")
 
         b64_payload = getattr(data[0], "b64_json", None)
         if not b64_payload:
-            raise RuntimeError("No base64 payload returned from OpenAI thumbnail response")
+            raise ImageProviderError(
+                "No base64 payload returned from OpenAI thumbnail response"
+            )
 
         try:
             return base64.b64decode(b64_payload)
         except (ValueError, TypeError) as exc:
-            raise RuntimeError("Invalid base64 thumbnail payload") from exc
+            raise ImageProviderError("Invalid base64 thumbnail payload") from exc
 
 
 class PillowThumbnailRenderer(ThumbnailRenderer):
@@ -137,7 +140,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
                     method=Image.Resampling.LANCZOS,
                 )
         except OSError as exc:
-            raise RuntimeError("Failed to decode generated thumbnail image") from exc
+            raise RenderError("Failed to decode generated thumbnail image") from exc
 
         draw = ImageDraw.Draw(canvas, "RGBA")
         display_text = normalize_thumbnail_display_text(text)
@@ -213,14 +216,20 @@ class FilesystemThumbnailRepository(ThumbnailRepository):
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def get_existing(self, slug: str) -> Path | None:
-        for ext in (".jpg", ".jpeg", ".png"):
-            candidate = self.output_dir / f"{slug}{ext}"
-            if candidate.exists():
-                return candidate
-        return None
+        try:
+            for ext in (".jpg", ".jpeg", ".png"):
+                candidate = self.output_dir / f"{slug}{ext}"
+                if candidate.exists():
+                    return candidate
+            return None
+        except OSError as exc:
+            raise StorageError(f"Failed to inspect thumbnail cache for slug '{slug}'") from exc
 
     def save(self, slug: str, image: Image.Image) -> Path:
         destination = self.output_dir / f"{slug}.jpg"
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        image.convert("RGB").save(destination, format="JPEG", quality=95)
-        return destination
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            image.convert("RGB").save(destination, format="JPEG", quality=95)
+            return destination
+        except OSError as exc:
+            raise StorageError(f"Failed to save thumbnail for slug '{slug}'") from exc

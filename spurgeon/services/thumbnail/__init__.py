@@ -12,6 +12,14 @@ from .thumbnail_contracts import (
     ThumbnailRenderer,
     ThumbnailRepository,
 )
+from .thumbnail_errors import (
+    ImageProviderError,
+    IntentCardError,
+    PromptBuildError,
+    RenderError,
+    StorageError,
+    ThumbnailError,
+)
 from .thumbnail_generator import (
     THUMBNAIL_BACKGROUND_LINE,
     THUMBNAIL_COMPOSITION_LINE,
@@ -42,4 +50,10 @@ __all__ = [
     "ImageProvider",
     "ThumbnailRenderer",
     "ThumbnailRepository",
+    "ThumbnailError",
+    "IntentCardError",
+    "PromptBuildError",
+    "ImageProviderError",
+    "RenderError",
+    "StorageError",
 ]
