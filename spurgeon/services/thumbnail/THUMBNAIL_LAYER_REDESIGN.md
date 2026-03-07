@@ -270,3 +270,28 @@ Fase 1 is nu uitgevoerd met behoud van de bestaande publieke `ThumbnailGenerator
 - Minder cognitieve belasting in `thumbnail_generator.py`.
 - Parser/layout/prompt onderdelen zijn nu afzonderlijk unit-testbaar.
 - Vervolgstappen (interfaces, typed errors, template versioning) kunnen incrementeel zonder grote rewrite.
+
+## Update na uitvoering Fase 2 (interfaces + default adapters)
+
+Fase 2 is uitgevoerd met behoud van de bestaande publieke `ThumbnailGenerator`-API.
+
+### Wat is concreet toegevoegd
+- **Interfaces (contracts)** in `thumbnail_contracts.py`:
+  - `IntentCardProvider`
+  - `ImageProvider`
+  - `ThumbnailRenderer`
+  - `ThumbnailRepository`
+- **Default adapters** in `thumbnail_adapters.py`:
+  - `OpenAIIntentCardProvider`
+  - `OpenAIImageProvider`
+  - `PillowThumbnailRenderer`
+  - `FilesystemThumbnailRepository`
+- **Orchestrator wiring** in `thumbnail_generator.py`:
+  - dependency injection via optionele constructor-parameters,
+  - retries blijven op orchestratie-niveau,
+  - bestaande flow en logging behouden.
+
+### Effect op testbaarheid en uitbreidbaarheid
+- Providers/renderer/repository zijn nu los te mocken zonder OpenAI/Pillow/filesysteem direct in de test te initialiseren.
+- Toekomstige provider-swap (ander LLM/image model) kan via interface-implementatie zonder orchestratorlogica te wijzigen.
+- De generator is nu duidelijker application-layer georiënteerd; infrastructuurdetails zijn verplaatst naar adapters.
