@@ -6,7 +6,6 @@ import base64
 import io
 import logging
 import re
-import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,7 +25,19 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
-THUMBNAIL_TEXT_FONT_SIZE = 110
+THUMBNAIL_CANVAS_SIZE = (1280, 720)
+THUMBNAIL_TEXT_LEFT_SAFE_ZONE_FRACTION = 0.42
+THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION = 0.06
+THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.11
+THUMBNAIL_TEXT_MAX_LINES = 2
+THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.1
+THUMBNAIL_TEXT_MIN_FONT_SIZE = 64
+THUMBNAIL_TEXT_MAX_FONT_SIZE = 260
+THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.034
+THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 2
+THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.03
+THUMBNAIL_TEXT_SHADOW_ALPHA = 140
+THUMBNAIL_TEXT_VERTICAL_ANCHOR_RATIO = 0.43
 
 THUMBNAIL_STYLE_LINE = (
     "Style: thumbnail-first cinematic realism; calm, contemplative, emotionally immediate, and premium; "
@@ -123,6 +134,25 @@ class ThumbnailIntentCard:
     visual_motif: str
     scene_direction: str
     avoid: str
+
+
+@dataclass(frozen=True)
+class TextSafeZone:
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+@dataclass(frozen=True)
+class TextLayoutChoice:
+    text: str
+    line_count: int
+    font_size: int
+    text_bbox: tuple[int, int, int, int]
+    block_size: tuple[int, int]
+    stroke_width: int
+    shadow_offset: tuple[int, int]
 
 
 class ThumbnailGenerationError(RuntimeError):
@@ -382,36 +412,53 @@ class ThumbnailGenerator:
         try:
             with Image.open(io.BytesIO(image_bytes)) as source:
                 canvas = ImageOps.fit(
-                    source.convert("RGB"), (1280, 720), method=Image.Resampling.LANCZOS
+                    source.convert("RGB"), THUMBNAIL_CANVAS_SIZE, method=Image.Resampling.LANCZOS
                 )
         except OSError as exc:
             raise ThumbnailGenerationError(
                 "Failed to decode generated thumbnail image"
             ) from exc
 
-        draw = ImageDraw.Draw(canvas)
-        wrapped_text = self._wrap_text_for_thumbnail(text)
-        font = self._select_font_for_text(draw, wrapped_text)
+        draw = ImageDraw.Draw(canvas, "RGBA")
+        display_text = self._normalize_thumbnail_display_text(text)
+        safe_zone = self._calculate_text_safe_zone(canvas.size)
+        layout = self._select_text_layout(draw, display_text, safe_zone)
+        text_position = self._resolve_text_position(layout, safe_zone)
 
-        text_bbox = draw.multiline_textbbox(
-            (0, 0), wrapped_text, font=font, spacing=8, stroke_width=5
+        shadow_color = (0, 0, 0, THUMBNAIL_TEXT_SHADOW_ALPHA)
+        draw.multiline_text(
+            (text_position[0] + layout.shadow_offset[0], text_position[1] + layout.shadow_offset[1]),
+            layout.text,
+            font=self._load_font(layout.font_size),
+            fill=shadow_color,
+            spacing=self._line_spacing(layout.font_size),
+            stroke_width=0,
+            align="left",
         )
-        text_height = text_bbox[3] - text_bbox[1]
-        y = max(40, int((720 - text_height) / 2))
 
         draw.multiline_text(
-            (74, y),
-            wrapped_text,
-            font=font,
+            text_position,
+            layout.text,
+            font=self._load_font(layout.font_size),
             fill="#FFFFFF",
-            spacing=8,
-            stroke_width=5,
+            spacing=self._line_spacing(layout.font_size),
+            stroke_width=layout.stroke_width,
             stroke_fill="#000000",
             align="left",
         )
 
+        logger.debug(
+            "thumbnail_pipeline.text_layout original=%r rendered=%r layout=%s font_size=%s text_bbox=%s safe_zone=%s",
+            text,
+            display_text,
+            f"{layout.line_count}-line",
+            layout.font_size,
+            (*text_position, text_position[0] + layout.block_size[0], text_position[1] + layout.block_size[1]),
+            (safe_zone.x, safe_zone.y, safe_zone.width, safe_zone.height),
+        )
+
         destination.parent.mkdir(parents=True, exist_ok=True)
-        canvas.save(destination, format="JPEG", quality=95)
+        canvas.convert("RGB").save(destination, format="JPEG", quality=95)
 
     def _build_prompt(
         self,
@@ -448,30 +495,144 @@ class ThumbnailGenerator:
         return clipped[:last_space] if last_space > 0 else clipped
 
     @staticmethod
-    def _wrap_text_for_thumbnail(text: str) -> str:
+    def _normalize_thumbnail_display_text(text: str) -> str:
         normalised = " ".join(text.replace("\n", " ").split())
-        wrapped = textwrap.wrap(normalised, width=14)
-        if not wrapped:
-            return "Daily Light"
-        return "\n".join(wrapped[:3])
+        if not normalised:
+            return "DAILY LIGHT"
+        return normalised.upper()
 
-    def _select_font_for_text(
-        self, draw: ImageDraw.ImageDraw, wrapped_text: str
-    ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-        max_text_width = 620
-        max_text_height = 560
+    @staticmethod
+    def _calculate_text_safe_zone(canvas_size: tuple[int, int]) -> TextSafeZone:
+        width, height = canvas_size
+        left_margin = int(width * THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION)
+        top_margin = int(height * THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION)
+        bottom_margin = top_margin
+        safe_width = int(width * THUMBNAIL_TEXT_LEFT_SAFE_ZONE_FRACTION) - left_margin
+        safe_height = height - top_margin - bottom_margin
+        return TextSafeZone(
+            x=left_margin,
+            y=top_margin,
+            width=max(220, safe_width),
+            height=max(200, safe_height),
+        )
 
-        for font_size in range(118, 63, -6):
-            font = self._load_font(font_size)
-            text_bbox = draw.multiline_textbbox(
-                (0, 0), wrapped_text, font=font, spacing=8, stroke_width=5
-            )
+    def _select_text_layout(
+        self,
+        draw: ImageDraw.ImageDraw,
+        display_text: str,
+        safe_zone: TextSafeZone,
+    ) -> TextLayoutChoice:
+        words = display_text.split()
+        layout_candidates = [display_text]
+        if len(words) > 1:
+            first_line_count = max(1, len(words) // 2)
+            two_line = " ".join(words[:first_line_count]) + "\n" + " ".join(words[first_line_count:])
+            layout_candidates.append(two_line)
+
+        best: TextLayoutChoice | None = None
+        for candidate in layout_candidates:
+            if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
+                continue
+            measured = self._fit_largest_font(draw, candidate, safe_zone)
+            if measured and (best is None or measured.font_size > best.font_size):
+                best = measured
+
+        if best is not None:
+            return best
+
+        fallback_text = layout_candidates[0]
+        fallback = self._measure_text_block(draw, fallback_text, THUMBNAIL_TEXT_MIN_FONT_SIZE)
+        return TextLayoutChoice(
+            text=fallback_text,
+            line_count=fallback_text.count("\n") + 1,
+            font_size=THUMBNAIL_TEXT_MIN_FONT_SIZE,
+            text_bbox=fallback,
+            block_size=(fallback[2] - fallback[0], fallback[3] - fallback[1]),
+            stroke_width=self._stroke_width_for_font_size(THUMBNAIL_TEXT_MIN_FONT_SIZE),
+            shadow_offset=self._shadow_offset_for_font_size(THUMBNAIL_TEXT_MIN_FONT_SIZE),
+        )
+
+    def _fit_largest_font(
+        self,
+        draw: ImageDraw.ImageDraw,
+        layout_text: str,
+        safe_zone: TextSafeZone,
+    ) -> TextLayoutChoice | None:
+        low = THUMBNAIL_TEXT_MIN_FONT_SIZE
+        high = THUMBNAIL_TEXT_MAX_FONT_SIZE
+        best_size: int | None = None
+        best_bbox: tuple[int, int, int, int] | None = None
+        best_stroke = THUMBNAIL_TEXT_STROKE_MIN_WIDTH
+
+        while low <= high:
+            mid = (low + high) // 2
+            stroke_width = self._stroke_width_for_font_size(mid)
+            text_bbox = self._measure_text_block(draw, layout_text, mid, stroke_width=stroke_width)
             text_width = text_bbox[2] - text_bbox[0]
             text_height = text_bbox[3] - text_bbox[1]
-            if text_width <= max_text_width and text_height <= max_text_height:
-                return font
+            if text_width <= safe_zone.width and text_height <= safe_zone.height:
+                best_size = mid
+                best_bbox = text_bbox
+                best_stroke = stroke_width
+                low = mid + 1
+            else:
+                high = mid - 1
 
-        return self._load_font(64)
+        if best_size is None or best_bbox is None:
+            return None
+
+        return TextLayoutChoice(
+            text=layout_text,
+            line_count=layout_text.count("\n") + 1,
+            font_size=best_size,
+            text_bbox=best_bbox,
+            block_size=(best_bbox[2] - best_bbox[0], best_bbox[3] - best_bbox[1]),
+            stroke_width=best_stroke,
+            shadow_offset=self._shadow_offset_for_font_size(best_size),
+        )
+
+    def _measure_text_block(
+        self,
+        draw: ImageDraw.ImageDraw,
+        text: str,
+        font_size: int,
+        *,
+        stroke_width: int | None = None,
+    ) -> tuple[int, int, int, int]:
+        if stroke_width is None:
+            stroke_width = self._stroke_width_for_font_size(font_size)
+        return draw.multiline_textbbox(
+            (0, 0),
+            text,
+            font=self._load_font(font_size),
+            spacing=self._line_spacing(font_size),
+            stroke_width=stroke_width,
+        )
+
+    @staticmethod
+    def _line_spacing(font_size: int) -> int:
+        return max(8, int(font_size * THUMBNAIL_TEXT_LINE_SPACING_RATIO))
+
+    @staticmethod
+    def _stroke_width_for_font_size(font_size: int) -> int:
+        return max(THUMBNAIL_TEXT_STROKE_MIN_WIDTH, int(font_size * THUMBNAIL_TEXT_STROKE_WIDTH_RATIO))
+
+    @staticmethod
+    def _shadow_offset_for_font_size(font_size: int) -> tuple[int, int]:
+        offset = max(2, int(font_size * THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO))
+        return (offset, offset)
+
+    @staticmethod
+    def _resolve_text_position(
+        layout: TextLayoutChoice,
+        safe_zone: TextSafeZone,
+    ) -> tuple[int, int]:
+        x = safe_zone.x
+        anchor_y = safe_zone.y + int(safe_zone.height * THUMBNAIL_TEXT_VERTICAL_ANCHOR_RATIO)
+        y = anchor_y - int(layout.block_size[1] / 2)
+        min_y = safe_zone.y
+        max_y = safe_zone.y + safe_zone.height - layout.block_size[1]
+        return (x, max(min_y, min(y, max_y)))
 
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         if self.settings.thumbnail_font_path:
