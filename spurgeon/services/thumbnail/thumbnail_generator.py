@@ -112,6 +112,11 @@ Return exactly five lines in this exact format:
 4) scene_direction: <short phrase>
 5) avoid: <comma-separated short phrases>
 
+Each line must begin with its numeric prefix exactly as shown below (for example, \"1) \" on line 1).
+Do not omit numbering.
+Do not add commentary, explanation, blank lines, bullets, or markdown fences.
+Do not add intro or outro text.
+
 Rules:
 - Focus on visual promise, not theological summary, doctrine, or moral explanation.
 - Compress the reading into one simple thumbnail direction with one dominant visual anchor.
@@ -300,6 +305,7 @@ class ThumbnailGenerator:
         except Exception as exc:
             raise ThumbnailGenerationError(str(exc)) from exc
 
+        logger.debug("thumbnail_pipeline.intent_card_raw_output=%r", raw_output)
         return self._parse_thumbnail_intent_card(raw_output)
 
     def _call_openai_thumbnail_intent_card(
@@ -330,72 +336,101 @@ class ThumbnailGenerator:
         return normalized
 
     def _parse_thumbnail_intent_card(self, text: str) -> ThumbnailIntentCard:
-        pattern = re.compile(r"^\s*([1-5])\)\s*([a-z_]+)\s*:\s*(.*?)\s*$")
-        expected = {
-            "1": "core_tension",
-            "2": "emotional_tone",
-            "3": "visual_motif",
-            "4": "scene_direction",
-            "5": "avoid",
-        }
+        pattern = re.compile(r"^\s*(?:(\d)\)\s*)?([a-z_]+)\s*:\s*(.*?)\s*$")
+        expected_order = [
+            "core_tension",
+            "emotional_tone",
+            "visual_motif",
+            "scene_direction",
+            "avoid",
+        ]
         fields: dict[str, str] = {}
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
         if len(lines) != 5:
             logger.warning(
-                "thumbnail_pipeline.intent_card_parse_error reason=expected_5_lines lines=%d",
+                "thumbnail_pipeline.intent_card_parse_error reason=expected_5_lines lines=%d raw_output=%r",
                 len(lines),
+                text,
             )
             raise ThumbnailGenerationError(
                 f"Malformed thumbnail intent-card output: expected 5 lines, got {len(lines)}"
             )
 
-        for line in lines:
+        for index, line in enumerate(lines, start=1):
             match = pattern.match(line)
             if not match:
                 logger.warning(
-                    "thumbnail_pipeline.intent_card_parse_error reason=invalid_line line=%s",
+                    "thumbnail_pipeline.intent_card_parse_error reason=invalid_line line=%s raw_output=%r",
                     line,
+                    text,
                 )
                 raise ThumbnailGenerationError(
                     f"Malformed thumbnail intent-card line: {line}"
                 )
 
             ordinal, key, raw_value = match.groups()
-            expected_key = expected[ordinal]
+            expected_key = expected_order[index - 1]
+            parsed_key = key.strip().lower()
+
+            if ordinal is not None and ordinal != str(index):
+                logger.warning(
+                    "thumbnail_pipeline.intent_card_parse_error reason=wrong_ordinal line_index=%d ordinal=%s expected=%d line=%s raw_output=%r",
+                    index,
+                    ordinal,
+                    index,
+                    line,
+                    text,
+                )
+                raise ThumbnailGenerationError(
+                    f"Malformed thumbnail intent-card line {index}: expected ordinal '{index})', got '{ordinal})'"
+                )
+
+            if parsed_key != expected_key:
+                logger.warning(
+                    "thumbnail_pipeline.intent_card_parse_error reason=unexpected_key line_index=%d got=%s expected=%s line=%s raw_output=%r",
+                    index,
+                    parsed_key,
+                    expected_key,
+                    line,
+                    text,
+                )
+                raise ThumbnailGenerationError(
+                    f"Malformed thumbnail intent-card line {index}: expected key '{expected_key}', got '{key}'"
+                )
+
             if expected_key in fields:
                 logger.warning(
-                    "thumbnail_pipeline.intent_card_parse_error reason=duplicate_ordinal_or_key ordinal=%s key=%s",
-                    ordinal,
+                    "thumbnail_pipeline.intent_card_parse_error reason=duplicate_key line_index=%d key=%s line=%s raw_output=%r",
+                    index,
                     expected_key,
+                    line,
+                    text,
                 )
                 raise ThumbnailGenerationError(
                     f"Malformed thumbnail intent-card output: duplicate field '{expected_key}'"
                 )
 
-            if key.strip().lower() != expected_key:
-                logger.warning(
-                    "thumbnail_pipeline.intent_card_parse_error reason=unexpected_key ordinal=%s got=%s expected=%s",
-                    ordinal,
-                    key,
-                    expected_key,
-                )
-                raise ThumbnailGenerationError(
-                    f"Malformed thumbnail intent-card line {ordinal}: expected key '{expected_key}', got '{key}'"
-                )
-
             value = " ".join(raw_value.split()).strip()
             if not value:
+                logger.warning(
+                    "thumbnail_pipeline.intent_card_parse_error reason=empty_value line_index=%d key=%s line=%s raw_output=%r",
+                    index,
+                    expected_key,
+                    line,
+                    text,
+                )
                 raise ThumbnailGenerationError(
-                    f"Malformed thumbnail intent-card line {ordinal}: value is empty"
+                    f"Malformed thumbnail intent-card line {index}: value is empty"
                 )
             fields[expected_key] = value
 
-        missing = [name for name in expected.values() if name not in fields]
+        missing = [name for name in expected_order if name not in fields]
         if missing:
             logger.warning(
-                "thumbnail_pipeline.intent_card_parse_error reason=missing_fields missing=%s",
+                "thumbnail_pipeline.intent_card_parse_error reason=missing_fields missing=%s raw_output=%r",
                 ",".join(missing),
+                text,
             )
             raise ThumbnailGenerationError(
                 f"Malformed thumbnail intent-card output: missing fields {missing}"
