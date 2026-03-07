@@ -30,10 +30,17 @@ logger = logging.getLogger(__name__)
 _INVISIBLE_SEPARATOR_PATTERN: re.Pattern[str] = re.compile(r"[\u200B-\u200D\u2060\uFEFF]")
 _LINEBREAK_PATTERN: re.Pattern[str] = re.compile(r"\r\n|[\r\v\f\x85\u2028\u2029]")
 _BODY_SEPARATOR_LINE_PATTERN: re.Pattern[str] = re.compile(r"^\s*_+\s*$")
+_INLINE_SPACE_PATTERN: re.Pattern[str] = re.compile(r"[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]")
 
 HEADER_PATTERN: re.Pattern[str] = re.compile(
     r"^\s*(?P<month>[A-Za-z\.]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?[\s\.,:\-–—]*"
     r"(?P<rtype>Morning|Evening)\s*$",
+    flags=re.IGNORECASE | re.MULTILINE,
+)
+
+FLEX_HEADER_PATTERN: re.Pattern[str] = re.compile(
+    r"^\s*[>#*_\-\u2022]*\s*(?P<month>[A-Za-z\.]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?"
+    r"[\s\.,:\-–—]*(?P<rtype>Morning|Evening)\b[\s\.,:\-–—]*$",
     flags=re.IGNORECASE | re.MULTILINE,
 )
 
@@ -67,6 +74,7 @@ class Parser:
 
     def __init__(self, header_pattern: Optional[re.Pattern[str]] = None, max_blank_lines: int = 1) -> None:
         self.header_pattern = header_pattern or HEADER_PATTERN
+        self.fallback_header_pattern = FLEX_HEADER_PATTERN
         self.max_blank_lines = max_blank_lines
 
     # ------------------------------------------------------------------ #
@@ -109,6 +117,9 @@ class Parser:
         if not matches and self._looks_unicode_escaped(raw_text):
             raw = self._normalise(self._decode_unicode_escapes(raw_text))
             matches = list(self.header_pattern.finditer(raw))
+
+        if not matches:
+            matches = list(self.fallback_header_pattern.finditer(raw))
 
         if not matches:
             ctx = f" ({source_name})" if source_name else ""
@@ -186,6 +197,7 @@ class Parser:
     def _normalise(self, text: str) -> str:
         text = _INVISIBLE_SEPARATOR_PATTERN.sub("", text)
         text = _LINEBREAK_PATTERN.sub("\n", text)
+        text = _INLINE_SPACE_PATTERN.sub(" ", text)
         lines = text.split("\n")
         normalised: List[str] = []
         blank_run = 0

@@ -56,7 +56,7 @@ class GPT5Client:
         if temperature is not None:
             payload["temperature"] = float(temperature)
         if max_tokens is not None:
-            payload["max_tokens"] = int(max_tokens)
+            payload["max_completion_tokens"] = int(max_tokens)
         payload.update(kwargs)
         return self._client.chat.completions.create(**payload)
 

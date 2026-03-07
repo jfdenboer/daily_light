@@ -260,7 +260,6 @@ def _prepare_render_artifacts(
 def _build_publication_payload(
     reading: Reading,
     *,
-    hero_image: Optional[Path],
     title_gen: TitleGenerator,
     desc_gen: DescriptionGenerator,
     tags_gen: TagsGenerator,
@@ -302,7 +301,6 @@ def _build_publication_payload(
         thumbnail_path = thumb_gen.generate_thumbnail(
             reading,
             title=title,
-            hero_image=hero_image,
             thumbnail_text=thumbnail_text,
         )
     except ThumbnailGenerationError as exc:
@@ -448,7 +446,6 @@ def run_pipeline(
 
             payload = _build_publication_payload(
                 reading,
-                hero_image=artifacts.hero_image,
                 title_gen=title_gen,
                 desc_gen=desc_gen,
                 tags_gen=tags_gen,
