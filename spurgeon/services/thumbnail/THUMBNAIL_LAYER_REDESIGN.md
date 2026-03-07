@@ -295,3 +295,31 @@ Fase 2 is uitgevoerd met behoud van de bestaande publieke `ThumbnailGenerator`-A
 - Providers/renderer/repository zijn nu los te mocken zonder OpenAI/Pillow/filesysteem direct in de test te initialiseren.
 - Toekomstige provider-swap (ander LLM/image model) kan via interface-implementatie zonder orchestratorlogica te wijzigen.
 - De generator is nu duidelijker application-layer georiënteerd; infrastructuurdetails zijn verplaatst naar adapters.
+
+## Update na uitvoering Fase 4 (prompt externalization + versioning)
+
+Fase 4 is uitgevoerd met versiebeheer op prompt-niveau, zonder breuk in de publieke `ThumbnailGenerator`-API.
+
+### Wat is concreet opgeleverd
+- **Versioned prompt templates op schijf** in `spurgeon/services/thumbnail/prompts/`:
+  - `thumbnail_image.v1.txt`
+  - `thumbnail_intent_card.v1.txt`
+- **Prompt loading met caching**:
+  - image prompt templates via `thumbnail_prompting.py` (`@lru_cache`),
+  - intent-card prompt template geladen via promptversie in de provider.
+- **Nieuwe setting** `thumbnail_prompt_version` (env: `THUMBNAIL_PROMPT_VERSION`) toegevoegd aan `Settings`.
+- **Orchestratie gebruikt expliciet promptversie**:
+  - `ThumbnailGenerator` geeft de geconfigureerde promptversie door aan de promptbuilder,
+  - `OpenAIIntentCardProvider` gebruikt dezelfde versie voor de system prompt.
+
+### Nieuwe inzichten na fase 4
+1. **Backward compatibility blijft een aandachtspunt**
+   - De bestaande promptlijn-constanten blijven beschikbaar, maar zijn nu afgeleid van template `v1`.
+   - Dit houdt huidige imports stabiel terwijl de bron van waarheid naar templatebestanden is verplaatst.
+
+2. **Één versieknop voor beide promptstappen werkt goed**
+   - Door dezelfde `thumbnail_prompt_version` te gebruiken voor intent-card én image prompt blijft de promptketen coherent.
+   - Bij toekomstige experimenten (bijv. `v2`) kan een complete promptset als pakket worden uitgerold.
+
+3. **Fase 5 kan nu zuiver op cache/kwaliteit focussen**
+   - Prompt-externalization is afgerond; vervolgstappen hoeven geen promptstrings meer in Python-code te muteren.

@@ -21,12 +21,12 @@ from .thumbnail_contracts import (
 )
 from .thumbnail_errors import ImageProviderError, IntentCardError, RenderError, StorageError
 from .thumbnail_intent_card import (
-    THUMBNAIL_INTENT_CARD_DEVMSG,
     IntentCardParseError,
     ThumbnailIntentCard,
     normalize_clip_reading_text,
     parse_thumbnail_intent_card,
 )
+from .thumbnail_prompting import get_thumbnail_intent_card_prompt_template
 from .thumbnail_layout import (
     THUMBNAIL_TEXT_SHADOW_ALPHA,
     ThumbnailTextLayoutEngine,
@@ -48,6 +48,7 @@ class OpenAIIntentCardProvider(IntentCardProvider):
         self.client = client
         self.model = settings.thumbnail_intent_card_model
         self.temperature = settings.thumbnail_intent_card_temperature
+        self.prompt_version = settings.thumbnail_prompt_version
 
     def generate(self, reading: Reading, thumbnail_text: str) -> ThumbnailIntentCard:
         cleaned_reading = normalize_clip_reading_text(reading.text, max_chars=2000)
@@ -65,7 +66,7 @@ class OpenAIIntentCardProvider(IntentCardProvider):
                 max_completion_tokens=220,
                 user=reading.slug,
                 messages=[
-                    {"role": "system", "content": THUMBNAIL_INTENT_CARD_DEVMSG},
+                    {"role": "system", "content": get_thumbnail_intent_card_prompt_template(self.prompt_version)},
                     {"role": "user", "content": user_message},
                 ],
             )

@@ -122,7 +122,12 @@ class ThumbnailGenerator:
                 avoid=intent_card.avoid,
             )
 
-            prompt = self._build_prompt(reading, text, intent_card)
+            prompt = self._build_prompt(
+                reading,
+                text,
+                intent_card,
+                prompt_version=self.settings.thumbnail_prompt_version,
+            )
             log_thumbnail_event(
                 ThumbnailEvent.PROMPT_READY,
                 slug=reading.slug,
@@ -204,9 +209,16 @@ class ThumbnailGenerator:
         reading: Reading,
         thumbnail_text: str,
         intent_card: ThumbnailIntentCard,
+        *,
+        prompt_version: str,
     ) -> str:
         try:
-            return build_thumbnail_prompt(reading, thumbnail_text, intent_card)
+            return build_thumbnail_prompt(
+                reading,
+                thumbnail_text,
+                intent_card,
+                prompt_version=prompt_version,
+            )
         except Exception as exc:
             raise PromptBuildError(str(exc)) from exc
 
