@@ -27,12 +27,15 @@ logger = logging.getLogger(__name__)
 
 THUMBNAIL_CANVAS_SIZE = (1280, 720)
 THUMBNAIL_TEXT_MAX_WIDTH_FRACTION = 0.64
-THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION = 0.06
-THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.11
+THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION = 0.05
+THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.08
 THUMBNAIL_TEXT_MAX_LINES = 2
 THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.08
-THUMBNAIL_TEXT_MIN_FONT_SIZE = 64
-THUMBNAIL_TEXT_MAX_FONT_SIZE = 448
+# Preferred readable range for normal fit selection.
+THUMBNAIL_TEXT_MIN_FONT_SIZE = 90
+THUMBNAIL_TEXT_MAX_FONT_SIZE = 440
+# Emergency lower bound used only when no layout fits the preferred minimum size.
+THUMBNAIL_TEXT_EMERGENCY_MIN_FONT_SIZE = 56
 THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.024
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 2
 THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.018
@@ -69,7 +72,7 @@ THUMBNAIL_BACKGROUND_LINE = (
 THUMBNAIL_COMPOSITION_LINE = (
     "Composition: 16:9 wide; exactly one dominant focal anchor placed on the right or center-right, with enough visual weight to read instantly on small screens; "
     "use clear foreground, midground, and background with large simple masses rather than many small details; "
-    "keep the left and center-left broadly readable for large overlaid text (up to roughly the left 60 to 65 percent), while allowing natural overlap with secondary content; "
+    "keep the left and center-left broadly readable for large overlaid text (up to roughly the left 60 to 65 percent), with natural text overlap permitted and no dedicated contrast panel; "
     "keep the single most critical focal detail on the right or right-center rather than directly under the text block; "
     "maintain strong visual hierarchy, clean balance, and immediate comprehension; "
     "avoid competing focal points, scattered storytelling, cramped framing, and compositions that feel like a cinematic still rather than a thumbnail."
@@ -508,7 +511,10 @@ class ThumbnailGenerator:
         left_margin = int(width * THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION)
         top_margin = int(height * THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION)
         bottom_margin = top_margin
-        max_text_width = int(width * THUMBNAIL_TEXT_MAX_WIDTH_FRACTION) - left_margin
+        # THUMBNAIL_TEXT_MAX_WIDTH_FRACTION defines the text block's right-edge limit
+        # from the left side of the canvas (not a width percentage by itself).
+        text_right_edge = int(width * THUMBNAIL_TEXT_MAX_WIDTH_FRACTION)
+        max_text_width = text_right_edge - left_margin
         text_height = height - top_margin - bottom_margin
         return TextLayoutBox(
             x=left_margin,
@@ -535,7 +541,13 @@ class ThumbnailGenerator:
         for candidate in layout_candidates:
             if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
                 continue
-            measured = self._fit_largest_font(draw, candidate, text_box)
+            measured = self._fit_largest_font(
+                draw,
+                candidate,
+                text_box,
+                min_font_size=THUMBNAIL_TEXT_MIN_FONT_SIZE,
+                max_font_size=THUMBNAIL_TEXT_MAX_FONT_SIZE,
+            )
             if not measured:
                 continue
 
@@ -555,16 +567,38 @@ class ThumbnailGenerator:
         if best is not None:
             return best
 
+        # Fallback pass: if nothing fits at preferred minimum size, pick the largest
+        # actually fitting emergency size instead of forcing overflow at min size.
+        for candidate in layout_candidates:
+            if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
+                continue
+            measured = self._fit_largest_font(
+                draw,
+                candidate,
+                text_box,
+                min_font_size=THUMBNAIL_TEXT_EMERGENCY_MIN_FONT_SIZE,
+                max_font_size=THUMBNAIL_TEXT_MIN_FONT_SIZE - 1,
+            )
+            if not measured:
+                continue
+            if best is None or measured.font_size > best.font_size:
+                best = measured
+
+        if best is not None:
+            return best
+
+        # Absolute last resort for pathological text/font combinations.
         fallback_text = layout_candidates[0]
-        fallback = self._measure_text_block(draw, fallback_text, THUMBNAIL_TEXT_MIN_FONT_SIZE)
+        fallback_font_size = THUMBNAIL_TEXT_EMERGENCY_MIN_FONT_SIZE
+        fallback = self._measure_text_block(draw, fallback_text, fallback_font_size)
         return TextLayoutChoice(
             text=fallback_text,
             line_count=fallback_text.count("\n") + 1,
-            font_size=THUMBNAIL_TEXT_MIN_FONT_SIZE,
+            font_size=fallback_font_size,
             text_bbox=fallback,
             block_size=(fallback[2] - fallback[0], fallback[3] - fallback[1]),
-            stroke_width=self._stroke_width_for_font_size(THUMBNAIL_TEXT_MIN_FONT_SIZE),
-            shadow_offset=self._shadow_offset_for_font_size(THUMBNAIL_TEXT_MIN_FONT_SIZE),
+            stroke_width=self._stroke_width_for_font_size(fallback_font_size),
+            shadow_offset=self._shadow_offset_for_font_size(fallback_font_size),
         )
 
     def _fit_largest_font(
@@ -572,9 +606,15 @@ class ThumbnailGenerator:
         draw: ImageDraw.ImageDraw,
         layout_text: str,
         text_box: TextLayoutBox,
+        *,
+        min_font_size: int,
+        max_font_size: int,
     ) -> TextLayoutChoice | None:
-        low = THUMBNAIL_TEXT_MIN_FONT_SIZE
-        high = THUMBNAIL_TEXT_MAX_FONT_SIZE
+        if min_font_size > max_font_size:
+            return None
+
+        low = min_font_size
+        high = max_font_size
         best_size: int | None = None
         best_bbox: tuple[int, int, int, int] | None = None
         best_stroke = THUMBNAIL_TEXT_STROKE_MIN_WIDTH
