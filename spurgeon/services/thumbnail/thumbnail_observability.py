@@ -18,6 +18,7 @@ class ThumbnailEvent:
     IMAGE_READY = "thumbnail.pipeline.image.ready"
     RENDER_READY = "thumbnail.pipeline.render.ready"
     SAVED = "thumbnail.pipeline.saved"
+    QUALITY_GATE_PASSED = "thumbnail.pipeline.quality_gate.passed"
     FAILED = "thumbnail.pipeline.failed"
 
 

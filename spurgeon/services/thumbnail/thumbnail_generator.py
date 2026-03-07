@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 
@@ -34,12 +35,14 @@ from .thumbnail_errors import (
     ImageProviderError,
     IntentCardError,
     PromptBuildError,
+    QualityGateError,
     RenderError,
     StorageError,
     ThumbnailGenerationError,
 )
 from .thumbnail_intent_card import ThumbnailIntentCard
 from .thumbnail_observability import ThumbnailEvent, log_thumbnail_event
+from .thumbnail_quality import validate_thumbnail_quality
 from .thumbnail_prompting import (
     THUMBNAIL_BACKGROUND_LINE,
     THUMBNAIL_COMPOSITION_LINE,
@@ -93,16 +96,34 @@ class ThumbnailGenerator:
             logger.info("Thumbnail generation disabled by configuration")
             return None
 
+        text = thumbnail_text or title
+        fingerprint = self._build_fingerprint(
+            reading=reading,
+            title=text,
+            prompt_version=self.settings.thumbnail_prompt_version,
+        )
+
+        if self.settings.thumbnail_cache_by_fingerprint:
+            fingerprint_cached = self.repository.get_by_fingerprint(fingerprint)
+            if fingerprint_cached:
+                log_thumbnail_event(
+                    ThumbnailEvent.CACHE_HIT,
+                    slug=reading.slug,
+                    path=fingerprint_cached.name,
+                    cache_key="fingerprint",
+                )
+                return fingerprint_cached
+
         cached = self.repository.get_existing(reading.slug)
         if cached:
             log_thumbnail_event(
                 ThumbnailEvent.CACHE_HIT,
                 slug=reading.slug,
                 path=cached.name,
+                cache_key="slug",
             )
             return cached
 
-        text = thumbnail_text or title
         log_thumbnail_event(
             ThumbnailEvent.START,
             slug=reading.slug,
@@ -155,14 +176,26 @@ class ThumbnailGenerator:
             )
             rendered = self.renderer.render(image_bytes=image_bytes, text=text)
             log_thumbnail_event(ThumbnailEvent.RENDER_READY, slug=reading.slug)
-            thumbnail_path = self.repository.save(reading.slug, rendered)
+
+            validate_thumbnail_quality(
+                rendered,
+                checks_enabled=self.settings.thumbnail_quality_checks_enabled,
+                min_luma_stddev=self.settings.thumbnail_quality_min_luma_stddev,
+            )
+            log_thumbnail_event(ThumbnailEvent.QUALITY_GATE_PASSED, slug=reading.slug)
+
+            thumbnail_path = self.repository.save(
+                reading.slug,
+                rendered,
+                fingerprint=fingerprint,
+            )
             log_thumbnail_event(
                 ThumbnailEvent.SAVED,
                 slug=reading.slug,
                 path=thumbnail_path.name,
             )
             return thumbnail_path
-        except (IntentCardError, PromptBuildError, ImageProviderError, RenderError, StorageError) as exc:
+        except (IntentCardError, PromptBuildError, ImageProviderError, RenderError, StorageError, QualityGateError) as exc:
             log_thumbnail_event(
                 ThumbnailEvent.FAILED,
                 slug=reading.slug,
@@ -221,6 +254,28 @@ class ThumbnailGenerator:
             )
         except Exception as exc:
             raise PromptBuildError(str(exc)) from exc
+
+    @staticmethod
+    def _build_fingerprint(
+        *,
+        reading: Reading,
+        title: str,
+        prompt_version: str,
+    ) -> str:
+        """Build a deterministic cache fingerprint for the thumbnail request."""
+
+        reading_text_hash = hashlib.sha256(reading.text.encode("utf-8")).hexdigest()
+        payload = "|".join(
+            [
+                "thumbnail",
+                prompt_version,
+                reading.slug,
+                reading.reading_type.value,
+                title.strip(),
+                reading_text_hash,
+            ]
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 __all__ = [

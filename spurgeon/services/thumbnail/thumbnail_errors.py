@@ -29,3 +29,7 @@ class RenderError(ThumbnailError):
 
 class StorageError(ThumbnailError):
     """Raised when reading or writing thumbnail files fails."""
+
+class QualityGateError(ThumbnailError):
+    """Raised when a rendered thumbnail fails quality validation checks."""
+

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import logging
 from pathlib import Path
@@ -226,11 +227,36 @@ class FilesystemThumbnailRepository(ThumbnailRepository):
         except OSError as exc:
             raise StorageError(f"Failed to inspect thumbnail cache for slug '{slug}'") from exc
 
-    def save(self, slug: str, image: Image.Image) -> Path:
+    def get_by_fingerprint(self, fingerprint: str) -> Path | None:
+        fingerprint_dir = self.output_dir / ".fingerprints"
+        digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+        marker = fingerprint_dir / f"{digest}.txt"
+        try:
+            if not marker.exists():
+                return None
+            candidate_name = marker.read_text(encoding="utf-8").strip()
+            if not candidate_name:
+                return None
+            candidate = self.output_dir / candidate_name
+            if candidate.exists():
+                return candidate
+            return None
+        except OSError as exc:
+            raise StorageError("Failed to inspect thumbnail fingerprint cache") from exc
+
+    def save(self, slug: str, image: Image.Image, *, fingerprint: str | None = None) -> Path:
         destination = self.output_dir / f"{slug}.jpg"
         try:
             destination.parent.mkdir(parents=True, exist_ok=True)
             image.convert("RGB").save(destination, format="JPEG", quality=95)
+
+            if fingerprint:
+                fingerprint_dir = self.output_dir / ".fingerprints"
+                fingerprint_dir.mkdir(parents=True, exist_ok=True)
+                digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+                marker = fingerprint_dir / f"{digest}.txt"
+                marker.write_text(destination.name, encoding="utf-8")
+
             return destination
         except OSError as exc:
             raise StorageError(f"Failed to save thumbnail for slug '{slug}'") from exc

@@ -323,3 +323,29 @@ Fase 4 is uitgevoerd met versiebeheer op prompt-niveau, zonder breuk in de publi
 
 3. **Fase 5 kan nu zuiver op cache/kwaliteit focussen**
    - Prompt-externalization is afgerond; vervolgstappen hoeven geen promptstrings meer in Python-code te muteren.
+
+## Update na uitvoering Fase 5 (cache/fingerprint + quality gates)
+
+Fase 5 is nu uitgevoerd met behoud van de bestaande `ThumbnailGenerator` entrypoint.
+
+### Wat is concreet toegevoegd
+- **Fingerprint-based cache lookup** in de orchestrator:
+  - fingerprint wordt deterministisch berekend uit promptversie, reading-slug/type, titel en hash van de reading-tekst;
+  - cache-check gebeurt eerst op fingerprint, daarna op legacy slug-cache.
+- **Repository-ondersteuning voor fingerprint cache**:
+  - `ThumbnailRepository` contract uitgebreid met `get_by_fingerprint(...)`;
+  - filesystem-adapter bewaart fingerprint-indexbestanden onder `.fingerprints/`.
+- **Quality gates in de pipeline**:
+  - na renderen valideert de pipeline standaard op canvas-grootte en minimale luminantie-variatie (`stddev`);
+  - configurabel via settings (`thumbnail_quality_checks_enabled`, `thumbnail_quality_min_luma_stddev`).
+- **Typed error uitgebreid** met `QualityGateError` en observability event voor geslaagde quality gate.
+
+### Nieuwe inzichten uit Fase 5
+1. **Fingerprinting vraagt expliciete invalidatiestrategie**
+   - Nu de cache semantisch op input/fingerprint werkt, moeten modelwijzigingen (image model, renderer-stijl, fontbeleid) expliciet in de fingerprint worden opgenomen zodra gedrag wijzigt.
+
+2. **Quality gates werken het best als “policy knobs”**
+   - Een universele harde threshold is contextafhankelijk; daarom is de minimale contrast/variatie-check als instelbare policy geïmplementeerd i.p.v. hardcoded kwaliteitsregel.
+
+3. **Backwards compatibility blijft relevant tijdens migratie**
+   - Slug-cache fallback voorkomt regressies voor bestaande output-bestanden zonder fingerprint-index.

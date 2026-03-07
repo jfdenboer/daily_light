@@ -39,5 +39,8 @@ class ThumbnailRepository(Protocol):
     def get_existing(self, slug: str) -> Path | None:
         """Return existing thumbnail path when present."""
 
-    def save(self, slug: str, image: Image.Image) -> Path:
+    def get_by_fingerprint(self, fingerprint: str) -> Path | None:
+        """Return an existing thumbnail path for the exact fingerprint when present."""
+
+    def save(self, slug: str, image: Image.Image, *, fingerprint: str | None = None) -> Path:
         """Persist the image and return output path."""
