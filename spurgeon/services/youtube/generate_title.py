@@ -41,7 +41,7 @@ class TitleGenerator:
             response = self.client.chat.completions.create(
                 model=self.model,
                 temperature=self.temperature,
-                max_tokens=60,
+                max_completion_tokens=60,
                 messages=[
                     {"role": "system", "content": SYSTEM_MESSAGE},
                     {"role": "user", "content": user_content},
