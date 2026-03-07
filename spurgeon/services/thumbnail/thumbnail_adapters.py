@@ -54,7 +54,6 @@ class OpenAIIntentCardProvider(IntentCardProvider):
     def generate(self, reading: Reading, thumbnail_text: str) -> ThumbnailIntentCard:
         cleaned_reading = normalize_clip_reading_text(reading.text, max_chars=2000)
         user_message = (
-            f"Devotional type: {reading.reading_type.value}\n"
             f"Thumbnail theme: {thumbnail_text}\n"
             "Reading text:\n"
             f"{cleaned_reading}"

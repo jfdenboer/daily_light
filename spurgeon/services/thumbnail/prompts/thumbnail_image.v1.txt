@@ -12,8 +12,6 @@ Color grade: warm-neutral cinematic palette with restrained saturation and clean
 
 Lighting: soft overcast daylight or gentle natural directional light, with calm luminous highlights and subtle atmosphere; maintain clean local contrast around the main subject and quieter, more even lighting across the text side; soft shadows and controlled highlights; gentle subject-background separation without extreme backlight or overpowering glow; preserve calm shape definition on the focal subject and keep the lighting emotionally resonant but visually disciplined; avoid theatrical light effects, sensational drama, and lighting that overwhelms the subject or disrupts copy readability.
 
-Devotional type: {reading_type}.
-Visual theme: {thumbnail_text}.
 Core tension: {core_tension}.
 Emotional tone: {emotional_tone}.
 Visual motif: {visual_motif}.

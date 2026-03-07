@@ -56,7 +56,6 @@ def build_thumbnail_prompt(
 ) -> str:
     template = get_thumbnail_image_prompt_template(prompt_version)
     return template.format(
-        reading_type=reading.reading_type.value,
         thumbnail_text=thumbnail_text,
         core_tension=intent_card.core_tension,
         emotional_tone=intent_card.emotional_tone,
