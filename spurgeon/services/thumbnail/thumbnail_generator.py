@@ -26,13 +26,13 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 THUMBNAIL_CANVAS_SIZE = (1280, 720)
-THUMBNAIL_TEXT_LEFT_SAFE_ZONE_FRACTION = 0.50
+THUMBNAIL_TEXT_MAX_WIDTH_FRACTION = 0.64
 THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION = 0.06
 THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.11
 THUMBNAIL_TEXT_MAX_LINES = 2
-THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.06
+THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.08
 THUMBNAIL_TEXT_MIN_FONT_SIZE = 64
-THUMBNAIL_TEXT_MAX_FONT_SIZE = 320
+THUMBNAIL_TEXT_MAX_FONT_SIZE = 448
 THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.024
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 2
 THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.018
@@ -69,8 +69,8 @@ THUMBNAIL_BACKGROUND_LINE = (
 THUMBNAIL_COMPOSITION_LINE = (
     "Composition: 16:9 wide; exactly one dominant focal anchor placed on the right or center-right, with enough visual weight to read instantly on small screens; "
     "use clear foreground, midground, and background with large simple masses rather than many small details; "
-    "reserve a calm, readable text safe-zone across roughly the left 55 to 60 percent, with no key subject, no bright hotspot, no busy texture, and no strong structural split behind the copy; "
-    "keep the focal subject clearly outside the text zone; "
+    "keep the left and center-left broadly readable for large overlaid text (up to roughly the left 60 to 65 percent), while allowing natural overlap with secondary content; "
+    "keep the single most critical focal detail on the right or right-center rather than directly under the text block; "
     "maintain strong visual hierarchy, clean balance, and immediate comprehension; "
     "avoid competing focal points, scattered storytelling, cramped framing, and compositions that feel like a cinematic still rather than a thumbnail."
 )
@@ -79,7 +79,7 @@ THUMBNAIL_CONSTRAINTS_LINE = (
     "Constraints: no visible text, captions, lettering, numbers, pseudo-text, watermarks, logos, readable signage, icons, emblems, frames, or UI overlays; "
     "prefer simple, unified scenes over multi-part narratives; "
     "human presence, if used, should feel natural, non-identifiable, and integrated rather than posed or theatrical; "
-    "preserve tonal cleanliness and separation around the subject and within the text zone; "
+    "preserve tonal cleanliness and separation around the subject and across left-to-center areas likely to carry text; "
     "avoid visual noise, artificial emphasis, attention fragmentation, and any detail pattern that weakens small-size readability."
 )
 
@@ -137,7 +137,7 @@ class ThumbnailIntentCard:
 
 
 @dataclass(frozen=True)
-class TextSafeZone:
+class TextLayoutBox:
     x: int
     y: int
     width: int
@@ -421,9 +421,9 @@ class ThumbnailGenerator:
 
         draw = ImageDraw.Draw(canvas, "RGBA")
         display_text = self._normalize_thumbnail_display_text(text)
-        safe_zone = self._calculate_text_safe_zone(canvas.size)
-        layout = self._select_text_layout(draw, display_text, safe_zone)
-        text_position = self._resolve_text_position(layout, safe_zone)
+        text_box = self._calculate_text_layout_box(canvas.size)
+        layout = self._select_text_layout(draw, display_text, text_box)
+        text_position = self._resolve_text_position(layout, text_box)
 
         shadow_color = (0, 0, 0, THUMBNAIL_TEXT_SHADOW_ALPHA)
         draw.multiline_text(
@@ -448,13 +448,13 @@ class ThumbnailGenerator:
         )
 
         logger.debug(
-            "thumbnail_pipeline.text_layout original=%r rendered=%r layout=%s font_size=%s text_bbox=%s safe_zone=%s",
+            "thumbnail_pipeline.text_layout original=%r rendered=%r layout=%s font_size=%s text_bbox=%s text_box=%s",
             text,
             display_text,
             f"{layout.line_count}-line",
             layout.font_size,
             (*text_position, text_position[0] + layout.block_size[0], text_position[1] + layout.block_size[1]),
-            (safe_zone.x, safe_zone.y, safe_zone.width, safe_zone.height),
+            (text_box.x, text_box.y, text_box.width, text_box.height),
         )
 
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -503,25 +503,25 @@ class ThumbnailGenerator:
         return normalised.upper()
 
     @staticmethod
-    def _calculate_text_safe_zone(canvas_size: tuple[int, int]) -> TextSafeZone:
+    def _calculate_text_layout_box(canvas_size: tuple[int, int]) -> TextLayoutBox:
         width, height = canvas_size
         left_margin = int(width * THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION)
         top_margin = int(height * THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION)
         bottom_margin = top_margin
-        safe_width = int(width * THUMBNAIL_TEXT_LEFT_SAFE_ZONE_FRACTION) - left_margin
-        safe_height = height - top_margin - bottom_margin
-        return TextSafeZone(
+        max_text_width = int(width * THUMBNAIL_TEXT_MAX_WIDTH_FRACTION) - left_margin
+        text_height = height - top_margin - bottom_margin
+        return TextLayoutBox(
             x=left_margin,
             y=top_margin,
-            width=max(220, safe_width),
-            height=max(200, safe_height),
+            width=max(220, max_text_width),
+            height=max(200, text_height),
         )
 
     def _select_text_layout(
         self,
         draw: ImageDraw.ImageDraw,
         display_text: str,
-        safe_zone: TextSafeZone,
+        text_box: TextLayoutBox,
     ) -> TextLayoutChoice:
         words = display_text.split()
         layout_candidates = [display_text]
@@ -535,7 +535,7 @@ class ThumbnailGenerator:
         for candidate in layout_candidates:
             if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
                 continue
-            measured = self._fit_largest_font(draw, candidate, safe_zone)
+            measured = self._fit_largest_font(draw, candidate, text_box)
             if not measured:
                 continue
 
@@ -571,7 +571,7 @@ class ThumbnailGenerator:
         self,
         draw: ImageDraw.ImageDraw,
         layout_text: str,
-        safe_zone: TextSafeZone,
+        text_box: TextLayoutBox,
     ) -> TextLayoutChoice | None:
         low = THUMBNAIL_TEXT_MIN_FONT_SIZE
         high = THUMBNAIL_TEXT_MAX_FONT_SIZE
@@ -585,7 +585,7 @@ class ThumbnailGenerator:
             text_bbox = self._measure_text_block(draw, layout_text, mid, stroke_width=stroke_width)
             text_width = text_bbox[2] - text_bbox[0]
             text_height = text_bbox[3] - text_bbox[1]
-            if text_width <= safe_zone.width and text_height <= safe_zone.height:
+            if text_width <= text_box.width and text_height <= text_box.height:
                 best_size = mid
                 best_bbox = text_bbox
                 best_stroke = stroke_width
@@ -640,13 +640,13 @@ class ThumbnailGenerator:
     @staticmethod
     def _resolve_text_position(
         layout: TextLayoutChoice,
-        safe_zone: TextSafeZone,
+        text_box: TextLayoutBox,
     ) -> tuple[int, int]:
-        x = safe_zone.x
-        anchor_y = safe_zone.y + int(safe_zone.height * THUMBNAIL_TEXT_VERTICAL_ANCHOR_RATIO)
+        x = text_box.x
+        anchor_y = text_box.y + int(text_box.height * THUMBNAIL_TEXT_VERTICAL_ANCHOR_RATIO)
         y = anchor_y - int(layout.block_size[1] / 2)
-        min_y = safe_zone.y
-        max_y = safe_zone.y + safe_zone.height - layout.block_size[1]
+        min_y = text_box.y
+        max_y = text_box.y + text_box.height - layout.block_size[1]
         return (x, max(min_y, min(y, max_y)))
 
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
