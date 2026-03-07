@@ -206,7 +206,7 @@ class ThumbnailTextGenerator:
         response = self.client.chat.completions.create(
             model=self.generator_model,
             temperature=self.generator_temperature,
-            max_tokens=self.generator_max_tokens,
+            max_completion_tokens=self.generator_max_tokens,
             messages=[
                 {
                     "role": "system",
@@ -255,7 +255,7 @@ class ThumbnailTextGenerator:
         response = self.client.chat.completions.create(
             model=self.selector_model,
             temperature=self.selector_temperature,
-            max_tokens=self.selector_max_tokens,
+            max_completion_tokens=self.selector_max_tokens,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT_THUMBNAIL_SELECTOR},
                 {"role": "user", "content": "\n\n".join(user_sections)},
