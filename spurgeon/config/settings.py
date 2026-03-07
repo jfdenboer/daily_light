@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     thumbnail_max_retries: int = Field(3, ge=0)
     thumbnail_retry_backoff: float = Field(1.0, gt=0.0)
     thumbnail_font_path: str | None = Field(default=None, env="THUMBNAIL_FONT_PATH")
+    thumbnail_prompt_version: str = Field("v1", env="THUMBNAIL_PROMPT_VERSION", min_length=1)
 
     # Bucket name
     gcs_bucket_name: str = Field("spurgeon_bucket", min_length=1)
