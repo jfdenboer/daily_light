@@ -536,7 +536,20 @@ class ThumbnailGenerator:
             if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
                 continue
             measured = self._fit_largest_font(draw, candidate, safe_zone)
-            if measured and (best is None or measured.font_size > best.font_size):
+            if not measured:
+                continue
+
+            if best is None or measured.font_size > best.font_size:
+                best = measured
+                continue
+
+            is_two_line_tie_break = (
+                measured.font_size == best.font_size
+                and len(words) >= 3
+                and measured.line_count == 2
+                and best.line_count == 1
+            )
+            if is_two_line_tie_break:
                 best = measured
 
         if best is not None:
