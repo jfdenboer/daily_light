@@ -26,18 +26,18 @@ from spurgeon.utils.retry_utils import retry_with_backoff
 logger = logging.getLogger(__name__)
 
 THUMBNAIL_CANVAS_SIZE = (1280, 720)
-THUMBNAIL_TEXT_LEFT_SAFE_ZONE_FRACTION = 0.42
+THUMBNAIL_TEXT_LEFT_SAFE_ZONE_FRACTION = 0.50
 THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION = 0.06
 THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.11
 THUMBNAIL_TEXT_MAX_LINES = 2
-THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.1
+THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.06
 THUMBNAIL_TEXT_MIN_FONT_SIZE = 64
-THUMBNAIL_TEXT_MAX_FONT_SIZE = 260
-THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.034
+THUMBNAIL_TEXT_MAX_FONT_SIZE = 320
+THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.024
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 2
-THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.03
-THUMBNAIL_TEXT_SHADOW_ALPHA = 140
-THUMBNAIL_TEXT_VERTICAL_ANCHOR_RATIO = 0.43
+THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.018
+THUMBNAIL_TEXT_SHADOW_ALPHA = 110
+THUMBNAIL_TEXT_VERTICAL_ANCHOR_RATIO = 0.40
 
 THUMBNAIL_STYLE_LINE = (
     "Style: thumbnail-first cinematic realism; calm, contemplative, emotionally immediate, and premium; "
@@ -469,6 +469,7 @@ class ThumbnailGenerator:
         return "\n".join(
             [
                 THUMBNAIL_STYLE_LINE,
+                THUMBNAIL_SUBJECT_LINE,
                 THUMBNAIL_BACKGROUND_LINE,
                 THUMBNAIL_COMPOSITION_LINE,
                 THUMBNAIL_CONSTRAINTS_LINE,
@@ -525,9 +526,10 @@ class ThumbnailGenerator:
         words = display_text.split()
         layout_candidates = [display_text]
         if len(words) > 1:
-            first_line_count = max(1, len(words) // 2)
-            two_line = " ".join(words[:first_line_count]) + "\n" + " ".join(words[first_line_count:])
-            layout_candidates.append(two_line)
+            layout_candidates.extend(
+                " ".join(words[:split_index]) + "\n" + " ".join(words[split_index:])
+                for split_index in range(1, len(words))
+            )
 
         best: TextLayoutChoice | None = None
         for candidate in layout_candidates:
