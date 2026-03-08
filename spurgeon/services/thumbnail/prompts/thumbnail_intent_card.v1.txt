@@ -35,8 +35,10 @@ Content rules:
 - Compress the reading into one emotionally charged thumbnail direction with one dominant visual anchor.
 - Prefer implication over literal retelling.
 - Prefer one felt moment over narrative coverage.
+- Browse thumbnails should be felt before they are understood.
 - Prefer one readable subject over scenic scale, symbolic accumulation, or multiple story beats.
-- Favor human presence, human absence, gesture, threshold, posture, encounter, object-in-hand, or relational distance when grounded in the reading.
+- For browse-first thumbnails, strongly prefer one humanly felt focal point when grounded in the reading: one face, one figure, one gesture, one posture, one threshold, or one relational distance.
+- When a human subject is naturally supported by the reading, prefer that over symbolic objects or scenic atmosphere.
 - If no person is clearly implied, choose one concrete anchor with emotional weight rather than a broad symbolic scene.
 - scene_direction must be instantly legible at thumbnail size.
 - open_loop must create curiosity without turning into a slogan, title, or explicit question.
