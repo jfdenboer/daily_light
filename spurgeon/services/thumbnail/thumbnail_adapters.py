@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from openai import OpenAI, OpenAIError
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 
 from spurgeon.config.settings import Settings
 from spurgeon.models import Reading
@@ -41,6 +41,18 @@ from .thumbnail_layout import (
 logger = logging.getLogger(__name__)
 
 THUMBNAIL_CANVAS_SIZE = (1280, 720)
+
+THUMBNAIL_PREMIUM_FONT_PATHS = (
+    "C:/Users/jfden/daily_light/input/CormorantGaramond-SemiBold.ttf",
+    "C:/Users/jfden/daily_light/input/CormorantGaramond-Medium.ttf",
+)
+THUMBNAIL_FALLBACK_FONT_NAME = "DejaVuSans-Bold.ttf"
+
+THUMBNAIL_TEXT_PRIMARY_GOLD = "#D6B24C"
+THUMBNAIL_TEXT_ALT_GOLD = "#CFAF5E"
+THUMBNAIL_TEXT_STROKE_HEX = "#111111"
+THUMBNAIL_TEXT_STROKE_ALPHA = 56
+THUMBNAIL_TEXT_STROKE_WIDTH_CAP = 2
 
 
 class OpenAIIntentCardProvider(IntentCardProvider):
@@ -179,37 +191,45 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         layout = layout_engine.select_text_layout(display_text, text_box)
         text_position = resolve_text_position(layout, text_box)
 
+        font = self._load_font(layout.font_size)
         shadow_color = (0, 0, 0, THUMBNAIL_TEXT_SHADOW_ALPHA)
-        draw.multiline_text(
-            (
+        stroke_color = (*ImageColor.getrgb(THUMBNAIL_TEXT_STROKE_HEX), THUMBNAIL_TEXT_STROKE_ALPHA)
+        stroke_width = min(layout.stroke_width, THUMBNAIL_TEXT_STROKE_WIDTH_CAP)
+
+        self._draw_tracked_multiline_text(
+            draw=draw,
+            position=(
                 text_position[0] + layout.shadow_offset[0],
                 text_position[1] + layout.shadow_offset[1],
             ),
-            layout.text,
-            font=self._load_font(layout.font_size),
+            text=layout.text,
+            font=font,
             fill=shadow_color,
-            spacing=line_spacing(layout.font_size),
+            tracking=layout.tracking,
+            line_spacing_px=line_spacing(layout.font_size),
             stroke_width=0,
-            align="center",
+            stroke_fill=None,
         )
 
-        draw.multiline_text(
-            text_position,
-            layout.text,
-            font=self._load_font(layout.font_size),
-            fill="#FFFFFF",
-            spacing=line_spacing(layout.font_size),
-            stroke_width=layout.stroke_width,
-            stroke_fill="#000000",
-            align="center",
+        self._draw_tracked_multiline_text(
+            draw=draw,
+            position=text_position,
+            text=layout.text,
+            font=font,
+            fill=THUMBNAIL_TEXT_PRIMARY_GOLD,
+            tracking=layout.tracking,
+            line_spacing_px=line_spacing(layout.font_size),
+            stroke_width=stroke_width,
+            stroke_fill=stroke_color,
         )
 
         logger.debug(
-            "thumbnail_pipeline.text_layout original=%r rendered=%r layout=%s font_size=%s text_bbox=%s text_box=%s",
+            "thumbnail_pipeline.text_layout original=%r rendered=%r layout=%s font_size=%s tracking=%s text_bbox=%s text_box=%s",
             text,
             display_text,
             f"{layout.line_count}-line",
             layout.font_size,
+            layout.tracking,
             (
                 *text_position,
                 text_position[0] + layout.block_size[0],
@@ -219,6 +239,39 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         )
         return canvas
 
+    @staticmethod
+    def _draw_tracked_multiline_text(
+        *,
+        draw: ImageDraw.ImageDraw,
+        position: tuple[int, int],
+        text: str,
+        font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+        fill: str | tuple[int, int, int, int],
+        tracking: int,
+        line_spacing_px: int,
+        stroke_width: int,
+        stroke_fill: str | tuple[int, int, int, int] | None,
+    ) -> None:
+        x, y = position
+        current_y = y
+        for line in text.split("\n") or [""]:
+            current_x = x
+            for character in line:
+                draw.text(
+                    (current_x, current_y),
+                    character,
+                    font=font,
+                    fill=fill,
+                    stroke_width=stroke_width,
+                    stroke_fill=stroke_fill,
+                )
+                bbox = draw.textbbox((0, 0), character, font=font, stroke_width=stroke_width)
+                current_x += max(0, bbox[2] - bbox[0]) + tracking
+
+            line_bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke_width)
+            line_height = max(0, line_bbox[3] - line_bbox[1])
+            current_y += line_height + line_spacing_px
+
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         return self._resolve_font(self.settings.thumbnail_font_path, size)
 
@@ -227,20 +280,24 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
     def _resolve_font(
         font_path: str | None, size: int
     ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        font_candidates = [
+            *(candidate for candidate in THUMBNAIL_PREMIUM_FONT_PATHS if candidate),
+        ]
         if font_path:
+            font_candidates.insert(0, font_path)
+
+        for candidate in font_candidates:
             try:
-                return ImageFont.truetype(font_path, size=size)
+                return ImageFont.truetype(candidate, size=size)
             except OSError:
-                logger.warning(
-                    "Configured THUMBNAIL_FONT_PATH could not be loaded (%s). Falling back to default font.",
-                    font_path,
-                )
+                logger.debug("Thumbnail font candidate unavailable: %s", candidate)
 
         try:
-            return ImageFont.truetype("DejaVuSans-Bold.ttf", size=size)
+            return ImageFont.truetype(THUMBNAIL_FALLBACK_FONT_NAME, size=size)
         except OSError:
             logger.warning(
-                "Fallback font DejaVuSans-Bold.ttf is unavailable. Falling back to Pillow default bitmap font."
+                "Fallback font %s is unavailable. Falling back to Pillow default bitmap font.",
+                THUMBNAIL_FALLBACK_FONT_NAME,
             )
         return ImageFont.load_default()
 

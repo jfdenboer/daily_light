@@ -11,14 +11,17 @@ THUMBNAIL_TEXT_HORIZONTAL_MARGIN_FRACTION = 0.05
 THUMBNAIL_TEXT_TOP_MARGIN_FRACTION = 0.05
 THUMBNAIL_TEXT_TOP_ZONE_HEIGHT_FRACTION = 0.20
 THUMBNAIL_TEXT_MAX_LINES = 1
-THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.08
-THUMBNAIL_TEXT_MIN_FONT_SIZE = 90
-THUMBNAIL_TEXT_MAX_FONT_SIZE = 440
+THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.10
+THUMBNAIL_TEXT_MIN_FONT_SIZE = 96
+THUMBNAIL_TEXT_MAX_FONT_SIZE = 460
 THUMBNAIL_TEXT_EMERGENCY_MIN_FONT_SIZE = 56
-THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.024
-THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 2
-THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.018
-THUMBNAIL_TEXT_SHADOW_ALPHA = 110
+THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.010
+THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 1
+THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.010
+THUMBNAIL_TEXT_SHADOW_ALPHA = 78
+THUMBNAIL_TEXT_TRACKING_RATIO = 0.015
+THUMBNAIL_TEXT_TRACKING_MIN = 2
+THUMBNAIL_TEXT_TRACKING_MAX = 10
 
 
 @dataclass(frozen=True)
@@ -38,13 +41,14 @@ class TextLayoutChoice:
     block_size: tuple[int, int]
     stroke_width: int
     shadow_offset: tuple[int, int]
+    tracking: int
 
 
 def normalize_thumbnail_display_text(text: str) -> str:
     normalised = " ".join(text.replace("\n", " ").split())
     if not normalised:
-        return "DAILY LIGHT"
-    return normalised.upper()
+        return "daily light"
+    return normalised
 
 
 def calculate_text_layout_box(canvas_size: tuple[int, int]) -> TextLayoutBox:
@@ -125,6 +129,7 @@ class ThumbnailTextLayoutEngine:
             block_size=(fallback[2] - fallback[0], fallback[3] - fallback[1]),
             stroke_width=stroke_width_for_font_size(fallback_font_size),
             shadow_offset=shadow_offset_for_font_size(fallback_font_size),
+            tracking=tracking_for_font_size(fallback_font_size),
         )
 
     def fit_largest_font(
@@ -169,6 +174,7 @@ class ThumbnailTextLayoutEngine:
             block_size=(best_bbox[2] - best_bbox[0], best_bbox[3] - best_bbox[1]),
             stroke_width=best_stroke,
             shadow_offset=shadow_offset_for_font_size(best_size),
+            tracking=tracking_for_font_size(best_size),
         )
 
     def measure_text_block(
@@ -180,13 +186,26 @@ class ThumbnailTextLayoutEngine:
     ) -> tuple[int, int, int, int]:
         if stroke_width is None:
             stroke_width = stroke_width_for_font_size(font_size)
-        return self.draw.multiline_textbbox(
-            (0, 0),
-            text,
-            font=self.font_loader(font_size),
-            spacing=line_spacing(font_size),
-            stroke_width=stroke_width,
-        )
+        lines = text.split("\n") or [""]
+        font = self.font_loader(font_size)
+        tracking = tracking_for_font_size(font_size)
+        spacing = line_spacing(font_size)
+
+        line_widths: list[int] = []
+        line_heights: list[int] = []
+        for line in lines:
+            bbox = self.draw.textbbox((0, 0), line, font=font, stroke_width=stroke_width)
+            width = max(0, bbox[2] - bbox[0])
+            if len(line) > 1:
+                width += tracking * (len(line) - 1)
+            line_widths.append(width)
+            line_heights.append(max(0, bbox[3] - bbox[1]))
+
+        total_height = sum(line_heights)
+        if len(lines) > 1:
+            total_height += spacing * (len(lines) - 1)
+
+        return (0, 0, max(line_widths, default=0), total_height)
 
 
 def line_spacing(font_size: int) -> int:
@@ -200,6 +219,11 @@ def stroke_width_for_font_size(font_size: int) -> int:
 def shadow_offset_for_font_size(font_size: int) -> tuple[int, int]:
     offset = max(2, int(font_size * THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO))
     return (offset, offset)
+
+
+def tracking_for_font_size(font_size: int) -> int:
+    tracked = int(font_size * THUMBNAIL_TEXT_TRACKING_RATIO)
+    return max(THUMBNAIL_TEXT_TRACKING_MIN, min(THUMBNAIL_TEXT_TRACKING_MAX, tracked))
 
 
 def resolve_text_position(
