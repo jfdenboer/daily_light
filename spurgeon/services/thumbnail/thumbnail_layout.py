@@ -7,10 +7,10 @@ from typing import Callable
 
 from PIL import ImageDraw, ImageFont
 
-THUMBNAIL_TEXT_MAX_WIDTH_FRACTION = 0.64
-THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION = 0.05
-THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.08
-THUMBNAIL_TEXT_MAX_LINES = 2
+THUMBNAIL_TEXT_HORIZONTAL_MARGIN_FRACTION = 0.05
+THUMBNAIL_TEXT_TOP_MARGIN_FRACTION = 0.05
+THUMBNAIL_TEXT_TOP_ZONE_HEIGHT_FRACTION = 0.20
+THUMBNAIL_TEXT_MAX_LINES = 1
 THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.08
 THUMBNAIL_TEXT_MIN_FONT_SIZE = 90
 THUMBNAIL_TEXT_MAX_FONT_SIZE = 440
@@ -19,7 +19,6 @@ THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.024
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 2
 THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.018
 THUMBNAIL_TEXT_SHADOW_ALPHA = 110
-THUMBNAIL_TEXT_VERTICAL_ANCHOR_RATIO = 0.40
 
 
 @dataclass(frozen=True)
@@ -50,17 +49,15 @@ def normalize_thumbnail_display_text(text: str) -> str:
 
 def calculate_text_layout_box(canvas_size: tuple[int, int]) -> TextLayoutBox:
     width, height = canvas_size
-    left_margin = int(width * THUMBNAIL_TEXT_LEFT_MARGIN_FRACTION)
-    top_margin = int(height * THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION)
-    bottom_margin = top_margin
-    text_right_edge = int(width * THUMBNAIL_TEXT_MAX_WIDTH_FRACTION)
-    max_text_width = text_right_edge - left_margin
-    text_height = height - top_margin - bottom_margin
+    horizontal_margin = int(width * THUMBNAIL_TEXT_HORIZONTAL_MARGIN_FRACTION)
+    top_margin = int(height * THUMBNAIL_TEXT_TOP_MARGIN_FRACTION)
+    max_text_width = width - (horizontal_margin * 2)
+    text_height = int(height * THUMBNAIL_TEXT_TOP_ZONE_HEIGHT_FRACTION)
     return TextLayoutBox(
-        x=left_margin,
+        x=horizontal_margin,
         y=top_margin,
-        width=max(220, max_text_width),
-        height=max(200, text_height),
+        width=max(320, max_text_width),
+        height=max(100, text_height),
     )
 
 
@@ -78,13 +75,7 @@ class ThumbnailTextLayoutEngine:
         display_text: str,
         text_box: TextLayoutBox,
     ) -> TextLayoutChoice:
-        words = display_text.split()
-        layout_candidates = [display_text]
-        if len(words) > 1:
-            layout_candidates.extend(
-                " ".join(words[:split_index]) + "\n" + " ".join(words[split_index:])
-                for split_index in range(1, len(words))
-            )
+        layout_candidates = [display_text.replace("\n", " ")]
 
         best: TextLayoutChoice | None = None
         for candidate in layout_candidates:
@@ -102,15 +93,6 @@ class ThumbnailTextLayoutEngine:
             if best is None or measured.font_size > best.font_size:
                 best = measured
                 continue
-
-            is_two_line_tie_break = (
-                measured.font_size == best.font_size
-                and len(words) >= 3
-                and measured.line_count == 2
-                and best.line_count == 1
-            )
-            if is_two_line_tie_break:
-                best = measured
 
         if best is not None:
             return best
@@ -224,9 +206,9 @@ def resolve_text_position(
     layout: TextLayoutChoice,
     text_box: TextLayoutBox,
 ) -> tuple[int, int]:
-    x = text_box.x
-    anchor_y = text_box.y + int(text_box.height * THUMBNAIL_TEXT_VERTICAL_ANCHOR_RATIO)
-    y = anchor_y - int(layout.block_size[1] / 2)
+    centered_x = text_box.x + int((text_box.width - layout.block_size[0]) / 2)
+    x = max(text_box.x, centered_x)
+    y = text_box.y
     min_y = text_box.y
     max_y = text_box.y + text_box.height - layout.block_size[1]
     return (x, max(min_y, min(y, max_y)))

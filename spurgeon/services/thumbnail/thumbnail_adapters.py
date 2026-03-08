@@ -190,7 +190,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
             fill=shadow_color,
             spacing=line_spacing(layout.font_size),
             stroke_width=0,
-            align="left",
+            align="center",
         )
 
         draw.multiline_text(
@@ -201,7 +201,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
             spacing=line_spacing(layout.font_size),
             stroke_width=layout.stroke_width,
             stroke_fill="#000000",
-            align="left",
+            align="center",
         )
 
         logger.debug(
