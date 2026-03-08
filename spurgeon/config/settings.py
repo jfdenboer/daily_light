@@ -41,13 +41,6 @@ class Settings(BaseSettings):
     thumbnail_prompt_version: str = Field("v1", env="THUMBNAIL_PROMPT_VERSION", min_length=1)
     thumbnail_cache_by_fingerprint: bool = Field(True, env="THUMBNAIL_CACHE_BY_FINGERPRINT")
     thumbnail_quality_checks_enabled: bool = Field(True, env="THUMBNAIL_QUALITY_CHECKS_ENABLED")
-    thumbnail_quality_min_luma_stddev: float = Field(
-        28.0,
-        ge=0.0,
-        env="THUMBNAIL_QUALITY_MIN_LUMA_STDDEV",
-    )
-    thumbnail_cache_by_fingerprint: bool = Field(True, env="THUMBNAIL_CACHE_BY_FINGERPRINT")
-    thumbnail_quality_checks_enabled: bool = Field(True, env="THUMBNAIL_QUALITY_CHECKS_ENABLED")
     thumbnail_quality_min_luma_stddev: float = Field(12.0, ge=0.0, env="THUMBNAIL_QUALITY_MIN_LUMA_STDDEV")
 
     # Bucket name
