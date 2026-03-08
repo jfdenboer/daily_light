@@ -14,6 +14,7 @@ Lighting: soft overcast daylight or gentle natural directional light, with calm 
 
 Core tension: {core_tension}.
 Emotional tone: {emotional_tone}.
-Visual motif: {visual_motif}.
+Dominant anchor: {dominant_anchor}.
 Scene direction: {scene_direction}.
+Open loop: {open_loop}.
 Avoid: {avoid}.

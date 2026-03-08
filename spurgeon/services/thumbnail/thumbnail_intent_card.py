@@ -31,8 +31,9 @@ THUMBNAIL_INTENT_CARD_DEVMSG = load_thumbnail_intent_card_prompt()
 class ThumbnailIntentCard:
     core_tension: str
     emotional_tone: str
-    visual_motif: str
+    dominant_anchor: str
     scene_direction: str
+    open_loop: str
     avoid: str
 
 
@@ -45,21 +46,22 @@ def parse_thumbnail_intent_card(text: str) -> ThumbnailIntentCard:
     expected_order = [
         "core_tension",
         "emotional_tone",
-        "visual_motif",
+        "dominant_anchor",
         "scene_direction",
+        "open_loop",
         "avoid",
     ]
     fields: dict[str, str] = {}
     lines = [line.strip() for line in text.splitlines() if line.strip()]
 
-    if len(lines) != 5:
+    if len(lines) != 6:
         logger.warning(
-            "thumbnail_pipeline.intent_card_parse_error reason=expected_5_lines lines=%d raw_output=%r",
+            "thumbnail_pipeline.intent_card_parse_error reason=expected_6_lines lines=%d raw_output=%r",
             len(lines),
             text,
         )
         raise IntentCardParseError(
-            f"Malformed thumbnail intent-card output: expected 5 lines, got {len(lines)}"
+            f"Malformed thumbnail intent-card output: expected 6 lines, got {len(lines)}"
         )
 
     for index, line in enumerate(lines, start=1):
@@ -142,8 +144,9 @@ def parse_thumbnail_intent_card(text: str) -> ThumbnailIntentCard:
     return ThumbnailIntentCard(
         core_tension=fields["core_tension"],
         emotional_tone=fields["emotional_tone"],
-        visual_motif=fields["visual_motif"],
+        dominant_anchor=fields["dominant_anchor"],
         scene_direction=fields["scene_direction"],
+        open_loop=fields["open_loop"],
         avoid=fields["avoid"],
     )
 

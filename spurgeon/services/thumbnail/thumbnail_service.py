@@ -158,7 +158,8 @@ class ThumbnailService:
             slug=reading.slug,
             core_tension=card.core_tension,
             emotional_tone=card.emotional_tone,
-            visual_motif=card.visual_motif,
+            dominant_anchor=card.dominant_anchor,
+            open_loop=card.open_loop,
             scene_direction=card.scene_direction,
             avoid=card.avoid,
         )

@@ -62,7 +62,8 @@ def build_thumbnail_prompt(
         thumbnail_text=thumbnail_text,
         core_tension=intent_card.core_tension,
         emotional_tone=intent_card.emotional_tone,
-        visual_motif=intent_card.visual_motif,
+        dominant_anchor=intent_card.dominant_anchor,
+        open_loop=intent_card.open_loop,
         scene_direction=intent_card.scene_direction,
         avoid=intent_card.avoid,
     )
