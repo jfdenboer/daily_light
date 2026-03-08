@@ -40,12 +40,17 @@ def _openai_retry_error_types() -> tuple[type[BaseException], ...]:
     except ModuleNotFoundError:
         return ()
 
-    return (
-        getattr(openai, "APIError"),
-        getattr(openai, "RateLimitError"),
-        getattr(openai, "APIConnectionError"),
-        getattr(openai, "APITimeoutError"),
-        getattr(openai, "OpenAIError"),
+    discovered = (
+        getattr(openai, "APIError", None),
+        getattr(openai, "RateLimitError", None),
+        getattr(openai, "APIConnectionError", None),
+        getattr(openai, "APITimeoutError", None),
+        getattr(openai, "OpenAIError", None),
+    )
+    return tuple(
+        error_type
+        for error_type in discovered
+        if isinstance(error_type, type) and issubclass(error_type, BaseException)
     )
 
 
@@ -90,14 +95,28 @@ class ThumbnailService:
             reading_type=reading.reading_type.value,
         )
 
-        intent_card = self._generate_intent_card(reading, text)
-        prompt = self._generate_prompt(reading, text, intent_card)
-        rendered = self._generate_rendered_image(reading.slug, prompt, text)
-        self._validate_quality(reading.slug, rendered)
-
-        path = self.repository.save(reading.slug, rendered, fingerprint=fingerprint)
-        log_thumbnail_event(ThumbnailEvent.SAVED, slug=reading.slug, path=path.name)
-        return path
+        stage = "intent_card"
+        try:
+            intent_card = self._generate_intent_card(reading, text)
+            stage = "prompt"
+            prompt = self._generate_prompt(reading, text, intent_card)
+            stage = "image_render"
+            rendered = self._generate_rendered_image(reading.slug, prompt, text)
+            stage = "quality_gate"
+            self._validate_quality(reading.slug, rendered)
+            stage = "storage"
+            path = self.repository.save(reading.slug, rendered, fingerprint=fingerprint)
+            log_thumbnail_event(ThumbnailEvent.SAVED, slug=reading.slug, path=path.name)
+            return path
+        except Exception as exc:
+            log_thumbnail_event(
+                ThumbnailEvent.FAILED,
+                slug=reading.slug,
+                stage=stage,
+                error_type=type(exc).__name__,
+                message=str(exc),
+            )
+            raise
 
     def _resolve_cached_path(self, slug: str, fingerprint: str) -> Path | None:
         if self.settings.thumbnail_cache_by_fingerprint:

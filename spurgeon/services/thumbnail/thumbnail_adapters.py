@@ -77,8 +77,14 @@ class OpenAIIntentCardProvider(IntentCardProvider):
                 f"OpenAI thumbnail intent-card call failed: {getattr(exc, 'message', exc)}"
             ) from exc
 
-        content = response.choices[0].message.content or ""
-        normalized = content.strip()
+        choices = getattr(response, "choices", None)
+        if not choices:
+            raise IntentCardError("Received empty choices in thumbnail intent-card response")
+
+        first_choice = choices[0]
+        message = getattr(first_choice, "message", None)
+        content = getattr(message, "content", "") if message is not None else ""
+        normalized = self._normalize_message_content(content)
         if not normalized:
             raise IntentCardError("Received empty thumbnail intent-card output")
 
@@ -87,6 +93,27 @@ class OpenAIIntentCardProvider(IntentCardProvider):
             return parse_thumbnail_intent_card(normalized)
         except IntentCardParseError as exc:
             raise IntentCardError(str(exc)) from exc
+
+    @staticmethod
+    def _normalize_message_content(content: object) -> str:
+        if isinstance(content, str):
+            return content.strip()
+
+        if isinstance(content, list):
+            text_fragments: list[str] = []
+            for block in content:
+                if isinstance(block, dict):
+                    text = block.get("text")
+                    if isinstance(text, str) and text.strip():
+                        text_fragments.append(text.strip())
+                    continue
+                text = getattr(block, "text", None)
+                if isinstance(text, str) and text.strip():
+                    text_fragments.append(text.strip())
+
+            return "\n".join(text_fragments).strip()
+
+        return ""
 
 
 class OpenAIImageProvider(ImageProvider):
