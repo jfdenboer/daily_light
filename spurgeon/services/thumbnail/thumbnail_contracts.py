@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from PIL import Image
-
-from spurgeon.models import Reading
+if TYPE_CHECKING:
+    from PIL import Image
+    from spurgeon.models import Reading
 
 from .thumbnail_intent_card import ThumbnailIntentCard
 
@@ -15,7 +15,7 @@ from .thumbnail_intent_card import ThumbnailIntentCard
 class IntentCardProvider(Protocol):
     """Provider that generates a structured thumbnail intent card."""
 
-    def generate(self, reading: Reading, thumbnail_text: str) -> ThumbnailIntentCard:
+    def generate(self, reading: "Reading", thumbnail_text: str) -> ThumbnailIntentCard:
         """Generate an intent card for the provided reading context."""
 
 
@@ -29,7 +29,7 @@ class ImageProvider(Protocol):
 class ThumbnailRenderer(Protocol):
     """Renderer responsible for compositing text over an image."""
 
-    def render(self, *, image_bytes: bytes, text: str) -> Image.Image:
+    def render(self, *, image_bytes: bytes, text: str) -> "Image.Image":
         """Render a final thumbnail image in memory."""
 
 
@@ -42,5 +42,5 @@ class ThumbnailRepository(Protocol):
     def get_by_fingerprint(self, fingerprint: str) -> Path | None:
         """Return an existing thumbnail path for the exact fingerprint when present."""
 
-    def save(self, slug: str, image: Image.Image, *, fingerprint: str | None = None) -> Path:
+    def save(self, slug: str, image: Any, *, fingerprint: str | None = None) -> Path:
         """Persist the image and return output path."""

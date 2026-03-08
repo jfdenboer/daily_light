@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PIL import Image, ImageStat
+from typing import Any
 
 from .thumbnail_errors import QualityGateError
 
@@ -10,7 +10,7 @@ EXPECTED_THUMBNAIL_SIZE = (1280, 720)
 
 
 def validate_thumbnail_quality(
-    image: Image.Image,
+    image: Any,
     *,
     checks_enabled: bool,
     min_luma_stddev: float,
@@ -25,6 +25,9 @@ def validate_thumbnail_quality(
             f"Rendered thumbnail has invalid dimensions {image.size}; "
             f"expected {EXPECTED_THUMBNAIL_SIZE}"
         )
+
+    # Import Pillow lazily so orchestration tests can run in minimal environments.
+    from PIL import ImageStat
 
     grayscale = image.convert("L")
     stddev = float(ImageStat.Stat(grayscale).stddev[0])

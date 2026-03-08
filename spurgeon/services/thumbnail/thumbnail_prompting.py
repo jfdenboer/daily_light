@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from spurgeon.models import Reading
+if TYPE_CHECKING:
+    from spurgeon.models import Reading
 
 from .thumbnail_intent_card import ThumbnailIntentCard
 
@@ -48,7 +50,7 @@ THUMBNAIL_LIGHTING_LINE = _IMAGE_POLICY_LINES[6]
 
 
 def build_thumbnail_prompt(
-    reading: Reading,
+    reading: "Reading",
     thumbnail_text: str,
     intent_card: ThumbnailIntentCard,
     *,
@@ -56,6 +58,7 @@ def build_thumbnail_prompt(
 ) -> str:
     template = get_thumbnail_image_prompt_template(prompt_version)
     return template.format(
+        reading_type=reading.reading_type.value,
         thumbnail_text=thumbnail_text,
         core_tension=intent_card.core_tension,
         emotional_tone=intent_card.emotional_tone,

@@ -6,6 +6,7 @@ import base64
 import hashlib
 import io
 import logging
+from functools import lru_cache
 from pathlib import Path
 
 from openai import OpenAI, OpenAIError
@@ -54,6 +55,7 @@ class OpenAIIntentCardProvider(IntentCardProvider):
     def generate(self, reading: Reading, thumbnail_text: str) -> ThumbnailIntentCard:
         cleaned_reading = normalize_clip_reading_text(reading.text, max_chars=2000)
         user_message = (
+            f"Devotional type: {reading.reading_type.value}\n"
             f"Thumbnail theme: {thumbnail_text}\n"
             "Reading text:\n"
             f"{cleaned_reading}"
@@ -191,13 +193,20 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         return canvas
 
     def _load_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-        if self.settings.thumbnail_font_path:
+        return self._resolve_font(self.settings.thumbnail_font_path, size)
+
+    @staticmethod
+    @lru_cache(maxsize=64)
+    def _resolve_font(
+        font_path: str | None, size: int
+    ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        if font_path:
             try:
-                return ImageFont.truetype(self.settings.thumbnail_font_path, size=size)
+                return ImageFont.truetype(font_path, size=size)
             except OSError:
                 logger.warning(
                     "Configured THUMBNAIL_FONT_PATH could not be loaded (%s). Falling back to default font.",
-                    self.settings.thumbnail_font_path,
+                    font_path,
                 )
 
         try:

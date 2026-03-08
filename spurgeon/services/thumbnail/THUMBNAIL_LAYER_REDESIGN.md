@@ -349,3 +349,24 @@ Fase 5 is nu uitgevoerd met behoud van de bestaande `ThumbnailGenerator` entrypo
 
 3. **Backwards compatibility blijft relevant tijdens migratie**
    - Slug-cache fallback voorkomt regressies voor bestaande output-bestanden zonder fingerprint-index.
+
+## Update na afronding (100% DoD)
+
+De resterende punten zijn nu afgerond.
+
+### Afrondingen
+- **Dunne orchestrator gerealiseerd**:
+  - nieuwe `ThumbnailService` bevat de applicatie-flow;
+  - `thumbnail_generator.py` is nu een backward-compatible wrapper rond de service en blijft ruim onder de `<150`-doelstelling.
+- **Settings-consistentie hersteld**:
+  - ontbrekende configuratievelden voor fingerprint-cache en quality gates toegevoegd aan `Settings`.
+- **Font-loading cache toegevoegd**:
+  - renderer gebruikt nu memoization voor font-resolutie per `(font_path, size)`.
+- **Typed error-semantiek in service-flow behouden**:
+  - service werkt met typed pipelinefouten (`IntentCardError`, `PromptBuildError`, `ImageProviderError`, `RenderError`, `StorageError`, `QualityGateError`), met `ThumbnailGenerationError` alleen als compatibiliteitslaag in de legacy wrapper.
+- **Testsuite uitgebreid**:
+  - integratietest voor service-flow met stubbed providers/renderer/repository;
+  - snapshot-tests voor prompt-outputvarianten.
+
+### Resultaat
+- Het herontwerp voldoet nu functioneel aan de eerder gedefinieerde DoD-doelen binnen de huidige codebasis en publieke API.
