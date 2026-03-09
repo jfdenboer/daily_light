@@ -81,6 +81,11 @@ class Settings(BaseSettings):
     # Intro audio
     intro_enabled: bool = Field(True)
     intro_cache_enabled: bool = Field(True)
+    intro_voice_id: str | None = Field(
+        "XrExE9yKIg1WjnnlVkGX",
+        min_length=1,
+        env="INTRO_VOICE_ID",
+    )
     hook_generator_model: str = Field("gpt-5.2", env="HOOK_GENERATOR_MODEL")
     hook_judge_model: str = Field("gpt-5.2", env="HOOK_JUDGE_MODEL")
     hook_tweaker_model: str = Field("gpt-5.2", env="HOOK_TWEAKER_MODEL")
