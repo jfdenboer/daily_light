@@ -45,12 +45,11 @@ THUMBNAIL_CANVAS_SIZE = (1280, 720)
 
 THUMBNAIL_PREMIUM_FONT_PATHS = (
     "C:/Users/jfden/daily_light/input/CormorantGaramond-SemiBold.ttf",
-    "C:/Users/jfden/daily_light/input/CormorantGaramond-Medium.ttf",
 )
 THUMBNAIL_FALLBACK_FONT_NAME = "DejaVuSans-Bold.ttf"
 
-THUMBNAIL_TEXT_PRIMARY_GOLD = "#C9A74A"
-THUMBNAIL_TEXT_ALT_GOLD = "#C2A25A"
+THUMBNAIL_TEXT_PRIMARY_GOLD = "#D2C15A"
+THUMBNAIL_TEXT_SHADOW_HEX = "#5A4A20"
 THUMBNAIL_TEXT_STROKE_HEX = "#111111"
 THUMBNAIL_TEXT_STROKE_ALPHA = 0
 THUMBNAIL_TEXT_STROKE_WIDTH_CAP = 0
@@ -211,7 +210,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
             layout.font_size,
             self._font_source_name(font),
         )
-        shadow_color = (0, 0, 0, THUMBNAIL_TEXT_SHADOW_ALPHA)
+        shadow_color = (*ImageColor.getrgb(THUMBNAIL_TEXT_SHADOW_HEX), THUMBNAIL_TEXT_SHADOW_ALPHA)
         stroke_color = (*ImageColor.getrgb(THUMBNAIL_TEXT_STROKE_HEX), THUMBNAIL_TEXT_STROKE_ALPHA)
         stroke_width = min(layout.stroke_width, THUMBNAIL_TEXT_STROKE_WIDTH_CAP)
 
