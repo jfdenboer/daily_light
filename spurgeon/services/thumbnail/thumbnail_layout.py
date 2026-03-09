@@ -12,17 +12,17 @@ THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.08
 THUMBNAIL_TEXT_CENTER_ZONE_HEIGHT_FRACTION = 0.34
 THUMBNAIL_TEXT_MAX_LINES = 1
 THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.10
-THUMBNAIL_TEXT_FONT_SIZE = 62
-THUMBNAIL_TEXT_FALLBACK_FONT_SIZE = 56
-THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE = 48
+THUMBNAIL_TEXT_FONT_SIZE = 56
+THUMBNAIL_TEXT_FALLBACK_FONT_SIZE = 52
+THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE = 44
 THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.010
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 0
-THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.002
-THUMBNAIL_TEXT_SHADOW_MIN_OFFSET = 1
-THUMBNAIL_TEXT_SHADOW_ALPHA = 10
-THUMBNAIL_TEXT_TRACKING_RATIO = 0.008
-THUMBNAIL_TEXT_TRACKING_MIN = 1
-THUMBNAIL_TEXT_TRACKING_MAX = 3
+THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.001
+THUMBNAIL_TEXT_SHADOW_MIN_OFFSET = 0
+THUMBNAIL_TEXT_SHADOW_ALPHA = 8
+THUMBNAIL_TEXT_TRACKING_RATIO = 0.005
+THUMBNAIL_TEXT_TRACKING_MIN = 0
+THUMBNAIL_TEXT_TRACKING_MAX = 2
 
 
 @dataclass(frozen=True)
@@ -224,7 +224,11 @@ def resolve_text_position(
     text_box: TextLayoutBox,
 ) -> tuple[int, int]:
     centered_x = text_box.x + int((text_box.width - layout.block_size[0]) / 2)
-    x = max(text_box.x, centered_x)
+    editorial_left_shift = int(text_box.width * 0.03)
+    x = centered_x - editorial_left_shift
+    min_x = text_box.x
+    max_x = text_box.x + text_box.width - layout.block_size[0]
+    x = max(min_x, min(x, max_x))
     centered_y = text_box.y + int((text_box.height - layout.block_size[1]) / 2)
     y = centered_y
     min_y = text_box.y
