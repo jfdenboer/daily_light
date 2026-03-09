@@ -112,7 +112,16 @@ def main() -> None:
 
     output_chunks: list[str] = []
     for reading in readings:
-        thumbnail_text, candidates = text_generator.generate_with_candidates(reading)
+        if hasattr(text_generator, "generate_with_candidates"):
+            generated = text_generator.generate_with_candidates(reading)
+            first, second = generated
+            if isinstance(first, str):
+                thumbnail_text, candidates = first, list(second)
+            else:
+                candidates, thumbnail_text = list(first), second
+        else:
+            thumbnail_text = text_generator.generate(reading)
+            candidates = [thumbnail_text] if thumbnail_text else []
 
         try:
             intent_card = intent_provider.generate(reading, thumbnail_text=thumbnail_text)
