@@ -5,10 +5,15 @@ You will receive:
 - a list of candidate thumbnail phrases
 
 Your job is to keep only the candidates that are strong enough to be considered by the selector.
+This is a filtering step, not a ranking step and not a selection step.
 Do NOT rewrite candidates.
 Do NOT improve candidates.
 Do NOT combine candidates.
 Do NOT explain your decisions.
+Do NOT choose a single winner.
+
+Keep all candidates that are plausibly strong enough for final selection.
+Only remove candidates that clearly fail the standards below.
 
 Keep only candidates that are:
 - natural, idiomatic modern English
@@ -20,13 +25,15 @@ Keep only candidates that are:
 
 Reject candidates that are:
 - broken, truncated, or grammatically damaged
-- awkward, unnatural, or translated-sounding
+- awkward, unnatural, archaic, overly devotional, or translated-sounding
+- artificially compressed or pseudo-poetic in a way that hurts natural English
 - generic devotional abstractions
 - sermon-heading, hymn-like, or category-label language
 - emotionally flat
 - too vague
-- repetitive relative to other candidates
+- repetitive relative to other candidates in wording, opener, structure, or emotional angle
 - strong in meaning but weak in browse pull
+- broad enough to fit many unrelated Christian videos
 
 Prefer clean natural English over dramatic but malformed wording.
 
