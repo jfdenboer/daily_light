@@ -9,46 +9,53 @@ Do NOT explain the video.
 Do NOT write a new phrase unless every candidate is unusable.
 
 Select for browse performance first.
+Choose the strongest hook, not the nicest phrase.
+
 Prefer the candidate with the strongest immediate emotional pull, clearest curiosity gap, best small-size readability, and best fit to this specific video's tension.
 
 Selection criteria, in priority order:
 - Strongest immediate emotional signal and resonance.
-- Strong curiosity, tension, ache, or unresolved pull for browse CTR.
-- Feels like a specific felt moment, not an abstract spiritual label.
+- Strongest curiosity, tension, ache, or unresolved pull for browse CTR.
+- Feels like a specific human felt moment, not an abstract spiritual label.
 - Natural, idiomatic modern English.
-- Clear and highly readable at thumbnail size.
+- Clear, fast, and highly readable at thumbnail size.
 - Distinctive and non-generic.
 
 Prefer candidates that:
-- Feel emotionally immediate rather than merely true, poetic, or theological.
+- Feel emotionally immediate rather than merely true, poetic, theological, admirable, or meaningful.
 - Stay close to human stakes, pressure, ache, fear, shame, surrender, rescue, return, exposure, endurance, or relief.
-- Sound vivid and specific rather than broad and devotional.
+- Sound vivid, direct, and specific rather than broad, devotional, concept-heavy, or summary-like.
+- Read as clean natural English without mental repair by the viewer.
+- Work as thumbnail hooks rather than message summaries.
 - Are usually 1-3 words, but may be 4 words if clearly stronger and still thumbnail-safe.
-- Read as clean, natural English without mental repair by the viewer.
+- Create instant curiosity even if they are less polished or less poetic.
 
 Reject candidates that are:
 - Tutorial, explanatory, or search style.
 - Generic devotional abstractions.
-- Sermon-heading, hymn-like, or category-label language.
+- Sermon-heading, hymn-like, category-label, or devotional-subheading language.
+- Churchy, insider-Christian, or theological shorthand that feels more like ministry language than browse copy.
 - Grammatically awkward, archaic, translated-sounding, or unnatural in English.
 - Broken, truncated, or grammatically damaged, even if emotionally strong.
 - Phrases a native speaker would need to mentally repair.
 - Artificially compressed wording that sounds generated rather than naturally said.
 - Too vague, too safe, emotionally flat, or low-tension.
 - Strong in meaning but weak in browse pull.
+- Admirable, meaningful, or doctrinally true but not immediately curious.
 - Overly familiar Christian phrasing that could fit many unrelated videos.
+- Message-like phrasing that sounds more like the lesson than the hook.
 
 Tie-break rule:
 - If several candidates are good, choose the one with the strongest emotional immediacy and most distinctive browse appeal.
 - Prefer the one that feels most specific to this intent card, not the one that sounds most generally devotional.
-- Never choose a candidate with broken syntax or unnatural phrase structure, even if it has stronger tension than cleaner alternatives.
-- Prefer a clean idiomatic phrase over a more dramatic but malformed one.
+- Prefer the one that creates the quickest emotional reaction at a glance.
+- Prefer a clean idiomatic phrase over a more dramatic but strained, awkward, or churchy one.
 
 Fallback rule:
 - Only write a new phrase if every provided candidate is clearly unusable.
-- If you must write a new phrase, keep it thumbnail-safe, idiomatic, browse-first, and consistent with the same standards above.
+- If you must write a new phrase, keep it thumbnail-safe, idiomatic, browse-first, emotionally immediate, and consistent with the same standards above.
 
-Before choosing, silently eliminate any candidate that is generic, unnatural, grammatically broken, truncated, or emotionally flat.
+Before choosing, silently eliminate any candidate that is generic, unnatural, grammatically broken, overly churchy, message-like rather than hook-like, emotionally flat, or clearly less hooky than a stronger alternative.
 
 Output rules:
 - Output exactly one line only: the winning phrase.
