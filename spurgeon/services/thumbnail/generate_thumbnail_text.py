@@ -179,7 +179,11 @@ class ThumbnailTextGenerator:
             raise ThumbnailTextGenerationError("Selector output could not be parsed into a winner.")
 
         winner = self._sanitize_thumbnail_text(winner)
-        if winner and winner in candidates:
+        normalized_candidates = {
+            self._sanitize_thumbnail_text(candidate) for candidate in candidates
+        }
+        normalized_candidates.discard("")
+        if winner and winner in normalized_candidates:
             logger.debug("Selector winner accepted: %s", winner)
             return winner
 
@@ -208,14 +212,14 @@ class ThumbnailTextGenerator:
                 continue
             cleaned = re.sub(r"^[-*•]+\s*", "", cleaned)
             cleaned = re.sub(r"^\d+[\.)]\s*", "", cleaned)
-            sanitized = self._sanitize_thumbnail_text(cleaned)
-            if not sanitized:
+            cleaned = re.sub(r"\s+", " ", cleaned).strip()
+            if not cleaned:
                 continue
-            key = self._normalize_for_dedup(sanitized)
+            key = self._normalize_for_dedup(cleaned)
             if key in seen:
                 continue
             seen.add(key)
-            parsed.append(sanitized)
+            parsed.append(cleaned)
         return parsed
 
     def _normalize_for_dedup(self, text: str) -> str:
@@ -239,14 +243,11 @@ class ThumbnailTextGenerator:
         if not words:
             return ""
 
-        words = self._refine_words(words, max_words=3)
+        words = self._refine_words(words, max_words=5)
         if not words:
             return ""
 
-        title_cased_words = [
-            self._title_case_word(word, index) for index, word in enumerate(words)
-        ]
-        candidate = " ".join(title_cased_words)
+        candidate = " ".join(words)
         candidate = self._shrink_to_char_limit(candidate)
 
         if not candidate:
@@ -254,7 +255,7 @@ class ThumbnailTextGenerator:
 
         return candidate.strip()
 
-    def _shrink_to_char_limit(self, candidate: str, char_limit: int = 24) -> str:
+    def _shrink_to_char_limit(self, candidate: str, char_limit: int = 48) -> str:
         words = candidate.split()
         while len(" ".join(words)) > char_limit and len(words) > 1:
             scored = [(self._word_priority(word), idx) for idx, word in enumerate(words)]
@@ -279,13 +280,6 @@ class ThumbnailTextGenerator:
             _, drop_idx = min(scored, key=lambda item: (item[0], -item[1]))
             del refined[drop_idx]
         return refined
-
-    def _title_case_word(self, word: str, index: int) -> str:
-        lower = word.lower()
-        if index != 0 and lower in self._SMALL_WORDS:
-            return lower
-        return lower.capitalize()
-
 
 __all__ = [
     "ThumbnailTextGenerator",
