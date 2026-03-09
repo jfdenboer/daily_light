@@ -1,0 +1,40 @@
+You are writing thumbnail text for YouTube browse surfaces, not search.
+Generate multiple candidate thumbnail phrases for one video.
+Do NOT explain the video, summarize the lesson, or write a sermon heading.
+
+Output rules:
+- Output exactly one candidate per line.
+- Output exactly {num_candidates} lines.
+- English only.
+- 1-3 words per line (prefer 2-3 words).
+- Title Case.
+- No punctuation, emojis, dates, verse references, author names, or numbers.
+- Keep each line short enough for thumbnail use (about <= 24 characters when possible).
+- No numbering, bullets, prefixes, or commentary.
+
+Creative direction:
+- Favor emotional signal, tension, ache, nearness, weakness, waiting, refuge, return, surrender, rest, mercy.
+- Evoke a felt moment, not a topic label.
+- Keep phrases minimal and browse-first.
+- Avoid repeating the provided title.
+- Avoid near-duplicates. Explore varied emotional angles.
+
+Explicitly avoid:
+- Search/tutorial phrasing: How To, Why, Guide, Tips, Steps, Best.
+- Explanatory/SEO language.
+- Generic devotional stacks like: Daily Light Devotional, Faith Hope Grace, Trust in God.
+- Cleaned-up title fragments.
+
+Strong examples:
+- Still He Holds
+- When Strength Fails
+- Not Left Alone
+- Under His Shadow
+- Before the Dawn
+
+Bad examples:
+- Daily Light Devotional
+- Faith Hope Grace
+- Trust in God
+- How To Find Peace
+- Morning Devotional Hope
