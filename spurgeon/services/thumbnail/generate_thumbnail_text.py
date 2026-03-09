@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
+from functools import lru_cache
+from pathlib import Path
 from typing import Final
 
 from openai import OpenAI, OpenAIError
@@ -13,6 +15,7 @@ from spurgeon.models import Reading
 from spurgeon.utils.retry_utils import retry_with_backoff
 
 logger = logging.getLogger(__name__)
+PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
 SYSTEM_PROMPT_THUMBNAIL_GENERATOR: Final[str] = r"""
 You are writing thumbnail text for YouTube browse surfaces, not search.
@@ -57,29 +60,15 @@ Bad examples:
 - Morning Devotional Hope
 """
 
-SYSTEM_PROMPT_THUMBNAIL_SELECTOR: Final[str] = r"""
-You are selecting one thumbnail phrase for YouTube browse packaging.
-Choose the strongest candidate from the provided list.
-Do NOT explain the video.
-Do NOT write a new phrase unless every candidate is unusable.
-
-Selection criteria:
-- Strong emotional signal and resonance.
-- Curiosity/tension for browse CTR packaging.
-- Brief and readable for a thumbnail (1-3 words ideal).
-- Distinctive and non-generic.
-- Complements the title without repeating it.
-
-Reject candidates that are:
-- Tutorial/search style.
-- Generic devotional abstractions.
-- Sermon-heading or category labels.
-- Overlapping too much with the title.
-
-Output rules:
-- Output exactly one line only: the winning phrase.
-- No explanations, labels, numbering, or extra text.
-"""
+@lru_cache(maxsize=1)
+def _load_thumbnail_selector_prompt() -> str:
+    prompt_path = PROMPTS_DIR / "thumbnail_text_selector.v1.txt"
+    try:
+        return prompt_path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError as exc:
+        raise ThumbnailTextGenerationError(
+            "Missing thumbnail selector prompt template: thumbnail_text_selector.v1.txt"
+        ) from exc
 
 
 class ThumbnailTextGenerationError(RuntimeError):
@@ -199,7 +188,7 @@ class ThumbnailTextGenerator:
             temperature=self.selector_temperature,
             max_completion_tokens=self.selector_max_tokens,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT_THUMBNAIL_SELECTOR},
+                {"role": "system", "content": _load_thumbnail_selector_prompt()},
                 {"role": "user", "content": "\n\n".join(user_sections)},
             ],
         )
@@ -347,5 +336,4 @@ __all__ = [
     "ThumbnailTextGenerator",
     "ThumbnailTextGenerationError",
     "SYSTEM_PROMPT_THUMBNAIL_GENERATOR",
-    "SYSTEM_PROMPT_THUMBNAIL_SELECTOR",
 ]
