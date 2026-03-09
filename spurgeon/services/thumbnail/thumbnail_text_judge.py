@@ -70,15 +70,17 @@ class ThumbnailTextJudge:
         for line in lines:
             cleaned = re.sub(r"^[-*•]+\s*", "", line)
             cleaned = re.sub(r"^\d+[\.)]\s*", "", cleaned)
-            cleaned = cleaned.strip().strip('"\'')
+            cleaned = cleaned.strip().strip('"\'').rstrip(".,:;!?")
             if not cleaned:
+                continue
+            if cleaned.upper() == "NONE":
                 continue
 
             key = self._normalize(cleaned)
             matched = normalized_map.get(key)
             if not matched:
-                logger.warning("Judge output contained unknown candidate line: %r", line)
-                return []
+                logger.warning("Judge output contained unknown candidate line; ignoring it: %r", line)
+                continue
             if key in seen:
                 continue
             seen.add(key)
