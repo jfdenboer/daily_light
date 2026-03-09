@@ -3,21 +3,27 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from datetime import date
 from pathlib import Path
 
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 from pydantic import ValidationError
 
 from spurgeon.config.settings import load_settings
 from spurgeon.core.parser import Parser
 from spurgeon.models import Reading
-from spurgeon.services.thumbnail.generate_thumbnail_text import ThumbnailTextGenerator
+from spurgeon.services.thumbnail.generate_thumbnail_text import (
+    ThumbnailTextGenerationError,
+    ThumbnailTextGenerator,
+)
 from spurgeon.services.thumbnail.thumbnail_adapters import OpenAIIntentCardProvider
 from spurgeon.services.thumbnail.thumbnail_errors import IntentCardError
+from spurgeon.utils.retry_utils import retry_with_backoff
 
 DEFAULT_INPUT_DIR = Path("input")
 DEFAULT_OUTPUT_PATH = Path("output/thumbnailtext_january.txt")
+logger = logging.getLogger(__name__)
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -79,7 +85,10 @@ def _format_entry(
     reading: Reading,
     intent_card,
     thumbnail_text: str,
-    candidates: list[str],
+    generated_candidates: list[str],
+    judged_candidates: list[str],
+    selector_candidates: list[str],
+    judge_fallback_used: bool,
 ) -> str:
     reading_type = reading.reading_type.value.lower()
     lines = [
@@ -92,14 +101,63 @@ def _format_entry(
         f"4) scene_direction: {intent_card.scene_direction}",
         f"5) open_loop: {intent_card.open_loop}",
         f"6) avoid: {intent_card.avoid}",
-        "thumbnail kandidaten:",
-        *(f"- {candidate}" for candidate in candidates),
+        "thumbnail generator kandidaten:",
+        *(f"- {candidate}" for candidate in generated_candidates),
+        "thumbnail judge kandidaten:",
+        *(f"- {candidate}" for candidate in judged_candidates),
+        f"judge fallback gebruikt: {'ja' if judge_fallback_used else 'nee'}",
+        "thumbnail selector kandidaten:",
+        *(f"- {candidate}" for candidate in selector_candidates),
         f"thumbnail winnaar: {thumbnail_text}",
     ]
     return "\n".join(lines)
 
 
+def _generate_thumbnail_with_judge_step(
+    text_generator: ThumbnailTextGenerator,
+    reading: Reading,
+) -> tuple[str, list[str], list[str], list[str], bool]:
+    def call_openai() -> tuple[str, list[str], list[str], list[str], bool]:
+        generated_candidates = text_generator._generate_candidates(reading)
+        judged_candidates = text_generator.judge.judge_thumbnail_text_candidates(
+            reading, generated_candidates
+        )
+        judge_fallback_used = not judged_candidates
+        selector_candidates = (
+            judged_candidates if judged_candidates else generated_candidates
+        )
+        winner = text_generator._select_candidate(reading, selector_candidates)
+        thumbnail_text = text_generator._sanitize_thumbnail_text(winner)
+        if not thumbnail_text:
+            raise ThumbnailTextGenerationError(
+                "Selected thumbnail text sanitized to empty output."
+            )
+        return (
+            thumbnail_text,
+            generated_candidates,
+            judged_candidates,
+            selector_candidates,
+            judge_fallback_used,
+        )
+
+    try:
+        return retry_with_backoff(
+            func=call_openai,
+            max_retries=3,
+            backoff=1.0,
+            error_types=(OpenAIError, ThumbnailTextGenerationError),
+            context="OpenAI thumbnail text generation",
+        )
+    except (OpenAIError, ThumbnailTextGenerationError) as exc:
+        logger.warning("Thumbnail text pipeline failed, using fallback: %s", exc)
+        return "daily light", [], [], [], True
+
+
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s - %(message)s",
+    )
     parser = _build_arg_parser()
     args = parser.parse_args()
 
@@ -112,16 +170,23 @@ def main() -> None:
 
     output_chunks: list[str] = []
     for reading in readings:
-        if hasattr(text_generator, "generate_with_candidates"):
-            generated = text_generator.generate_with_candidates(reading)
-            first, second = generated
-            if isinstance(first, str):
-                thumbnail_text, candidates = first, list(second)
-            else:
-                candidates, thumbnail_text = list(first), second
-        else:
-            thumbnail_text = text_generator.generate(reading)
-            candidates = [thumbnail_text] if thumbnail_text else []
+        (
+            thumbnail_text,
+            generated_candidates,
+            judged_candidates,
+            selector_candidates,
+            judge_fallback_used,
+        ) = _generate_thumbnail_with_judge_step(text_generator, reading)
+
+        logger.info(
+            "JUDGE stap %s: generated=%d judged=%d fallback=%s selector=%d winner=%s",
+            reading.slug,
+            len(generated_candidates),
+            len(judged_candidates),
+            judge_fallback_used,
+            len(selector_candidates),
+            thumbnail_text,
+        )
 
         try:
             intent_card = intent_provider.generate(reading, thumbnail_text=thumbnail_text)
@@ -130,7 +195,15 @@ def main() -> None:
                 f"Intent card generatie faalde voor {reading.slug}: {exc}"
             ) from exc
         output_chunks.append(
-            _format_entry(reading, intent_card, thumbnail_text, candidates)
+            _format_entry(
+                reading,
+                intent_card,
+                thumbnail_text,
+                generated_candidates,
+                judged_candidates,
+                selector_candidates,
+                judge_fallback_used,
+            )
         )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
