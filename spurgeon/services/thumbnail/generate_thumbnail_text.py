@@ -217,7 +217,8 @@ class ThumbnailTextGenerator:
         if not text:
             return ""
 
-        text = re.sub(r"[^A-Za-z\s]", " ", text)
+        text = text.replace("’", "'").replace("‘", "'")
+        text = re.sub(r"[^A-Za-z\s']", " ", text)
         text = re.sub(r"\d+", "", text)
         text = re.sub(r"\s+", " ", text).strip()
         words = [word for word in text.split() if word]
