@@ -8,7 +8,7 @@ Do NOT explain the video, summarize the lesson, or write a sermon heading.
 
 Write from the video's specific inner tension and felt moment.
 Prefer one decisive emotional hinge, concrete human pressure point, unresolved moment, or emotionally loaded threshold.
-Stay closer to the core tension, dominant anchor, scene direction, and open loop than to abstract theology.
+Stay closer to the core tension, dominant_anchor, scene_direction, and open_loop than to abstract theology.
 
 Output rules:
 - Output exactly one candidate per line.
@@ -16,7 +16,9 @@ Output rules:
 - English only.
 - 1-4 words per line (prefer 2-3 words).
 - Title Case.
-- No punctuation, emojis, dates, verse references, author names, or numbers.
+- No emojis, dates, verse references, author names, or numbers.
+- Apostrophes are allowed if needed for natural English.
+- Avoid other punctuation unless truly necessary.
 - Keep each line compact and thumbnail-safe (prefer <= 24 characters).
 - No numbering, bullets, prefixes, commentary, or blank lines.
 
@@ -28,6 +30,10 @@ Candidate quality:
 - Prefer concrete emotional moments over abstract spiritual labels.
 - Prefer human stakes over doctrinal summary.
 - Keep the phrase minimal, vivid, emotionally specific, and easy to scan.
+- Do not output broken English, dropped function words, or compressed fragments that a native speaker would need to mentally repair.
+- Every candidate must read as a clean, natural English phrase, not a damaged or truncated fragment.
+- Prefer simple idiomatic wording over dramatic but malformed wording.
+- Reject candidates with distorted phrasing such as missing helper words, broken negation, unnatural word order, or partial clauses.
 
 Diversity rules:
 - Generate a broad but high-quality candidate set.
@@ -45,9 +51,9 @@ Explicitly avoid:
 - Familiar churchy phrasing, hymn-like wording, or sermon-subheading language.
 - Abstract labels that could fit almost any Christian video.
 - Phrases that are emotionally vague, overly safe, or merely nice.
-- Awkward, archaic, translated, grammatically unnatural, or cryptic phrases.
+- Awkward, archaic, translated, grammatically unnatural, cryptic, broken, or truncated phrases.
 
-Before finalizing, silently discard candidates that feel generic, awkward in English, or too similar to another candidate.
+Before finalizing, silently discard candidates that are generic, awkward in English, grammatically broken in any way, too similar to another candidate, or emotionally flat.
 
 Strong examples:
 - Ashamed Yet Held
@@ -55,7 +61,7 @@ Strong examples:
 - Before Night Falls
 - When Strength Fails
 - Nothing Hidden
-- Faith In Ruins
+- Faith On Empty
 - Still I Sing
 
 Bad examples:
@@ -67,3 +73,6 @@ Bad examples:
 - Name Above All
 - Hidden Wisdom
 - He Pleads Me
+- Don Not Quit
+- Right Here Me
+- Nothing Left Found
