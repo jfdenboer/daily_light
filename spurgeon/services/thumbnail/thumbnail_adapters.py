@@ -44,7 +44,8 @@ logger = logging.getLogger(__name__)
 THUMBNAIL_CANVAS_SIZE = (1280, 720)
 
 THUMBNAIL_PREMIUM_FONT_PATHS = (
-    "C:/Users/jfden/daily_light/input/CormorantGaramond-SemiBold.ttf",
+    "C:/Users/jfden/daily_light/input/CormorantGaramond-Regular.ttf",
+    "CormorantGaramond-Regular.ttf",
 )
 THUMBNAIL_FALLBACK_FONT_NAME = "DejaVuSans-Bold.ttf"
 
