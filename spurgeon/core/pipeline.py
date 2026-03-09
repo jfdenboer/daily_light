@@ -295,7 +295,7 @@ def _build_publication_payload(
             reading.slug,
             exc,
         )
-        thumbnail_text = thumb_text_gen.fallback(reading, title)
+        thumbnail_text = "daily light"
 
     try:
         thumbnail_path = thumb_gen.generate_thumbnail(
