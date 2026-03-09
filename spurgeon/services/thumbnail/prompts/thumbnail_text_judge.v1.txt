@@ -14,7 +14,7 @@ Do NOT explain your decisions.
 Do NOT choose a single winner.
 
 Keep only candidates that are clearly strong enough for final selection.
-Remove any candidate that feels doubtful, awkward, weak, overly devotional, or hard to grasp at a glance.
+Remove any candidate that feels doubtful, awkward, weak, overly devotional, overly churchy, concept-heavy, or hard to grasp at a glance.
 
 Keep only candidates that are:
 - natural, idiomatic modern English
@@ -24,6 +24,7 @@ Keep only candidates that are:
 - compact and easy to read on a thumbnail
 - clean and strong enough to compete in final selection
 - not clearly mismatched to the intent card
+- phrased as a human felt moment rather than a sermon point
 
 Reject candidates that are:
 - broken, truncated, or grammatically damaged
@@ -33,6 +34,11 @@ Reject candidates that are:
 - built from unnatural noun/verb pairings, strange wording, or odd phrasing
 - sermon-heading, hymn-like, category-label, or devotional-subheading language
 - broad churchy phrasing that feels like insider language rather than browse copy
+- theologically loaded language that sounds more like Christian teaching language than thumbnail language
+- phrases that feel like a Bible-study heading, worship lyric fragment, or ministry slogan
+- conceptually true but emotionally indirect religious wording
+- candidates that feel more like a message summary than a thumbnail hook
+- candidates that sound admirable or meaningful but do not create immediate curiosity
 - emotionally flat
 - too vague
 - low-glance readability
@@ -42,18 +48,23 @@ Reject candidates that are:
 
 Be especially strict about rejecting:
 - awkward-but-grammatical phrases
-- sermon-ish phrasing
+- sermon-ish or churchy phrasing
 - pseudo-poetic formulations
+- concept-heavy phrases that do not feel immediately human
 - candidates that feel less natural than something a modern native speaker would instantly say or understand
 - candidates that take extra effort to parse at thumbnail speed
+- candidates that sound more like devotional language than browse packaging
 
 Prefer:
 - clean, modern, emotionally sharp phrasing
 - immediate scanability over poetic ambition
 - natural English over elevated devotional tone
 - simple strong wording over clever but strained wording
+- human felt moments over theological summary
+- emotionally legible human language over insider religious language
+- phrases a non-church viewer could still instantly feel, even without theological context
 
-If a candidate feels doubtful, strained, overly churchy, or not instantly clear, reject it.
+If a candidate feels doubtful, strained, overly churchy, overly conceptual, or not instantly clear, reject it.
 
 Output rules:
 - Output only the surviving candidates
