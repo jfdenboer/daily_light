@@ -49,7 +49,7 @@ def normalize_thumbnail_display_text(text: str) -> str:
     normalised = " ".join(text.replace("\n", " ").split())
     if not normalised:
         return "daily light"
-    return normalised
+    return normalised.lower()
 
 
 def calculate_text_layout_box(canvas_size: tuple[int, int]) -> TextLayoutBox:
