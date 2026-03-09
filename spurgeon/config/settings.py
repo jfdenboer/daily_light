@@ -31,7 +31,7 @@ class Settings(BaseSettings):
         "gpt-image-1.5"
     )
     thumbnail_image_size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1536x1024"
-    thumbnail_image_quality: Literal["low", "medium", "high", "auto"] = "medium"
+    thumbnail_image_quality: Literal["low", "medium", "high", "auto"] = "low"
     thumbnail_image_background: Literal["transparent", "opaque", "auto"] = "opaque"
     thumbnail_intent_card_model: Literal["gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.2"
     thumbnail_intent_card_temperature: float = Field(0.2, ge=0.0, le=2.0)
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     thumbnail_text_generator_temperature: float = Field(0.9, ge=0.0, le=2.0)
     thumbnail_text_judge_temperature: float = Field(0.1, ge=0.0, le=2.0)
     thumbnail_text_selector_temperature: float = Field(0.1, ge=0.0, le=2.0)
-    thumbnail_text_num_candidates: int = Field(8, ge=6, le=10)
+    thumbnail_text_num_candidates: int = Field(10, ge=6, le=10)
     # Optional: determinisme voor promptmodel (gebruikt door prompt_generator indien ingesteld)
     prompt_seed: int | None = Field(default=None, ge=0, env="PROMPT_SEED")
     prompt_subject_tokens: int = Field(90, gt=0)
