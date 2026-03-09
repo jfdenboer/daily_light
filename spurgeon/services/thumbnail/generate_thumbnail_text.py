@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Generate short thumbnail copy using a two-step OpenAI pipeline."""
+"""Generate short thumbnail copy using generate → judge → select."""
 
 import logging
 import re
@@ -12,6 +12,8 @@ from openai import OpenAI, OpenAIError
 from spurgeon.config.settings import Settings
 from spurgeon.models import Reading
 from spurgeon.utils.retry_utils import retry_with_backoff
+
+from .thumbnail_text_judge import ThumbnailTextJudge
 
 logger = logging.getLogger(__name__)
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
@@ -26,6 +28,7 @@ def _load_thumbnail_generator_prompt() -> str:
         raise ThumbnailTextGenerationError(
             "Missing thumbnail generator prompt template: thumbnail_text_generator.v1.txt"
         ) from exc
+
 
 @lru_cache(maxsize=1)
 def _load_thumbnail_selector_prompt() -> str:
@@ -75,6 +78,7 @@ class ThumbnailTextGenerator:
         self.selector_model = settings.thumbnail_text_selector_model
         self.generator_temperature = settings.thumbnail_text_generator_temperature
         self.selector_temperature = settings.thumbnail_text_selector_temperature
+        self.judge = ThumbnailTextJudge(settings, self.client)
         self.num_candidates = settings.thumbnail_text_num_candidates
         self.generator_max_tokens = 120
         self.selector_max_tokens = 16
@@ -91,12 +95,22 @@ class ThumbnailTextGenerator:
 
         def call_openai() -> tuple[str, list[str]]:
             candidates = self._generate_candidates(reading)
-            winner = self._select_candidate(reading, candidates)
+            logger.debug("Raw candidate count from generator: %d", len(candidates))
+            judged_candidates = self.judge.judge_thumbnail_text_candidates(reading, candidates)
+            logger.debug("Candidate count kept by judge: %d", len(judged_candidates))
+            fallback_used = False
+            selector_candidates = judged_candidates
+            if not selector_candidates:
+                fallback_used = True
+                selector_candidates = candidates
+                logger.warning("Thumbnail judge returned no survivors; falling back to unfiltered candidates.")
+            logger.debug("Judge fallback used: %s", fallback_used)
+            winner = self._select_candidate(reading, selector_candidates)
             final_text = self._sanitize_thumbnail_text(winner)
             if not final_text:
                 raise ThumbnailTextGenerationError("Selected thumbnail text sanitized to empty output.")
             logger.debug("Final thumbnail phrase: %r", final_text)
-            return final_text, candidates
+            return final_text, selector_candidates
 
         try:
             return retry_with_backoff(
@@ -276,5 +290,4 @@ class ThumbnailTextGenerator:
 __all__ = [
     "ThumbnailTextGenerator",
     "ThumbnailTextGenerationError",
-    "SYSTEM_PROMPT_THUMBNAIL_GENERATOR",
 ]
