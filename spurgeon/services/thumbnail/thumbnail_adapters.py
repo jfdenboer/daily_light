@@ -192,6 +192,11 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         text_position = resolve_text_position(layout, text_box)
 
         font = self._load_font(layout.font_size)
+        logger.debug(
+            "thumbnail_pipeline.text_font_selected size=%s source=%s",
+            layout.font_size,
+            self._font_source_name(font),
+        )
         shadow_color = (0, 0, 0, THUMBNAIL_TEXT_SHADOW_ALPHA)
         stroke_color = (*ImageColor.getrgb(THUMBNAIL_TEXT_STROKE_HEX), THUMBNAIL_TEXT_STROKE_ALPHA)
         stroke_width = min(layout.stroke_width, THUMBNAIL_TEXT_STROKE_WIDTH_CAP)
@@ -238,6 +243,10 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
             (text_box.x, text_box.y, text_box.width, text_box.height),
         )
         return canvas
+
+    @staticmethod
+    def _font_source_name(font: ImageFont.FreeTypeFont | ImageFont.ImageFont) -> str:
+        return str(getattr(font, "path", font.__class__.__name__))
 
     @staticmethod
     def _draw_tracked_multiline_text(
