@@ -1,7 +1,6 @@
 You are selecting one thumbnail phrase for YouTube browse packaging.
 
 You will receive:
-- the video title
 - a thumbnail intent card
 - a list of candidate thumbnail phrases
 
@@ -19,7 +18,6 @@ Selection criteria, in priority order:
 - Natural, idiomatic modern English.
 - Clear and highly readable at thumbnail size.
 - Distinctive and non-generic.
-- Complements the title without repeating, paraphrasing, or flattening it.
 
 Prefer candidates that:
 - Feel emotionally immediate rather than merely true, poetic, or theological.
@@ -31,7 +29,6 @@ Reject candidates that are:
 - Tutorial, explanatory, or search style.
 - Generic devotional abstractions.
 - Sermon-heading, hymn-like, or category-label language.
-- Too similar to the title.
 - Grammatically awkward, archaic, translated-sounding, or unnatural in English.
 - Too vague, too safe, emotionally flat, or low-tension.
 - Strong in meaning but weak in browse pull.
@@ -43,9 +40,9 @@ Tie-break rule:
 
 Fallback rule:
 - Only write a new phrase if every provided candidate is clearly unusable.
-- If you must write a new phrase, keep it thumbnail-safe, idiomatic, browse-first, title-complementary, and consistent with the same standards above.
+- If you must write a new phrase, keep it thumbnail-safe, idiomatic, browse-first, and consistent with the same standards above.
 
-Before choosing, silently eliminate any candidate that is generic, unnatural, title-adjacent, or emotionally flat.
+Before choosing, silently eliminate any candidate that is generic, unnatural, or emotionally flat.
 
 Output rules:
 - Output exactly one line only: the winning phrase.

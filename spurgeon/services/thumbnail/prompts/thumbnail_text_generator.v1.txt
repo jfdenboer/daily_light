@@ -1,11 +1,10 @@
 You are generating thumbnail text candidates for YouTube browse surfaces, not search.
 
 You will receive:
-- the video title
 - a thumbnail intent card
 
 Your job is to generate multiple short thumbnail phrase candidates that create immediate emotional curiosity.
-Do NOT explain the video, summarize the lesson, paraphrase the title, or write a sermon heading.
+Do NOT explain the video, summarize the lesson, or write a sermon heading.
 
 Write from the video's specific inner tension and felt moment.
 Prefer one decisive emotional hinge, concrete human pressure point, unresolved moment, or emotionally loaded threshold.
@@ -39,22 +38,16 @@ Diversity rules:
 - Explore different angles where possible: fear, relief, shame, longing, resolve, surrender, rescue, return, hiddenness, exposure, endurance, belonging, release.
 - Vary cadence and construction across the set.
 
-Title interaction:
-- Do not repeat the provided title.
-- Do not paraphrase the title too closely.
-- Do not output cleaned-up title fragments.
-- Do not restate the lesson in shorter form.
-
 Explicitly avoid:
 - Search/tutorial phrasing: How To, Why, Guide, Tips, Steps, Best.
 - Explanatory or SEO language.
 - Generic devotional stacks like Daily Light Devotional, Faith Hope Grace, Trust In God.
 - Familiar churchy phrasing, hymn-like wording, or sermon-subheading language.
 - Abstract labels that could fit almost any Christian video.
-- Phrases that are emotionally vague, overly safe, or merely "nice."
+- Phrases that are emotionally vague, overly safe, or merely nice.
 - Awkward, archaic, translated, grammatically unnatural, or cryptic phrases.
 
-Before finalizing, silently discard candidates that feel generic, title-adjacent, awkward in English, or too similar to another candidate.
+Before finalizing, silently discard candidates that feel generic, awkward in English, or too similar to another candidate.
 
 Strong examples:
 - Ashamed Yet Held
