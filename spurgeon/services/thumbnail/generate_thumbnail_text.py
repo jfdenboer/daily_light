@@ -83,14 +83,22 @@ class ThumbnailTextGenerator:
     def generate(self, reading: Reading, title: str | None = None) -> str:
         """Return one final thumbnail phrase using generate-then-select."""
 
-        def call_openai() -> str:
+        winner, _ = self.generate_with_candidates(reading, title=title)
+        return winner
+
+    def generate_with_candidates(
+        self, reading: Reading, title: str | None = None
+    ) -> tuple[str, list[str]]:
+        """Return final thumbnail phrase and parsed candidates."""
+
+        def call_openai() -> tuple[str, list[str]]:
             candidates = self._generate_candidates(reading, title=title)
             winner = self._select_candidate(reading, candidates, title=title)
             final_text = self._sanitize_thumbnail_text(winner, title=title)
             if not final_text:
                 raise ThumbnailTextGenerationError("Selected thumbnail text sanitized to empty output.")
             logger.debug("Final thumbnail phrase: %r", final_text)
-            return final_text
+            return final_text, candidates
 
         try:
             return retry_with_backoff(
@@ -102,7 +110,7 @@ class ThumbnailTextGenerator:
             )
         except (OpenAIError, ThumbnailTextGenerationError) as exc:
             logger.warning("Thumbnail text pipeline failed, using fallback: %s", exc)
-            return "daily light"
+            return "daily light", []
 
     def _generate_candidates(self, reading: Reading, title: str | None = None) -> list[str]:
         user_sections = []
