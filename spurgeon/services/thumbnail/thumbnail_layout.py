@@ -18,6 +18,7 @@ THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE = 138
 THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.010
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 1
 THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.004
+THUMBNAIL_TEXT_SHADOW_MIN_OFFSET = 1
 THUMBNAIL_TEXT_SHADOW_ALPHA = 32
 THUMBNAIL_TEXT_TRACKING_RATIO = 0.015
 THUMBNAIL_TEXT_TRACKING_MIN = 2
@@ -206,7 +207,10 @@ def stroke_width_for_font_size(font_size: int) -> int:
 
 
 def shadow_offset_for_font_size(font_size: int) -> tuple[int, int]:
-    offset = max(2, int(font_size * THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO))
+    offset = max(
+        THUMBNAIL_TEXT_SHADOW_MIN_OFFSET,
+        round(font_size * THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO),
+    )
     return (offset, offset)
 
 
