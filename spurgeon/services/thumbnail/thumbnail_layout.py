@@ -17,8 +17,8 @@ THUMBNAIL_TEXT_FALLBACK_FONT_SIZE = 155
 THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE = 138
 THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.010
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 1
-THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.010
-THUMBNAIL_TEXT_SHADOW_ALPHA = 78
+THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.004
+THUMBNAIL_TEXT_SHADOW_ALPHA = 32
 THUMBNAIL_TEXT_TRACKING_RATIO = 0.015
 THUMBNAIL_TEXT_TRACKING_MIN = 2
 THUMBNAIL_TEXT_TRACKING_MAX = 10
@@ -159,18 +159,42 @@ class ThumbnailTextLayoutEngine:
         line_widths: list[int] = []
         line_heights: list[int] = []
         for line in lines:
-            bbox = self.draw.textbbox((0, 0), line, font=font, stroke_width=stroke_width)
-            width = max(0, bbox[2] - bbox[0])
-            if len(line) > 1:
-                width += tracking * (len(line) - 1)
-            line_widths.append(width)
-            line_heights.append(max(0, bbox[3] - bbox[1]))
+            line_widths.append(
+                self._measure_tracked_line_width(
+                    line,
+                    font=font,
+                    stroke_width=stroke_width,
+                    tracking=tracking,
+                )
+            )
+            line_bbox = self.draw.textbbox((0, 0), line, font=font, stroke_width=stroke_width)
+            line_heights.append(max(0, line_bbox[3] - line_bbox[1]))
 
         total_height = sum(line_heights)
         if len(lines) > 1:
             total_height += spacing * (len(lines) - 1)
 
         return (0, 0, max(line_widths, default=0), total_height)
+
+    def _measure_tracked_line_width(
+        self,
+        line: str,
+        *,
+        font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+        stroke_width: int,
+        tracking: int,
+    ) -> int:
+        if not line:
+            return 0
+
+        width = 0
+        for index, character in enumerate(line):
+            bbox = self.draw.textbbox((0, 0), character, font=font, stroke_width=stroke_width)
+            width += max(0, bbox[2] - bbox[0])
+            if index < len(line) - 1:
+                width += tracking
+
+        return width
 
 
 def line_spacing(font_size: int) -> int:

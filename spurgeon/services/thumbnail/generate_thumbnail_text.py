@@ -123,53 +123,6 @@ class ThumbnailTextGenerator:
         self.generator_max_tokens = 120
         self.selector_max_tokens = 16
 
-        self._search_terms = {"how", "why", "guide", "tips", "steps", "best", "tutorial"}
-        self._generic_terms = {
-            "daily",
-            "light",
-            "devotional",
-            "morning",
-            "evening",
-            "bible",
-            "god",
-        }
-        self._abstract_terms = {
-            "faith",
-            "grace",
-            "hope",
-            "mercy",
-            "peace",
-            "trust",
-            "love",
-            "joy",
-            "renewal",
-            "blessing",
-        }
-        self._signal_terms = {
-            "still",
-            "when",
-            "not",
-            "before",
-            "under",
-            "near",
-            "alone",
-            "shadow",
-            "rest",
-            "waiting",
-            "weary",
-            "broken",
-            "hidden",
-            "holds",
-            "fails",
-            "finds",
-            "return",
-            "dawn",
-            "silence",
-            "stays",
-            "left",
-            "mercy",
-            "strength",
-        }
 
     def generate(self, reading: Reading, title: str | None = None) -> str:
         """Return one final thumbnail phrase using generate-then-select."""
@@ -179,9 +132,7 @@ class ThumbnailTextGenerator:
             winner = self._select_candidate(reading, candidates, title=title)
             final_text = self._sanitize_thumbnail_text(winner, title=title)
             if not final_text:
-                raise ThumbnailTextGenerationError(
-                    "Selected thumbnail text sanitized to empty or weak output."
-                )
+                raise ThumbnailTextGenerationError("Selected thumbnail text sanitized to empty output.")
             logger.debug("Final thumbnail phrase: %r", final_text)
             return final_text
 
@@ -237,20 +188,11 @@ class ThumbnailTextGenerator:
         *,
         title: str | None = None,
     ) -> str:
-        viable_candidates = [c for c in candidates if not self._is_weak_browse_phrase(c, title=title)[0]]
-        logger.debug(
-            "Candidate count before/after quality prefilter: %d -> %d",
-            len(candidates),
-            len(viable_candidates),
-        )
-        if not viable_candidates:
-            raise ThumbnailTextGenerationError("All generated candidates were rejected as weak/generic.")
-
         user_sections = []
         if title:
             user_sections.append(f"Working Video Title:\n{title.strip()}")
         user_sections.append(f"Devotional Text:\n{reading.text}")
-        user_sections.append("Candidates:\n" + "\n".join(viable_candidates))
+        user_sections.append("Candidates:\n" + "\n".join(candidates))
 
         response = self.client.chat.completions.create(
             model=self.selector_model,
@@ -269,21 +211,17 @@ class ThumbnailTextGenerator:
             raise ThumbnailTextGenerationError("Selector output could not be parsed into a winner.")
 
         winner = self._sanitize_thumbnail_text(winner, title=title)
-        if winner and winner in viable_candidates:
+        if winner and winner in candidates:
             logger.debug("Selector winner accepted: %s", winner)
             return winner
 
-        if winner and not self._is_weak_browse_phrase(winner, title=title)[0]:
-            logger.debug("Selector winner accepted after sanitization normalization: %s", winner)
-            return winner
-
-        for candidate in viable_candidates:
+        for candidate in candidates:
             normalized = self._sanitize_thumbnail_text(candidate, title=title)
             if normalized:
-                logger.debug("Selector winner rejected; fallback to best viable candidate: %s", normalized)
+                logger.debug("Selector winner rejected; fallback to best parsed candidate: %s", normalized)
                 return normalized
 
-        raise ThumbnailTextGenerationError("Selector winner invalid and no viable candidates remained.")
+        raise ThumbnailTextGenerationError("Selector winner invalid and no candidates remained.")
 
     def _extract_selector_winner(self, raw_text: str) -> str:
         lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
@@ -370,11 +308,6 @@ class ThumbnailTextGenerator:
         if not candidate:
             return ""
 
-        is_weak, reason = self._is_weak_browse_phrase(candidate, title=title)
-        if is_weak:
-            logger.debug("Rejected weak thumbnail phrase (%s): %s", reason, candidate)
-            return ""
-
         return candidate.strip()
 
     def _shrink_to_char_limit(self, candidate: str, char_limit: int = 24) -> str:
@@ -386,83 +319,11 @@ class ThumbnailTextGenerator:
         compact = " ".join(words)
         return "" if len(compact) > char_limit else compact
 
-    def _title_words(self, text: str) -> set[str]:
-        return {
-            token
-            for token in re.findall(r"[a-z]+", text.lower())
-            if token not in self._SMALL_WORDS and len(token) > 2
-        }
-
-    def _is_weak_browse_phrase(
-        self,
-        candidate: str,
-        *,
-        title: str | None = None,
-    ) -> tuple[bool, str]:
-        lower = candidate.lower()
-        words = lower.split()
-
-        if not words or len(words) > 3:
-            return True, "invalid_length"
-
-        if any(term in words for term in self._search_terms):
-            return True, "search_term"
-        if lower.startswith("how to") or lower.startswith("why "):
-            return True, "tutorial_phrase"
-        if "find" in words and any(word in self._abstract_terms for word in words):
-            return True, "search_like_find"
-
-        if all(word in self._abstract_terms for word in words) and len(words) >= 2:
-            return True, "abstract_stack"
-
-        generic_labels = {
-            "trust in god",
-            "gods mercy",
-            "faith renewal",
-            "morning hope",
-            "devotional peace",
-            "daily light devotional",
-            "morning devotional hope",
-        }
-        if lower in generic_labels:
-            return True, "generic_label"
-
-        if len(words) == 1 and words[0] in self._abstract_terms:
-            return True, "single_bland_abstract"
-
-        if len(words) >= 2 and all(
-            word in self._abstract_terms or word in self._generic_terms for word in words
-        ):
-            return True, "generic_stack"
-
-        if not any(word in self._signal_terms for word in words) and all(
-            word in self._abstract_terms or word in self._generic_terms for word in words
-        ):
-            return True, "low_signal"
-
-        if title:
-            candidate_words = self._title_words(candidate)
-            title_words = self._title_words(title)
-            if candidate_words and title_words:
-                overlap = len(candidate_words & title_words) / len(candidate_words)
-                if candidate_words.issubset(title_words) or overlap >= 0.67:
-                    return True, "title_overlap"
-
-        return False, ""
-
     def _word_priority(self, word: str) -> int:
         lower = word.lower()
         score = 0
-        if lower in self._search_terms:
-            score -= 4
-        if lower in self._generic_terms:
-            score -= 3
         if lower in self._SMALL_WORDS:
             score -= 2
-        if lower in self._abstract_terms:
-            score -= 1
-        if lower in self._signal_terms:
-            score += 3
         if len(lower) <= 2 and lower not in {"he", "me"}:
             score -= 1
         return score
