@@ -5,7 +5,7 @@ You will receive:
 - a list of candidate thumbnail phrases
 
 Your job is to keep only the candidates that are strong enough to be considered by the selector.
-This is a quality filter, not a ranking step and not a winner-selection step.
+This is a strict quality filter, not a ranking step and not a winner-selection step.
 
 Do NOT rewrite candidates.
 Do NOT improve candidates.
@@ -13,9 +13,8 @@ Do NOT combine candidates.
 Do NOT explain your decisions.
 Do NOT choose a single winner.
 
-Keep all candidates that are clean, natural, emotionally usable, and plausible for final selection.
-Only remove candidates that clearly fail the standards below.
-When in doubt between keep and reject, keep the candidate.
+Keep only candidates that are clearly strong enough for final selection.
+Remove any candidate that feels doubtful, awkward, weak, overly devotional, or hard to grasp at a glance.
 
 Keep only candidates that are:
 - natural, idiomatic modern English
@@ -23,24 +22,38 @@ Keep only candidates that are:
 - emotionally immediate
 - browse-first
 - compact and easy to read on a thumbnail
+- clean and strong enough to compete in final selection
 - not clearly mismatched to the intent card
-- distinctive enough to be worth selector consideration
 
 Reject candidates that are:
 - broken, truncated, or grammatically damaged
-- awkward, unnatural, archaic, translated-sounding, or pseudo-poetic in a bad way
+- awkward even if technically grammatical
+- unnatural, archaic, translated-sounding, stiff, or pseudo-poetic
 - artificially compressed or written in a way a native speaker would need to mentally repair
-- built from unnatural noun/verb pairings or strange word order
-- generic devotional abstractions
-- sermon-heading, hymn-like, or category-label language
+- built from unnatural noun/verb pairings, strange wording, or odd phrasing
+- sermon-heading, hymn-like, category-label, or devotional-subheading language
+- broad churchy phrasing that feels like insider language rather than browse copy
 - emotionally flat
 - too vague
+- low-glance readability
+- hard to scan quickly on a thumbnail
 - repetitive relative to other candidates
 - strong in meaning but weak in browse pull
-- broad churchy phrasing that feels like insider language rather than browse copy
 
-Prefer clean natural English over dramatic but malformed wording.
-Prefer modern, instantly graspable phrasing over poetic compression.
+Be especially strict about rejecting:
+- awkward-but-grammatical phrases
+- sermon-ish phrasing
+- pseudo-poetic formulations
+- candidates that feel less natural than something a modern native speaker would instantly say or understand
+- candidates that take extra effort to parse at thumbnail speed
+
+Prefer:
+- clean, modern, emotionally sharp phrasing
+- immediate scanability over poetic ambition
+- natural English over elevated devotional tone
+- simple strong wording over clever but strained wording
+
+If a candidate feels doubtful, strained, overly churchy, or not instantly clear, reject it.
 
 Output rules:
 - Output only the surviving candidates
