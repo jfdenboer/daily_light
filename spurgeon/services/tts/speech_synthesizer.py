@@ -135,8 +135,9 @@ class SpeechSynthesizer:
         intro_path = intro_dir / f"{reading.slug}_intro{output_extension}"
 
         pause_pre_intro_ms, pause_between_ms, pause_after_credit_ms = self._intro_pause_durations_ms()
-        self._synthesize_plain_text(hook_text, hook_path, force=force)
-        self._synthesize_plain_text(credit_text, credit_path, force=force)
+        intro_voice_id = getattr(self.settings, "intro_voice_id", None)
+        self._synthesize_plain_text(hook_text, hook_path, force=force, voice_id=intro_voice_id)
+        self._synthesize_plain_text(credit_text, credit_path, force=force, voice_id=intro_voice_id)
         self._generate_silence(
             pause0_path,
             duration_ms=pause_pre_intro_ms,
@@ -168,7 +169,8 @@ class SpeechSynthesizer:
         intro_path = intro_dir / f"{reading.slug}_intro_credit_only{output_extension}"
 
         pause_pre_intro_ms, _, pause_after_credit_ms = self._intro_pause_durations_ms()
-        self._synthesize_plain_text(credit_text, credit_path, force=force)
+        intro_voice_id = getattr(self.settings, "intro_voice_id", None)
+        self._synthesize_plain_text(credit_text, credit_path, force=force, voice_id=intro_voice_id)
         self._generate_silence(
             pause0_path,
             duration_ms=pause_pre_intro_ms,
@@ -182,14 +184,21 @@ class SpeechSynthesizer:
         self._concat_audio_files([pause0_path, credit_path, pause2_path], intro_path)
         return intro_path, self._probe_duration_seconds(intro_path)
 
-    def _synthesize_plain_text(self, text: str, out_path: Path, *, force: bool) -> Path:
+    def _synthesize_plain_text(
+        self,
+        text: str,
+        out_path: Path,
+        *,
+        force: bool,
+        voice_id: str | None = None,
+    ) -> Path:
         cache_enabled = bool(getattr(self.settings, "intro_cache_enabled", True))
         fingerprint = self._text_fingerprint(text)
         fingerprint_path = self._fingerprint_path(out_path)
         if out_path.exists() and not force and cache_enabled and self._is_cache_hit(fingerprint_path, fingerprint):
             return out_path
         tmp_path = out_path.with_suffix(f"{out_path.suffix}.tmp")
-        tmp_path.write_bytes(self._synthesize_text(text))
+        tmp_path.write_bytes(self._synthesize_text(text, voice_id=voice_id))
         tmp_path.replace(out_path)
         self._write_fingerprint(fingerprint_path, fingerprint)
         return out_path
@@ -274,7 +283,7 @@ class SpeechSynthesizer:
             raise RuntimeError(f"Unable to read duration for {audio_path}: {result.stderr.strip()}")
         return float(result.stdout.strip())
 
-    def _synthesize_text(self, text: str) -> bytes:
+    def _synthesize_text(self, text: str, *, voice_id: str | None = None) -> bytes:
         if not text.strip():
             raise ValueError("Lege tekst kan niet gesynthetiseerd worden")
 
@@ -292,14 +301,16 @@ class SpeechSynthesizer:
                 hard_limit=self.settings.elevenlabs_v3_max_chars,
                 target=target,
             )
-            return self._synthesize_chunks(chunks, format_info)
+            return self._synthesize_chunks(chunks, format_info, voice_id=voice_id)
 
-        return self.tts_client.synthesize(text)
+        return self.tts_client.synthesize(text, voice_id=voice_id)
 
     def _synthesize_chunks(
         self,
         chunks: list[str],
         final_format: OutputFormatInfo,
+        *,
+        voice_id: str | None = None,
     ) -> bytes:
         chunk_format_name = self._determine_chunk_format(final_format)
         chunk_format = parse_output_format(chunk_format_name)
@@ -309,6 +320,7 @@ class SpeechSynthesizer:
             data = self.tts_client.synthesize(
                 chunk,
                 output_format=chunk_format_name,
+                voice_id=voice_id,
             )
             chunk_audio.append(data)
 
