@@ -71,14 +71,13 @@ class ThumbnailGenerator:
         self,
         reading: Reading,
         *,
-        title: str,
         hero_image: Path | None = None,
         thumbnail_text: str | None = None,
     ) -> Path | None:
         del hero_image  # reserved for future use
 
         try:
-            return self.service.generate(reading, title=title, thumbnail_text=thumbnail_text)
+            return self.service.generate(reading, thumbnail_text=thumbnail_text or "daily light")
         except Exception as exc:
             if isinstance(exc, ThumbnailGenerationError):
                 raise

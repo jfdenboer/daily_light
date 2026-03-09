@@ -72,15 +72,15 @@ class ThumbnailService:
         self.renderer = renderer
         self.repository = repository
 
-    def generate(self, reading: "Reading", *, title: str, thumbnail_text: str | None = None) -> Path | None:
+    def generate(self, reading: "Reading", *, thumbnail_text: str) -> Path | None:
         if not self.settings.thumbnail_enabled:
             logger.info("Thumbnail generation disabled by configuration")
             return None
 
-        text = thumbnail_text or title
+        text = thumbnail_text
         fingerprint = self.build_fingerprint(
             reading=reading,
-            title=text,
+            thumbnail_text=text,
             prompt_version=self.settings.thumbnail_prompt_version,
         )
 
@@ -91,7 +91,7 @@ class ThumbnailService:
         log_thumbnail_event(
             ThumbnailEvent.START,
             slug=reading.slug,
-            title=text,
+            thumbnail_text=text,
             reading_type=reading.reading_type.value,
         )
 
@@ -206,7 +206,7 @@ class ThumbnailService:
         log_thumbnail_event(ThumbnailEvent.QUALITY_GATE_PASSED, slug=slug)
 
     @staticmethod
-    def build_fingerprint(*, reading: "Reading", title: str, prompt_version: str) -> str:
+    def build_fingerprint(*, reading: "Reading", thumbnail_text: str, prompt_version: str) -> str:
         """Build a deterministic cache fingerprint for the thumbnail request."""
 
         reading_text_hash = hashlib.sha256(reading.text.encode("utf-8")).hexdigest()
@@ -216,7 +216,7 @@ class ThumbnailService:
                 prompt_version,
                 reading.slug,
                 reading.reading_type.value,
-                title.strip(),
+                thumbnail_text.strip(),
                 reading_text_hash,
             ]
         )

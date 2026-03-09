@@ -80,21 +80,19 @@ class ThumbnailTextGenerator:
         self.selector_max_tokens = 16
 
 
-    def generate(self, reading: Reading, title: str | None = None) -> str:
+    def generate(self, reading: Reading) -> str:
         """Return one final thumbnail phrase using generate-then-select."""
 
-        winner, _ = self.generate_with_candidates(reading, title=title)
+        winner, _ = self.generate_with_candidates(reading)
         return winner
 
-    def generate_with_candidates(
-        self, reading: Reading, title: str | None = None
-    ) -> tuple[str, list[str]]:
+    def generate_with_candidates(self, reading: Reading) -> tuple[str, list[str]]:
         """Return final thumbnail phrase and parsed candidates."""
 
         def call_openai() -> tuple[str, list[str]]:
-            candidates = self._generate_candidates(reading, title=title)
-            winner = self._select_candidate(reading, candidates, title=title)
-            final_text = self._sanitize_thumbnail_text(winner, title=title)
+            candidates = self._generate_candidates(reading)
+            winner = self._select_candidate(reading, candidates)
+            final_text = self._sanitize_thumbnail_text(winner)
             if not final_text:
                 raise ThumbnailTextGenerationError("Selected thumbnail text sanitized to empty output.")
             logger.debug("Final thumbnail phrase: %r", final_text)
@@ -112,11 +110,8 @@ class ThumbnailTextGenerator:
             logger.warning("Thumbnail text pipeline failed, using fallback: %s", exc)
             return "daily light", []
 
-    def _generate_candidates(self, reading: Reading, title: str | None = None) -> list[str]:
-        user_sections = []
-        if title:
-            user_sections.append(f"Working Video Title:\n{title.strip()}")
-        user_sections.append(f"Devotional Text:\n{reading.text}")
+    def _generate_candidates(self, reading: Reading) -> list[str]:
+        user_sections = [f"Devotional Text:\n{reading.text}"]
 
         response = self.client.chat.completions.create(
             model=self.generator_model,
@@ -135,7 +130,7 @@ class ThumbnailTextGenerator:
 
         raw_output = response.choices[0].message.content or ""
         logger.debug("Raw thumbnail generator output: %r", raw_output)
-        candidates = self._parse_candidates(raw_output, title=title)
+        candidates = self._parse_candidates(raw_output)
         logger.debug("Parsed valid thumbnail candidates (%d): %s", len(candidates), candidates)
 
         if len(candidates) < 3:
@@ -149,13 +144,8 @@ class ThumbnailTextGenerator:
         self,
         reading: Reading,
         candidates: list[str],
-        *,
-        title: str | None = None,
     ) -> str:
-        user_sections = []
-        if title:
-            user_sections.append(f"Working Video Title:\n{title.strip()}")
-        user_sections.append(f"Devotional Text:\n{reading.text}")
+        user_sections = [f"Devotional Text:\n{reading.text}"]
         user_sections.append("Candidates:\n" + "\n".join(candidates))
 
         response = self.client.chat.completions.create(
@@ -174,13 +164,13 @@ class ThumbnailTextGenerator:
         if not winner:
             raise ThumbnailTextGenerationError("Selector output could not be parsed into a winner.")
 
-        winner = self._sanitize_thumbnail_text(winner, title=title)
+        winner = self._sanitize_thumbnail_text(winner)
         if winner and winner in candidates:
             logger.debug("Selector winner accepted: %s", winner)
             return winner
 
         for candidate in candidates:
-            normalized = self._sanitize_thumbnail_text(candidate, title=title)
+            normalized = self._sanitize_thumbnail_text(candidate)
             if normalized:
                 logger.debug("Selector winner rejected; fallback to best parsed candidate: %s", normalized)
                 return normalized
@@ -195,7 +185,7 @@ class ThumbnailTextGenerator:
         first_line = re.sub(r"^(?:winner\s*:\s*)", "", first_line, flags=re.IGNORECASE)
         return first_line.strip()
 
-    def _parse_candidates(self, raw_text: str, title: str | None = None) -> list[str]:
+    def _parse_candidates(self, raw_text: str) -> list[str]:
         parsed: list[str] = []
         seen: set[str] = set()
         for line in raw_text.splitlines():
@@ -204,7 +194,7 @@ class ThumbnailTextGenerator:
                 continue
             cleaned = re.sub(r"^[-*•]+\s*", "", cleaned)
             cleaned = re.sub(r"^\d+[\.)]\s*", "", cleaned)
-            sanitized = self._sanitize_thumbnail_text(cleaned, title=title)
+            sanitized = self._sanitize_thumbnail_text(cleaned)
             if not sanitized:
                 continue
             key = self._normalize_for_dedup(sanitized)
@@ -217,7 +207,7 @@ class ThumbnailTextGenerator:
     def _normalize_for_dedup(self, text: str) -> str:
         return re.sub(r"[^a-z]", "", text.lower())
 
-    def _sanitize_thumbnail_text(self, raw_text: str, title: str | None = None) -> str:
+    def _sanitize_thumbnail_text(self, raw_text: str) -> str:
         """Normalise *raw_text* to comply with thumbnail constraints."""
 
         lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
