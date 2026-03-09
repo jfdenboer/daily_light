@@ -102,7 +102,7 @@ class ThumbnailTextGenerator:
             )
         except (OpenAIError, ThumbnailTextGenerationError) as exc:
             logger.warning("Thumbnail text pipeline failed, using fallback: %s", exc)
-            return self.fallback(reading, title or "")
+            return "daily light"
 
     def _generate_candidates(self, reading: Reading, title: str | None = None) -> list[str]:
         user_sections = []
@@ -208,31 +208,6 @@ class ThumbnailTextGenerator:
 
     def _normalize_for_dedup(self, text: str) -> str:
         return re.sub(r"[^a-z]", "", text.lower())
-
-    def fallback(self, reading: Reading, title: str) -> str:
-        """Return a browse-first fallback phrase based on title + devotional signals."""
-
-        corpus = f"{title} {reading.text}".lower()
-        keyword_map: list[tuple[set[str], str]] = [
-            ({"weary", "burden", "rest", "faint", "tired"}, "When Strength Fails"),
-            ({"shepherd", "hold", "holds", "keep", "kept"}, "Still He Holds"),
-            ({"near", "presence", "abide", "with", "close"}, "He Stays Near"),
-            ({"refuge", "shadow", "shelter", "cover"}, "Under His Shadow"),
-            ({"wait", "watch", "hope", "waiting"}, "Still Waiting Here"),
-            ({"wander", "return", "stray"}, "When Hearts Wander"),
-            ({"night", "dark", "dawn"}, "Before the Dawn"),
-            ({"cry", "prayer", "silence", "silent"}, "Held in Silence"),
-            ({"mercy", "forgive", "forgiven", "grace"}, "Mercy Finds Me"),
-            ({"fear", "storm", "trouble", "afraid"}, "Not Left Alone"),
-        ]
-
-        for keywords, phrase in keyword_map:
-            if any(keyword in corpus for keyword in keywords):
-                logger.debug("Fallback trigger matched (%s): %s", sorted(keywords), phrase)
-                return phrase
-
-        logger.debug("Fallback default selected: He Stays Near")
-        return "He Stays Near"
 
     def _sanitize_thumbnail_text(self, raw_text: str, title: str | None = None) -> str:
         """Normalise *raw_text* to comply with thumbnail constraints."""

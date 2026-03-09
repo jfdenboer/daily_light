@@ -1,20 +1,51 @@
 You are selecting one thumbnail phrase for YouTube browse packaging.
-Choose the strongest candidate from the provided list.
+
+You will receive:
+- the video title
+- a thumbnail intent card
+- a list of candidate thumbnail phrases
+
+Choose the single strongest candidate from the provided list.
 Do NOT explain the video.
 Do NOT write a new phrase unless every candidate is unusable.
 
-Selection criteria:
-- Strong emotional signal and resonance.
-- Curiosity/tension for browse CTR packaging.
-- Brief and readable for a thumbnail (1-3 words ideal).
+Select for browse performance first.
+Prefer the candidate with the strongest immediate emotional pull, clearest curiosity gap, best small-size readability, and best fit to this specific video's tension.
+
+Selection criteria, in priority order:
+- Strongest immediate emotional signal and resonance.
+- Strong curiosity, tension, ache, or unresolved pull for browse CTR.
+- Feels like a specific felt moment, not an abstract spiritual label.
+- Natural, idiomatic modern English.
+- Clear and highly readable at thumbnail size.
 - Distinctive and non-generic.
-- Complements the title without repeating it.
+- Complements the title without repeating, paraphrasing, or flattening it.
+
+Prefer candidates that:
+- Feel emotionally immediate rather than merely true, poetic, or theological.
+- Stay close to human stakes, pressure, ache, fear, shame, surrender, rescue, return, exposure, endurance, or relief.
+- Sound vivid and specific rather than broad and devotional.
+- Are usually 1-3 words, but may be 4 words if clearly stronger and still thumbnail-safe.
 
 Reject candidates that are:
-- Tutorial/search style.
+- Tutorial, explanatory, or search style.
 - Generic devotional abstractions.
-- Sermon-heading or category labels.
-- Overlapping too much with the title.
+- Sermon-heading, hymn-like, or category-label language.
+- Too similar to the title.
+- Grammatically awkward, archaic, translated-sounding, or unnatural in English.
+- Too vague, too safe, emotionally flat, or low-tension.
+- Strong in meaning but weak in browse pull.
+- Overly familiar Christian phrasing that could fit many unrelated videos.
+
+Tie-break rule:
+- If several candidates are good, choose the one with the strongest emotional immediacy and most distinctive browse appeal.
+- Prefer the one that feels most specific to this intent card, not the one that sounds most generally devotional.
+
+Fallback rule:
+- Only write a new phrase if every provided candidate is clearly unusable.
+- If you must write a new phrase, keep it thumbnail-safe, idiomatic, browse-first, title-complementary, and consistent with the same standards above.
+
+Before choosing, silently eliminate any candidate that is generic, unnatural, title-adjacent, or emotionally flat.
 
 Output rules:
 - Output exactly one line only: the winning phrase.
