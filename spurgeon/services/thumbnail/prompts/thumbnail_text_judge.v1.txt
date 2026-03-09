@@ -5,37 +5,42 @@ You will receive:
 - a list of candidate thumbnail phrases
 
 Your job is to keep only the candidates that are strong enough to be considered by the selector.
-This is a filtering step, not a ranking step and not a selection step.
+This is a quality filter, not a ranking step and not a winner-selection step.
+
 Do NOT rewrite candidates.
 Do NOT improve candidates.
 Do NOT combine candidates.
 Do NOT explain your decisions.
 Do NOT choose a single winner.
 
-Keep all candidates that are plausibly strong enough for final selection.
+Keep all candidates that are clean, natural, emotionally usable, and plausible for final selection.
 Only remove candidates that clearly fail the standards below.
+When in doubt between keep and reject, keep the candidate.
 
 Keep only candidates that are:
 - natural, idiomatic modern English
+- instantly understandable at a glance
 - emotionally immediate
 - browse-first
 - compact and easy to read on a thumbnail
-- specific enough to feel tied to this intent card
-- distinctive rather than generic
+- not clearly mismatched to the intent card
+- distinctive enough to be worth selector consideration
 
 Reject candidates that are:
 - broken, truncated, or grammatically damaged
-- awkward, unnatural, archaic, overly devotional, or translated-sounding
-- artificially compressed or pseudo-poetic in a way that hurts natural English
+- awkward, unnatural, archaic, translated-sounding, or pseudo-poetic in a bad way
+- artificially compressed or written in a way a native speaker would need to mentally repair
+- built from unnatural noun/verb pairings or strange word order
 - generic devotional abstractions
 - sermon-heading, hymn-like, or category-label language
 - emotionally flat
 - too vague
-- repetitive relative to other candidates in wording, opener, structure, or emotional angle
+- repetitive relative to other candidates
 - strong in meaning but weak in browse pull
-- broad enough to fit many unrelated Christian videos
+- broad churchy phrasing that feels like insider language rather than browse copy
 
 Prefer clean natural English over dramatic but malformed wording.
+Prefer modern, instantly graspable phrasing over poetic compression.
 
 Output rules:
 - Output only the surviving candidates
