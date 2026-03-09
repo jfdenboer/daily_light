@@ -75,7 +75,12 @@ def _load_readings(input_dir: Path, *, year: int) -> list[Reading]:
     return january_readings
 
 
-def _format_entry(reading: Reading, intent_card, thumbnail_text: str) -> str:
+def _format_entry(
+    reading: Reading,
+    intent_card,
+    thumbnail_text: str,
+    candidates: list[str],
+) -> str:
     reading_type = reading.reading_type.value.lower()
     lines = [
         f"datum: {reading.date.isoformat()}",
@@ -87,7 +92,9 @@ def _format_entry(reading: Reading, intent_card, thumbnail_text: str) -> str:
         f"4) scene_direction: {intent_card.scene_direction}",
         f"5) open_loop: {intent_card.open_loop}",
         f"6) avoid: {intent_card.avoid}",
-        f"thumbnail tekst: {thumbnail_text}",
+        "thumbnail kandidaten:",
+        *(f"- {candidate}" for candidate in candidates),
+        f"thumbnail winnaar: {thumbnail_text}",
     ]
     return "\n".join(lines)
 
@@ -105,7 +112,7 @@ def main() -> None:
 
     output_chunks: list[str] = []
     for reading in readings:
-        thumbnail_text = text_generator.generate(reading)
+        thumbnail_text, candidates = text_generator.generate_with_candidates(reading)
 
         try:
             intent_card = intent_provider.generate(reading, thumbnail_text=thumbnail_text)
@@ -113,7 +120,9 @@ def main() -> None:
             raise RuntimeError(
                 f"Intent card generatie faalde voor {reading.slug}: {exc}"
             ) from exc
-        output_chunks.append(_format_entry(reading, intent_card, thumbnail_text))
+        output_chunks.append(
+            _format_entry(reading, intent_card, thumbnail_text, candidates)
+        )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n\n---\n\n".join(output_chunks) + "\n", encoding="utf-8")
