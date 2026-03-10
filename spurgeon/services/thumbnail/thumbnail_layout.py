@@ -27,7 +27,10 @@ THUMBNAIL_TEXT_TRACKING_RATIO = 0.005
 THUMBNAIL_TEXT_TRACKING_MIN = 0
 THUMBNAIL_TEXT_TRACKING_MAX = 2
 THUMBNAIL_THREE_WORD_ONE_LINE_MAX_COMFORT_RATIO = 0.84
+THUMBNAIL_THREE_WORD_ONE_LINE_HARD_LIMIT_RATIO = 0.96
 THUMBNAIL_WIDTH_UTILIZATION_IDEAL_RATIO = 0.74
+THUMBNAIL_THREE_WORD_SHORT_ORPHAN_MAX_CHARS = 3
+THUMBNAIL_THREE_WORD_ORPHAN_PENALTY = 0.45
 
 
 @dataclass(frozen=True)
@@ -139,7 +142,15 @@ class ThumbnailTextLayoutEngine:
             one_line_ratio = self._one_line_widest_ratio(measured_layouts, text_box)
             preferred_line_count = self._preferred_line_count(word_count, one_line_ratio)
             scored_candidates = [
-                (self._score_layout_choice(layout, text_box, preferred_line_count=preferred_line_count), layout)
+                (
+                    self._score_layout_choice(
+                        layout,
+                        text_box,
+                        preferred_line_count=preferred_line_count,
+                        word_count=word_count,
+                    ),
+                    layout,
+                )
                 for layout in measured_layouts
             ]
             return max(scored_candidates, key=lambda item: item[0])[1]
@@ -169,6 +180,9 @@ class ThumbnailTextLayoutEngine:
         for split_index in range(1, total_words):
             first_words = words[:split_index]
             second_words = words[split_index:]
+
+            if total_words == 3 and self._has_short_single_word_orphan(first_words, second_words):
+                continue
 
             if total_words >= 4 and min(len(first_words), len(second_words)) == 1:
                 orphan = first_words[0] if len(first_words) == 1 else second_words[0]
@@ -200,6 +214,7 @@ class ThumbnailTextLayoutEngine:
         text_box: TextLayoutBox,
         *,
         preferred_line_count: int,
+        word_count: int,
     ) -> tuple[float, ...]:
         line_preference = 1.0 if layout.line_count == preferred_line_count else 0.0
 
@@ -213,6 +228,8 @@ class ThumbnailTextLayoutEngine:
             max_width = max(line_widths)
             if max_width > 0:
                 balance_score = 1.0 - (abs(line_widths[0] - line_widths[1]) / max_width)
+            if word_count == 3 and self._has_single_word_orphan(layout.text):
+                balance_score = max(0.0, balance_score - THUMBNAIL_THREE_WORD_ORPHAN_PENALTY)
 
         return (line_preference, width_utilization, balance_score, float(layout.font_size))
 
@@ -222,8 +239,24 @@ class ThumbnailTextLayoutEngine:
         if word_count == 3:
             if one_line_ratio is None:
                 return 2
-            return 2 if one_line_ratio > THUMBNAIL_THREE_WORD_ONE_LINE_MAX_COMFORT_RATIO else 1
+            if one_line_ratio <= THUMBNAIL_THREE_WORD_ONE_LINE_MAX_COMFORT_RATIO:
+                return 1
+            return 2 if one_line_ratio > THUMBNAIL_THREE_WORD_ONE_LINE_HARD_LIMIT_RATIO else 1
         return 1
+
+    def _has_single_word_orphan(self, layout_text: str) -> bool:
+        lines = [line.strip() for line in layout_text.split("\n") if line.strip()]
+        if len(lines) != 2:
+            return False
+        split_words = [line.split() for line in lines]
+        return self._has_short_single_word_orphan(split_words[0], split_words[1])
+
+    def _has_short_single_word_orphan(self, first_words: list[str], second_words: list[str]) -> bool:
+        if len(first_words) == 1:
+            return len(first_words[0]) <= THUMBNAIL_THREE_WORD_SHORT_ORPHAN_MAX_CHARS
+        if len(second_words) == 1:
+            return len(second_words[0]) <= THUMBNAIL_THREE_WORD_SHORT_ORPHAN_MAX_CHARS
+        return False
 
     def _one_line_widest_ratio(
         self,
