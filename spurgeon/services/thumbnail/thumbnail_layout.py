@@ -8,10 +8,12 @@ from typing import Callable
 
 from PIL import ImageDraw, ImageFont
 
-THUMBNAIL_TEXT_HORIZONTAL_MARGIN_FRACTION = 0.08
-THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.08
-THUMBNAIL_TEXT_CENTER_ZONE_HEIGHT_FRACTION = 0.34
-THUMBNAIL_TEXT_MAX_LINES = 1
+THUMBNAIL_TEXT_HORIZONTAL_MARGIN_FRACTION = 0.10
+THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.12
+THUMBNAIL_TEXT_COLUMN_WIDTH_FRACTION = 0.41
+THUMBNAIL_TEXT_CENTER_ZONE_HEIGHT_FRACTION = 0.42
+THUMBNAIL_TEXT_VERTICAL_CENTER_BIAS_FRACTION = 0.04
+THUMBNAIL_TEXT_MAX_LINES = 2
 THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.10
 THUMBNAIL_TEXT_FONT_SIZE = 160
 THUMBNAIL_TEXT_FALLBACK_FONT_SIZE = 140
@@ -79,7 +81,9 @@ def calculate_text_layout_box(canvas_size: tuple[int, int]) -> TextLayoutBox:
     width, height = canvas_size
     horizontal_margin = int(width * THUMBNAIL_TEXT_HORIZONTAL_MARGIN_FRACTION)
     vertical_margin = int(height * THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION)
-    max_text_width = width - (horizontal_margin * 2)
+    max_text_width = int(width * THUMBNAIL_TEXT_COLUMN_WIDTH_FRACTION)
+    max_allowed_text_width = width - (horizontal_margin * 2)
+    text_width = min(max_text_width, max_allowed_text_width)
     max_center_zone_height = max(100, height - (vertical_margin * 2))
     center_zone_height = min(
         max(100, int(height * THUMBNAIL_TEXT_CENTER_ZONE_HEIGHT_FRACTION)),
@@ -89,7 +93,7 @@ def calculate_text_layout_box(canvas_size: tuple[int, int]) -> TextLayoutBox:
     return TextLayoutBox(
         x=horizontal_margin,
         y=center_zone_y,
-        width=max(320, max_text_width),
+        width=max(320, text_width),
         height=center_zone_height,
     )
 
@@ -108,7 +112,10 @@ class ThumbnailTextLayoutEngine:
         display_text: str,
         text_box: TextLayoutBox,
     ) -> TextLayoutChoice:
-        layout_candidates = [display_text.replace("\n", " ")]
+        base_text = display_text.replace("\n", " ").strip()
+        layout_candidates = self._build_layout_candidates(base_text)
+        prefer_two_line = len(base_text.split()) >= 3
+        measured_candidates: list[tuple[tuple[float, ...], TextLayoutChoice]] = []
 
         for candidate in layout_candidates:
             if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
@@ -124,7 +131,19 @@ class ThumbnailTextLayoutEngine:
                 ),
             )
             if measured is not None:
-                return measured
+                measured_candidates.append(
+                    (
+                        self._score_layout_choice(
+                            measured,
+                            text_box,
+                            prefer_two_line=prefer_two_line,
+                        ),
+                        measured,
+                    )
+                )
+
+        if measured_candidates:
+            return max(measured_candidates, key=lambda item: item[0])[1]
 
         fallback_text = layout_candidates[0]
         fallback_font_size = THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE
@@ -139,6 +158,84 @@ class ThumbnailTextLayoutEngine:
             shadow_offset=shadow_offset_for_font_size(fallback_font_size),
             tracking=tracking_for_font_size(fallback_font_size),
         )
+
+    def _build_layout_candidates(self, base_text: str) -> list[str]:
+        words = [word for word in base_text.split(" ") if word]
+        if len(words) <= 2:
+            return [" ".join(words)]
+
+        one_line = " ".join(words)
+        split_candidates: list[tuple[tuple[int, int, int], str]] = []
+        total_words = len(words)
+        for split_index in range(1, total_words):
+            first_words = words[:split_index]
+            second_words = words[split_index:]
+
+            if total_words >= 4 and min(len(first_words), len(second_words)) == 1:
+                orphan = first_words[0] if len(first_words) == 1 else second_words[0]
+                if len(orphan) <= 3:
+                    continue
+
+            first_line = " ".join(first_words)
+            second_line = " ".join(second_words)
+
+            char_balance = abs(len(first_line) - len(second_line))
+            word_balance = abs(len(first_words) - len(second_words))
+            orphan_penalty = int(len(first_words) == 1 or len(second_words) == 1)
+            split_candidates.append(
+                ((orphan_penalty, word_balance, char_balance), f"{first_line}\n{second_line}")
+            )
+
+        ordered_splits = [candidate for _, candidate in sorted(split_candidates)]
+        if not ordered_splits:
+            return [one_line]
+
+        preferred_splits = ordered_splits[:3]
+        if total_words <= 5:
+            return [*preferred_splits, one_line]
+        return [one_line, *preferred_splits]
+
+    def _score_layout_choice(
+        self,
+        layout: TextLayoutChoice,
+        text_box: TextLayoutBox,
+        *,
+        prefer_two_line: bool,
+    ) -> tuple[float, ...]:
+        line_preference = 1.0 if (prefer_two_line and layout.line_count == 2) else 0.0
+        if not prefer_two_line:
+            line_preference = 1.0 if layout.line_count == 1 else 0.0
+
+        stroke_width = layout.stroke_width
+        line_widths = self._line_widths_for_layout_text(layout.text, layout.font_size, stroke_width)
+        widest_ratio = (max(line_widths, default=0) / text_box.width) if text_box.width else 0
+        width_utilization = 1.0 - abs(0.72 - widest_ratio)
+
+        balance_score = 1.0
+        if layout.line_count == 2 and len(line_widths) == 2:
+            max_width = max(line_widths)
+            if max_width > 0:
+                balance_score = 1.0 - (abs(line_widths[0] - line_widths[1]) / max_width)
+
+        return (float(layout.font_size), line_preference, width_utilization, balance_score)
+
+    def _line_widths_for_layout_text(
+        self,
+        text: str,
+        font_size: int,
+        stroke_width: int,
+    ) -> list[int]:
+        font = self.font_loader(font_size)
+        tracking = tracking_for_font_size(font_size)
+        return [
+            self._measure_tracked_line_width(
+                line,
+                font=font,
+                stroke_width=stroke_width,
+                tracking=tracking,
+            )
+            for line in text.split("\n")
+        ]
 
     def fit_fixed_font_sizes(
         self,
@@ -246,14 +343,10 @@ def resolve_text_position(
     layout: TextLayoutChoice,
     text_box: TextLayoutBox,
 ) -> tuple[int, int]:
-    centered_x = text_box.x + int((text_box.width - layout.block_size[0]) / 2)
-    editorial_left_shift = int(text_box.width * 0.03)
-    x = centered_x - editorial_left_shift
-    min_x = text_box.x
-    max_x = text_box.x + text_box.width - layout.block_size[0]
-    x = max(min_x, min(x, max_x))
+    x = text_box.x
     centered_y = text_box.y + int((text_box.height - layout.block_size[1]) / 2)
-    y = centered_y
+    editorial_bias = int(text_box.height * THUMBNAIL_TEXT_VERTICAL_CENTER_BIAS_FRACTION)
+    y = centered_y + editorial_bias
     min_y = text_box.y
     max_y = text_box.y + text_box.height - layout.block_size[1]
     return (x, max(min_y, min(y, max_y)))
