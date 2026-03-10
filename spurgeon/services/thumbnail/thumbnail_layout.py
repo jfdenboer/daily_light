@@ -26,6 +26,8 @@ THUMBNAIL_TEXT_SHADOW_ALPHA = 28
 THUMBNAIL_TEXT_TRACKING_RATIO = 0.005
 THUMBNAIL_TEXT_TRACKING_MIN = 0
 THUMBNAIL_TEXT_TRACKING_MAX = 2
+THUMBNAIL_THREE_WORD_ONE_LINE_MAX_COMFORT_RATIO = 0.84
+THUMBNAIL_WIDTH_UTILIZATION_IDEAL_RATIO = 0.74
 
 
 @dataclass(frozen=True)
@@ -114,8 +116,8 @@ class ThumbnailTextLayoutEngine:
     ) -> TextLayoutChoice:
         base_text = display_text.replace("\n", " ").strip()
         layout_candidates = self._build_layout_candidates(base_text)
-        prefer_two_line = len(base_text.split()) >= 3
-        measured_candidates: list[tuple[tuple[float, ...], TextLayoutChoice]] = []
+        word_count = len(base_text.split())
+        measured_layouts: list[TextLayoutChoice] = []
 
         for candidate in layout_candidates:
             if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
@@ -131,19 +133,16 @@ class ThumbnailTextLayoutEngine:
                 ),
             )
             if measured is not None:
-                measured_candidates.append(
-                    (
-                        self._score_layout_choice(
-                            measured,
-                            text_box,
-                            prefer_two_line=prefer_two_line,
-                        ),
-                        measured,
-                    )
-                )
+                measured_layouts.append(measured)
 
-        if measured_candidates:
-            return max(measured_candidates, key=lambda item: item[0])[1]
+        if measured_layouts:
+            one_line_ratio = self._one_line_widest_ratio(measured_layouts, text_box)
+            preferred_line_count = self._preferred_line_count(word_count, one_line_ratio)
+            scored_candidates = [
+                (self._score_layout_choice(layout, text_box, preferred_line_count=preferred_line_count), layout)
+                for layout in measured_layouts
+            ]
+            return max(scored_candidates, key=lambda item: item[0])[1]
 
         fallback_text = layout_candidates[0]
         fallback_font_size = THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE
@@ -200,16 +199,14 @@ class ThumbnailTextLayoutEngine:
         layout: TextLayoutChoice,
         text_box: TextLayoutBox,
         *,
-        prefer_two_line: bool,
+        preferred_line_count: int,
     ) -> tuple[float, ...]:
-        line_preference = 1.0 if (prefer_two_line and layout.line_count == 2) else 0.0
-        if not prefer_two_line:
-            line_preference = 1.0 if layout.line_count == 1 else 0.0
+        line_preference = 1.0 if layout.line_count == preferred_line_count else 0.0
 
         stroke_width = layout.stroke_width
         line_widths = self._line_widths_for_layout_text(layout.text, layout.font_size, stroke_width)
         widest_ratio = (max(line_widths, default=0) / text_box.width) if text_box.width else 0
-        width_utilization = 1.0 - abs(0.72 - widest_ratio)
+        width_utilization = self._width_utilization_score(widest_ratio)
 
         balance_score = 1.0
         if layout.line_count == 2 and len(line_widths) == 2:
@@ -217,7 +214,39 @@ class ThumbnailTextLayoutEngine:
             if max_width > 0:
                 balance_score = 1.0 - (abs(line_widths[0] - line_widths[1]) / max_width)
 
-        return (float(layout.font_size), line_preference, width_utilization, balance_score)
+        return (line_preference, width_utilization, balance_score, float(layout.font_size))
+
+    def _preferred_line_count(self, word_count: int, one_line_ratio: float | None) -> int:
+        if word_count >= 4:
+            return 2
+        if word_count == 3:
+            if one_line_ratio is None:
+                return 2
+            return 2 if one_line_ratio > THUMBNAIL_THREE_WORD_ONE_LINE_MAX_COMFORT_RATIO else 1
+        return 1
+
+    def _one_line_widest_ratio(
+        self,
+        measured_layouts: list[TextLayoutChoice],
+        text_box: TextLayoutBox,
+    ) -> float | None:
+        one_line_layouts = [layout for layout in measured_layouts if layout.line_count == 1]
+        if not one_line_layouts or not text_box.width:
+            return None
+
+        best_one_line = max(one_line_layouts, key=lambda item: item.font_size)
+        line_widths = self._line_widths_for_layout_text(
+            best_one_line.text,
+            best_one_line.font_size,
+            best_one_line.stroke_width,
+        )
+        return max(line_widths, default=0) / text_box.width
+
+    def _width_utilization_score(self, widest_ratio: float) -> float:
+        score = 1.0 - abs(THUMBNAIL_WIDTH_UTILIZATION_IDEAL_RATIO - widest_ratio)
+        if widest_ratio > 0.90:
+            score -= (widest_ratio - 0.90) * 1.5
+        return max(0.0, min(1.0, score))
 
     def _line_widths_for_layout_text(
         self,
