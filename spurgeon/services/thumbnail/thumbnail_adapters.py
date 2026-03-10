@@ -44,16 +44,18 @@ logger = logging.getLogger(__name__)
 THUMBNAIL_CANVAS_SIZE = (1280, 720)
 
 THUMBNAIL_PREMIUM_FONT_PATHS = (
+    "C:/Users/jfden/daily_light/input/CormorantGaramond-SemiBold.ttf",
+    "CormorantGaramond-SemiBold.ttf",
     "C:/Users/jfden/daily_light/input/CormorantGaramond-Regular.ttf",
     "CormorantGaramond-Regular.ttf",
 )
-THUMBNAIL_FALLBACK_FONT_NAME = "DejaVuSans-Bold.ttf"
+THUMBNAIL_FALLBACK_FONT_NAME = "DejaVuSerif-Bold.ttf"
 
-THUMBNAIL_TEXT_PRIMARY_GOLD = "#D2C15A"
-THUMBNAIL_TEXT_SHADOW_HEX = "#5A4A20"
-THUMBNAIL_TEXT_STROKE_HEX = "#111111"
-THUMBNAIL_TEXT_STROKE_ALPHA = 0
-THUMBNAIL_TEXT_STROKE_WIDTH_CAP = 0
+THUMBNAIL_TEXT_PRIMARY_GOLD = "#F3E7D3"
+THUMBNAIL_TEXT_SHADOW_HEX = "#1A120D"
+THUMBNAIL_TEXT_STROKE_HEX = "#120D0A"
+THUMBNAIL_TEXT_STROKE_ALPHA = 28
+THUMBNAIL_TEXT_STROKE_WIDTH_CAP = 1
 
 
 class OpenAIIntentCardProvider(IntentCardProvider):

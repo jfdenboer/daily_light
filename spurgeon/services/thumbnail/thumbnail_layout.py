@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Callable
 
 from PIL import ImageDraw, ImageFont
@@ -12,14 +13,14 @@ THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.08
 THUMBNAIL_TEXT_CENTER_ZONE_HEIGHT_FRACTION = 0.34
 THUMBNAIL_TEXT_MAX_LINES = 1
 THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.10
-THUMBNAIL_TEXT_FONT_SIZE = 56
-THUMBNAIL_TEXT_FALLBACK_FONT_SIZE = 52
-THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE = 44
+THUMBNAIL_TEXT_FONT_SIZE = 160
+THUMBNAIL_TEXT_FALLBACK_FONT_SIZE = 140
+THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE = 120
 THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.010
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 0
-THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.001
-THUMBNAIL_TEXT_SHADOW_MIN_OFFSET = 0
-THUMBNAIL_TEXT_SHADOW_ALPHA = 8
+THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.008
+THUMBNAIL_TEXT_SHADOW_MIN_OFFSET = 1
+THUMBNAIL_TEXT_SHADOW_ALPHA = 36
 THUMBNAIL_TEXT_TRACKING_RATIO = 0.005
 THUMBNAIL_TEXT_TRACKING_MIN = 0
 THUMBNAIL_TEXT_TRACKING_MAX = 2
@@ -48,8 +49,30 @@ class TextLayoutChoice:
 def normalize_thumbnail_display_text(text: str) -> str:
     normalised = " ".join(text.replace("\n", " ").split())
     if not normalised:
-        return "daily light"
-    return normalised.lower()
+        return "Daily Light"
+    return _to_title_case_preserving_apostrophes(normalised)
+
+
+def _to_title_case_preserving_apostrophes(text: str) -> str:
+    words = text.split(" ")
+    titled_words: list[str] = []
+    for word in words:
+        if not word:
+            titled_words.append(word)
+            continue
+
+        letters = re.split(r"([A-Za-z]+(?:'[A-Za-z]+)*)", word)
+        rebuilt: list[str] = []
+        for token in letters:
+            if not token:
+                continue
+            if re.fullmatch(r"[A-Za-z]+(?:'[A-Za-z]+)*", token):
+                rebuilt.append(token[0].upper() + token[1:].lower())
+            else:
+                rebuilt.append(token)
+        titled_words.append("".join(rebuilt))
+
+    return " ".join(titled_words)
 
 
 def calculate_text_layout_box(canvas_size: tuple[int, int]) -> TextLayoutBox:
