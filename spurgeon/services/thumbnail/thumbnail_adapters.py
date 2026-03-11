@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from openai import OpenAI, OpenAIError
-from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 from spurgeon.config.settings import Settings
 from spurgeon.models import Reading
@@ -55,6 +55,7 @@ THUMBNAIL_TEXT_SHADOW_HEX = "#1A120D"
 THUMBNAIL_TEXT_STROKE_HEX = "#120D0A"
 THUMBNAIL_TEXT_STROKE_ALPHA = 28
 THUMBNAIL_TEXT_STROKE_WIDTH_CAP = 1
+THUMBNAIL_TEXT_AMBIENT_SHADOW_BLUR_RADIUS = 1.5
 
 
 class OpenAIIntentCardProvider(IntentCardProvider):
@@ -214,12 +215,11 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         stroke_color = (*ImageColor.getrgb(THUMBNAIL_TEXT_STROKE_HEX), THUMBNAIL_TEXT_STROKE_ALPHA)
         stroke_width = min(layout.stroke_width, THUMBNAIL_TEXT_STROKE_WIDTH_CAP)
 
+        ambient_shadow_layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+        ambient_shadow_draw = ImageDraw.Draw(ambient_shadow_layer, "RGBA")
         self._draw_tracked_multiline_text(
-            draw=draw,
-            position=(
-                text_position[0] + layout.shadow_offset[0],
-                text_position[1] + layout.shadow_offset[1],
-            ),
+            draw=ambient_shadow_draw,
+            position=text_position,
             text=layout_text,
             font=font,
             fill=shadow_color,
@@ -228,6 +228,11 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
             stroke_width=0,
             stroke_fill=None,
         )
+        ambient_shadow_layer = ambient_shadow_layer.filter(
+            ImageFilter.GaussianBlur(radius=THUMBNAIL_TEXT_AMBIENT_SHADOW_BLUR_RADIUS)
+        )
+        canvas = Image.alpha_composite(canvas.convert("RGBA"), ambient_shadow_layer).convert("RGB")
+        draw = ImageDraw.Draw(canvas, "RGBA")
 
         self._draw_tracked_multiline_text(
             draw=draw,

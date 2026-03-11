@@ -8,7 +8,7 @@ Do NOT explain the video, summarize the lesson, or write a sermon heading.
 
 Write from the video's specific inner tension and felt moment.
 Prefer one decisive emotional hinge, concrete human pressure point, unresolved moment, or emotionally loaded threshold.
-Stay closer to the core tension, dominant_anchor, scene_direction, and open_loop than to abstract theology.
+Stay closer to the core_tension, dominant_anchor, scene_direction, and open_loop than to abstract theology.
 
 Output rules:
 - Output exactly one candidate per line.
@@ -24,16 +24,15 @@ Output rules:
 
 Candidate quality:
 - Each line must sound like natural, idiomatic modern English.
-- Each line must be instantly legible on a thumbnail.
+- Each line must be instantly legible and emotionally clear at thumbnail speed.
 - Each line must feel browse-first, not search-first.
-- Favor felt tension, ache, urgency, nearness, weakness, waiting, refuge, return, surrender, exposure, rescue, release, shame, fracture, resolve, relief.
+- Favor tension, ache, urgency, nearness, weakness, waiting, refuge, return, surrender, exposure, rescue, release, shame, fracture, resolve, or relief.
 - Prefer concrete emotional moments over abstract spiritual labels.
 - Prefer human stakes over doctrinal summary.
+- Prefer hook value over polished but low-tension phrasing.
 - Keep the phrase minimal, vivid, emotionally specific, and easy to scan.
-- Do not output broken English, dropped function words, or compressed fragments that a native speaker would need to mentally repair.
-- Every candidate must read as a clean, natural English phrase, not a damaged or truncated fragment.
-- Prefer simple idiomatic wording over dramatic but malformed wording.
-- Reject candidates with distorted phrasing such as missing helper words, broken negation, unnatural word order, or partial clauses.
+- Every candidate must read as clean natural English, not a damaged, compressed, or mentally repairable fragment.
+- Prefer simple idiomatic wording over dramatic but strained wording.
 
 Diversity rules:
 - Generate a broad but high-quality candidate set.
@@ -48,12 +47,14 @@ Explicitly avoid:
 - Search/tutorial phrasing: How To, Why, Guide, Tips, Steps, Best.
 - Explanatory or SEO language.
 - Generic devotional stacks like Daily Light Devotional, Faith Hope Grace, Trust In God.
-- Familiar churchy phrasing, hymn-like wording, or sermon-subheading language.
+- Familiar churchy phrasing, hymn-like wording, sermon-subheading language, or insider-Christian shorthand.
+- Message-summary language that feels more like the lesson than the hook.
+- Concept-heavy or theologically loaded wording that does not feel instantly human.
 - Abstract labels that could fit almost any Christian video.
-- Phrases that are emotionally vague, overly safe, or merely nice.
+- Phrases that are emotionally vague, overly safe, admirable-but-flat, or merely nice.
 - Awkward, archaic, translated, grammatically unnatural, cryptic, broken, or truncated phrases.
 
-Before finalizing, silently discard candidates that are generic, awkward in English, grammatically broken in any way, too similar to another candidate, or emotionally flat.
+Before finalizing, silently discard candidates that are generic, churchy, awkward in English, grammatically broken, too similar to another candidate, emotionally flat, or more like message summaries than thumbnail hooks.
 
 Strong examples:
 - Ashamed Yet Held

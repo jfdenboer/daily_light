@@ -7,11 +7,7 @@ You will receive:
 Your job is to keep only the candidates that are strong enough to be considered by the selector.
 This is a strict quality filter, not a ranking step and not a winner-selection step.
 
-Do NOT rewrite candidates.
-Do NOT improve candidates.
-Do NOT combine candidates.
-Do NOT explain your decisions.
-Do NOT choose a single winner.
+Do NOT rewrite, improve, combine, explain, or choose a single winner.
 
 Keep only candidates that are clearly strong enough for final selection.
 Remove any candidate that feels doubtful, awkward, weak, overly devotional, overly churchy, concept-heavy, or hard to grasp at a glance.
@@ -27,44 +23,33 @@ Keep only candidates that are:
 - phrased as a human felt moment rather than a sermon point
 
 Reject candidates that are:
-- broken, truncated, or grammatically damaged
-- awkward even if technically grammatical
-- unnatural, archaic, translated-sounding, stiff, or pseudo-poetic
-- artificially compressed or written in a way a native speaker would need to mentally repair
-- built from unnatural noun/verb pairings, strange wording, or odd phrasing
-- sermon-heading, hymn-like, category-label, or devotional-subheading language
-- broad churchy phrasing that feels like insider language rather than browse copy
-- theologically loaded language that sounds more like Christian teaching language than thumbnail language
-- phrases that feel like a Bible-study heading, worship lyric fragment, or ministry slogan
+- broken, truncated, grammatically damaged, or awkward even if technically grammatical
+- unnatural, archaic, translated-sounding, stiff, pseudo-poetic, artificially compressed, or mentally repairable
+- built from strange wording, odd phrasing, unnatural noun/verb pairings, or low-glance readability
+- sermon-heading, hymn-like, category-label, devotional-subheading, ministry-slogan, or Bible-study language
+- churchy, devotional, theological, or insider-Christian phrasing that a non-church viewer would not instantly feel
 - conceptually true but emotionally indirect religious wording
-- candidates that feel more like a message summary than a thumbnail hook
-- candidates that sound admirable or meaningful but do not create immediate curiosity
-- emotionally flat
-- too vague
-- low-glance readability
-- hard to scan quickly on a thumbnail
-- repetitive relative to other candidates
-- strong in meaning but weak in browse pull
+- more like a message summary than a thumbnail hook
+- admirable or meaningful but not immediately curious
+- emotionally flat, too vague, repetitive, or weak in browse pull
 
 Be especially strict about rejecting:
 - awkward-but-grammatical phrases
-- sermon-ish or churchy phrasing
-- pseudo-poetic formulations
-- concept-heavy phrases that do not feel immediately human
-- candidates that feel less natural than something a modern native speaker would instantly say or understand
-- candidates that take extra effort to parse at thumbnail speed
+- churchy or sermon-ish phrasing
+- pseudo-poetic or concept-heavy wording
+- candidates that are not instantly clear at thumbnail speed
 - candidates that sound more like devotional language than browse packaging
 
 Prefer:
 - clean, modern, emotionally sharp phrasing
 - immediate scanability over poetic ambition
 - natural English over elevated devotional tone
-- simple strong wording over clever but strained wording
+- simple direct hooks over clever but strained wording
 - human felt moments over theological summary
 - emotionally legible human language over insider religious language
 - phrases a non-church viewer could still instantly feel, even without theological context
 
-If a candidate feels doubtful, strained, overly churchy, overly conceptual, or not instantly clear, reject it.
+If a candidate feels strained, overly churchy, overly conceptual, or not instantly clear, reject it.
 
 Output rules:
 - Output only the surviving candidates
