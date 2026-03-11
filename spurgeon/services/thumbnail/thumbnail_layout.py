@@ -13,9 +13,11 @@ THUMBNAIL_TEXT_VERTICAL_MARGIN_FRACTION = 0.12
 THUMBNAIL_TEXT_COLUMN_WIDTH_FRACTION = 0.41
 THUMBNAIL_TEXT_CENTER_ZONE_HEIGHT_FRACTION = 0.42
 THUMBNAIL_TEXT_VERTICAL_CENTER_BIAS_FRACTION = 0.04
+
 THUMBNAIL_TEXT_MAX_LINES = 2
-THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.10
 THUMBNAIL_TEXT_FONT_SIZE = 140
+THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.10
+
 THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.010
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 0
 THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.008
@@ -24,7 +26,6 @@ THUMBNAIL_TEXT_SHADOW_ALPHA = 28
 THUMBNAIL_TEXT_TRACKING_RATIO = 0.005
 THUMBNAIL_TEXT_TRACKING_MIN = 0
 THUMBNAIL_TEXT_TRACKING_MAX = 2
-
 
 
 @dataclass(frozen=True)
@@ -56,13 +57,12 @@ def normalize_thumbnail_display_text(text: str) -> str:
 
 def apply_thumbnail_line_break_logic(text: str) -> str:
     words = [word for word in text.replace("\n", " ").split(" ") if word]
-    if len(words) <= 3:
+    if len(words) <= 3 or THUMBNAIL_TEXT_MAX_LINES <= 1:
         return " ".join(words)
 
     split_index = (len(words) + 1) // 2
-    first_line = " ".join(words[:split_index])
-    second_line = " ".join(words[split_index:])
-    return f"{first_line}\n{second_line}"
+    lines = [" ".join(words[:split_index]), " ".join(words[split_index:])]
+    return "\n".join(lines[:THUMBNAIL_TEXT_MAX_LINES])
 
 
 def _to_title_case_preserving_apostrophes(text: str) -> str:
@@ -117,26 +117,15 @@ class ThumbnailTextLayoutEngine:
         self.draw = draw
         self.font_loader = font_loader
 
-    def select_text_layout(
-        self,
-        display_text: str,
-        text_box: TextLayoutBox,
-    ) -> TextLayoutChoice:
-        fallback_text = apply_thumbnail_line_break_logic(display_text)
-        fallback_font_size = THUMBNAIL_TEXT_FONT_SIZE
-        fallback = self.measure_text_block(fallback_text, fallback_font_size)
-        return TextLayoutChoice(
-            text=fallback_text,
-            line_count=fallback_text.count("\n") + 1,
-            font_size=fallback_font_size,
-            text_bbox=fallback,
-            block_size=(fallback[2] - fallback[0], fallback[3] - fallback[1]),
-            stroke_width=stroke_width_for_font_size(fallback_font_size),
-            shadow_offset=shadow_offset_for_font_size(fallback_font_size),
-            tracking=tracking_for_font_size(fallback_font_size),
-        )
+    def select_text_layout(self, display_text: str) -> TextLayoutChoice:
+        """Return a fixed-size, max-2-line layout choice.
 
-    def measure_layout_candidate(self, layout_text: str) -> TextLayoutChoice:
+        Deliberately simple policy:
+        - fixed font size
+        - one line-break heuristic
+        - overflow is reported by caller
+        """
+        layout_text = apply_thumbnail_line_break_logic(display_text)
         font_size = THUMBNAIL_TEXT_FONT_SIZE
         stroke_width = stroke_width_for_font_size(font_size)
         text_bbox = self.measure_text_block(layout_text, font_size, stroke_width=stroke_width)

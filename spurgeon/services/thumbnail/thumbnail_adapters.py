@@ -34,7 +34,6 @@ from .thumbnail_layout import (
     ThumbnailTextLayoutEngine,
     calculate_text_layout_box,
     line_spacing,
-    apply_thumbnail_line_break_logic,
     normalize_thumbnail_display_text,
     resolve_text_position,
 )
@@ -191,8 +190,8 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         display_text = normalize_thumbnail_display_text(text)
         text_box = calculate_text_layout_box(canvas.size)
         layout_engine = ThumbnailTextLayoutEngine(draw, self._load_font)
-        layout = layout_engine.select_text_layout(display_text, text_box)
-        layout_text = apply_thumbnail_line_break_logic(layout.text)
+        layout = layout_engine.select_text_layout(display_text)
+        layout_text = layout.text
         text_position = resolve_text_position(layout, text_box)
 
         if layout.block_size[0] > text_box.width or layout.block_size[1] > text_box.height:
