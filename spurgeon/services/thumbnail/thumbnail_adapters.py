@@ -30,7 +30,6 @@ from .thumbnail_intent_card import (
 )
 from .thumbnail_prompting import get_thumbnail_intent_card_prompt_template
 from .thumbnail_layout import (
-    THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE,
     THUMBNAIL_TEXT_SHADOW_ALPHA,
     ThumbnailTextLayoutEngine,
     calculate_text_layout_box,
@@ -194,10 +193,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         layout = layout_engine.select_text_layout(display_text, text_box)
         text_position = resolve_text_position(layout, text_box)
 
-        if (
-            layout.font_size == THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE
-            and (layout.block_size[0] > text_box.width or layout.block_size[1] > text_box.height)
-        ):
+        if layout.block_size[0] > text_box.width or layout.block_size[1] > text_box.height:
             logger.warning(
                 "thumbnail_pipeline.text_layout_overflow original=%r rendered=%r font_size=%s block_size=%s text_box=%s",
                 text,

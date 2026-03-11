@@ -15,9 +15,7 @@ THUMBNAIL_TEXT_CENTER_ZONE_HEIGHT_FRACTION = 0.42
 THUMBNAIL_TEXT_VERTICAL_CENTER_BIAS_FRACTION = 0.04
 THUMBNAIL_TEXT_MAX_LINES = 2
 THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.10
-THUMBNAIL_TEXT_FONT_SIZE = 160
-THUMBNAIL_TEXT_FALLBACK_FONT_SIZE = 140
-THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE = 104
+THUMBNAIL_TEXT_FONT_SIZE = 140
 THUMBNAIL_TEXT_STROKE_WIDTH_RATIO = 0.010
 THUMBNAIL_TEXT_STROKE_MIN_WIDTH = 0
 THUMBNAIL_TEXT_SHADOW_OFFSET_RATIO = 0.008
@@ -31,6 +29,7 @@ THUMBNAIL_THREE_WORD_ONE_LINE_HARD_LIMIT_RATIO = 0.96
 THUMBNAIL_WIDTH_UTILIZATION_IDEAL_RATIO = 0.74
 THUMBNAIL_THREE_WORD_SHORT_ORPHAN_MAX_CHARS = 3
 THUMBNAIL_THREE_WORD_ORPHAN_PENALTY = 0.45
+
 
 
 @dataclass(frozen=True)
@@ -120,21 +119,13 @@ class ThumbnailTextLayoutEngine:
         base_text = display_text.replace("\n", " ").strip()
         layout_candidates = self._build_layout_candidates(base_text)
         word_count = len(base_text.split())
-        measured_layouts: list[TextLayoutChoice] = []
+        measured_layouts: list[TextLayoutChoice] = []␊
 
         for candidate in layout_candidates:
             if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
                 continue
 
-            measured = self.fit_fixed_font_sizes(
-                candidate,
-                text_box,
-                preferred_sizes=(
-                    THUMBNAIL_TEXT_FONT_SIZE,
-                    THUMBNAIL_TEXT_FALLBACK_FONT_SIZE,
-                    THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE,
-                ),
-            )
+            measured = self.measure_layout_candidate(candidate)
             if measured is not None:
                 measured_layouts.append(measured)
 
@@ -152,11 +143,13 @@ class ThumbnailTextLayoutEngine:
                     layout,
                 )
                 for layout in measured_layouts
+                if layout.block_size[0] <= text_box.width and layout.block_size[1] <= text_box.height
             ]
-            return max(scored_candidates, key=lambda item: item[0])[1]
+            if scored_candidates:
+                return max(scored_candidates, key=lambda item: item[0])[1]
 
         fallback_text = layout_candidates[0]
-        fallback_font_size = THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE
+        fallback_font_size = THUMBNAIL_TEXT_FONT_SIZE
         fallback = self.measure_text_block(fallback_text, fallback_font_size)
         return TextLayoutChoice(
             text=fallback_text,
@@ -168,6 +161,7 @@ class ThumbnailTextLayoutEngine:
             shadow_offset=shadow_offset_for_font_size(fallback_font_size),
             tracking=tracking_for_font_size(fallback_font_size),
         )
+
 
     def _build_layout_candidates(self, base_text: str) -> list[str]:
         words = [word for word in base_text.split(" ") if word]
@@ -258,6 +252,29 @@ class ThumbnailTextLayoutEngine:
             return len(second_words[0]) <= THUMBNAIL_THREE_WORD_SHORT_ORPHAN_MAX_CHARS
         return False
 
+    def _apply_two_line_font_scale(self, layout: TextLayoutChoice) -> TextLayoutChoice:
+        if layout.line_count != 2:
+            return layout
+
+        scaled_font_size = max(
+            THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE,
+            int(round(layout.font_size * THUMBNAIL_TWO_LINE_FONT_SIZE_SCALE)),
+        )
+        if scaled_font_size == layout.font_size:
+            return layout
+
+        scaled_bbox = self.measure_text_block(layout.text, scaled_font_size)
+        return TextLayoutChoice(
+            text=layout.text,
+            line_count=layout.line_count,
+            font_size=scaled_font_size,
+            text_bbox=scaled_bbox,
+            block_size=(scaled_bbox[2] - scaled_bbox[0], scaled_bbox[3] - scaled_bbox[1]),
+            stroke_width=stroke_width_for_font_size(scaled_font_size),
+            shadow_offset=shadow_offset_for_font_size(scaled_font_size),
+            tracking=tracking_for_font_size(scaled_font_size),
+        )
+
     def _one_line_widest_ratio(
         self,
         measured_layouts: list[TextLayoutChoice],
@@ -299,31 +316,20 @@ class ThumbnailTextLayoutEngine:
             for line in text.split("\n")
         ]
 
-    def fit_fixed_font_sizes(
-        self,
-        layout_text: str,
-        text_box: TextLayoutBox,
-        *,
-        preferred_sizes: tuple[int, ...],
-    ) -> TextLayoutChoice | None:
-        for font_size in preferred_sizes:
-            stroke_width = stroke_width_for_font_size(font_size)
-            text_bbox = self.measure_text_block(layout_text, font_size, stroke_width=stroke_width)
-            text_width = text_bbox[2] - text_bbox[0]
-            text_height = text_bbox[3] - text_bbox[1]
-            if text_width <= text_box.width and text_height <= text_box.height:
-                return TextLayoutChoice(
-                    text=layout_text,
-                    line_count=layout_text.count("\n") + 1,
-                    font_size=font_size,
-                    text_bbox=text_bbox,
-                    block_size=(text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]),
-                    stroke_width=stroke_width,
-                    shadow_offset=shadow_offset_for_font_size(font_size),
-                    tracking=tracking_for_font_size(font_size),
-                )
-
-        return None
+    def measure_layout_candidate(self, layout_text: str) -> TextLayoutChoice:
+        font_size = THUMBNAIL_TEXT_FONT_SIZE
+        stroke_width = stroke_width_for_font_size(font_size)
+        text_bbox = self.measure_text_block(layout_text, font_size, stroke_width=stroke_width)
+        return TextLayoutChoice(
+            text=layout_text,
+            line_count=layout_text.count("\n") + 1,
+            font_size=font_size,
+            text_bbox=text_bbox,
+            block_size=(text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]),
+            stroke_width=stroke_width,
+            shadow_offset=shadow_offset_for_font_size(font_size),
+            tracking=tracking_for_font_size(font_size),
+        )
 
     def measure_text_block(
         self,
