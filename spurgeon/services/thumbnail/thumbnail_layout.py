@@ -14,7 +14,7 @@ THUMBNAIL_TEXT_COLUMN_WIDTH_FRACTION = 0.41
 THUMBNAIL_TEXT_CENTER_ZONE_HEIGHT_FRACTION = 0.18
 THUMBNAIL_TEXT_VERTICAL_CENTER_BIAS_FRACTION = 0.03
 
-THUMBNAIL_TEXT_MAX_LINES = 2
+THUMBNAIL_TEXT_MAX_LINES = 3
 THUMBNAIL_TEXT_FONT_SIZE = 104
 THUMBNAIL_TEXT_LINE_SPACING_RATIO = 0.10
 
@@ -57,11 +57,25 @@ def normalize_thumbnail_display_text(text: str) -> str:
 
 def apply_thumbnail_line_break_logic(text: str) -> str:
     words = [word for word in text.replace("\n", " ").split(" ") if word]
-    if len(words) <= 3 or THUMBNAIL_TEXT_MAX_LINES <= 1:
+    if len(words) <= 2 or THUMBNAIL_TEXT_MAX_LINES <= 1:
         return " ".join(words)
 
-    split_index = (len(words) + 1) // 2
-    lines = [" ".join(words[:split_index]), " ".join(words[split_index:])]
+    lines: list[str] = []
+    index = 0
+    while index < len(words):
+        remaining = len(words) - index
+        slots_left = THUMBNAIL_TEXT_MAX_LINES - len(lines)
+        if slots_left <= 1:
+            lines.append(" ".join(words[index:]))
+            break
+
+        if remaining <= 2:
+            lines.append(" ".join(words[index:]))
+            break
+
+        lines.append(" ".join(words[index : index + 2]))
+        index += 2
+
     return "\n".join(lines[:THUMBNAIL_TEXT_MAX_LINES])
 
 
@@ -118,11 +132,11 @@ class ThumbnailTextLayoutEngine:
         self.font_loader = font_loader
 
     def select_text_layout(self, display_text: str) -> TextLayoutChoice:
-        """Return a fixed-size, max-2-line layout choice.
+        """Return a fixed-size, max-3-line layout choice.
 
         Deliberately simple policy:
         - fixed font size
-        - one line-break heuristic
+        - one line-break heuristic with 2-word grouping
         - overflow is reported by caller
         """
         layout_text = apply_thumbnail_line_break_logic(display_text)
