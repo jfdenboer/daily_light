@@ -48,7 +48,7 @@ THUMBNAIL_PREMIUM_FONT_PATHS = (
     "C:/Users/jfden/daily_light/input/CormorantGaramond-Regular.ttf",
     "CormorantGaramond-Regular.ttf",
 )
-THUMBNAIL_FALLBACK_FONT_NAME = "DejaVuSerif-Bold.ttf"
+THUMBNAIL_FALLBACK_FONT_NAME = "CormorantGaramond-Medium.ttf"
 
 THUMBNAIL_TEXT_PRIMARY_GOLD = "#F3E7D3"
 THUMBNAIL_TEXT_SHADOW_HEX = "#1A120D"
