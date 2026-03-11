@@ -24,11 +24,6 @@ THUMBNAIL_TEXT_SHADOW_ALPHA = 28
 THUMBNAIL_TEXT_TRACKING_RATIO = 0.005
 THUMBNAIL_TEXT_TRACKING_MIN = 0
 THUMBNAIL_TEXT_TRACKING_MAX = 2
-THUMBNAIL_THREE_WORD_ONE_LINE_MAX_COMFORT_RATIO = 0.84
-THUMBNAIL_THREE_WORD_ONE_LINE_HARD_LIMIT_RATIO = 0.96
-THUMBNAIL_WIDTH_UTILIZATION_IDEAL_RATIO = 0.74
-THUMBNAIL_THREE_WORD_SHORT_ORPHAN_MAX_CHARS = 3
-THUMBNAIL_THREE_WORD_ORPHAN_PENALTY = 0.45
 
 
 
@@ -57,6 +52,17 @@ def normalize_thumbnail_display_text(text: str) -> str:
     if not normalised:
         return "Daily Light"
     return _to_title_case_preserving_apostrophes(normalised)
+
+
+def apply_thumbnail_line_break_logic(text: str) -> str:
+    words = [word for word in text.replace("\n", " ").split(" ") if word]
+    if len(words) <= 3:
+        return " ".join(words)
+
+    split_index = (len(words) + 1) // 2
+    first_line = " ".join(words[:split_index])
+    second_line = " ".join(words[split_index:])
+    return f"{first_line}\n{second_line}"
 
 
 def _to_title_case_preserving_apostrophes(text: str) -> str:
@@ -116,39 +122,7 @@ class ThumbnailTextLayoutEngine:
         display_text: str,
         text_box: TextLayoutBox,
     ) -> TextLayoutChoice:
-        base_text = display_text.replace("\n", " ").strip()
-        layout_candidates = self._build_layout_candidates(base_text)
-        word_count = len(base_text.split())
-        measured_layouts: list[TextLayoutChoice] = []␊
-
-        for candidate in layout_candidates:
-            if candidate.count("\n") + 1 > THUMBNAIL_TEXT_MAX_LINES:
-                continue
-
-            measured = self.measure_layout_candidate(candidate)
-            if measured is not None:
-                measured_layouts.append(measured)
-
-        if measured_layouts:
-            one_line_ratio = self._one_line_widest_ratio(measured_layouts, text_box)
-            preferred_line_count = self._preferred_line_count(word_count, one_line_ratio)
-            scored_candidates = [
-                (
-                    self._score_layout_choice(
-                        layout,
-                        text_box,
-                        preferred_line_count=preferred_line_count,
-                        word_count=word_count,
-                    ),
-                    layout,
-                )
-                for layout in measured_layouts
-                if layout.block_size[0] <= text_box.width and layout.block_size[1] <= text_box.height
-            ]
-            if scored_candidates:
-                return max(scored_candidates, key=lambda item: item[0])[1]
-
-        fallback_text = layout_candidates[0]
+        fallback_text = apply_thumbnail_line_break_logic(display_text)
         fallback_font_size = THUMBNAIL_TEXT_FONT_SIZE
         fallback = self.measure_text_block(fallback_text, fallback_font_size)
         return TextLayoutChoice(
@@ -161,160 +135,6 @@ class ThumbnailTextLayoutEngine:
             shadow_offset=shadow_offset_for_font_size(fallback_font_size),
             tracking=tracking_for_font_size(fallback_font_size),
         )
-
-
-    def _build_layout_candidates(self, base_text: str) -> list[str]:
-        words = [word for word in base_text.split(" ") if word]
-        if len(words) <= 2:
-            return [" ".join(words)]
-
-        one_line = " ".join(words)
-        split_candidates: list[tuple[tuple[int, int, int], str]] = []
-        total_words = len(words)
-        for split_index in range(1, total_words):
-            first_words = words[:split_index]
-            second_words = words[split_index:]
-
-            if total_words == 3 and self._has_short_single_word_orphan(first_words, second_words):
-                continue
-
-            if total_words >= 4 and min(len(first_words), len(second_words)) == 1:
-                orphan = first_words[0] if len(first_words) == 1 else second_words[0]
-                if len(orphan) <= 3:
-                    continue
-
-            first_line = " ".join(first_words)
-            second_line = " ".join(second_words)
-
-            char_balance = abs(len(first_line) - len(second_line))
-            word_balance = abs(len(first_words) - len(second_words))
-            orphan_penalty = int(len(first_words) == 1 or len(second_words) == 1)
-            split_candidates.append(
-                ((orphan_penalty, word_balance, char_balance), f"{first_line}\n{second_line}")
-            )
-
-        ordered_splits = [candidate for _, candidate in sorted(split_candidates)]
-        if not ordered_splits:
-            return [one_line]
-
-        preferred_splits = ordered_splits[:3]
-        if total_words <= 5:
-            return [*preferred_splits, one_line]
-        return [one_line, *preferred_splits]
-
-    def _score_layout_choice(
-        self,
-        layout: TextLayoutChoice,
-        text_box: TextLayoutBox,
-        *,
-        preferred_line_count: int,
-        word_count: int,
-    ) -> tuple[float, ...]:
-        line_preference = 1.0 if layout.line_count == preferred_line_count else 0.0
-
-        stroke_width = layout.stroke_width
-        line_widths = self._line_widths_for_layout_text(layout.text, layout.font_size, stroke_width)
-        widest_ratio = (max(line_widths, default=0) / text_box.width) if text_box.width else 0
-        width_utilization = self._width_utilization_score(widest_ratio)
-
-        balance_score = 1.0
-        if layout.line_count == 2 and len(line_widths) == 2:
-            max_width = max(line_widths)
-            if max_width > 0:
-                balance_score = 1.0 - (abs(line_widths[0] - line_widths[1]) / max_width)
-            if word_count == 3 and self._has_single_word_orphan(layout.text):
-                balance_score = max(0.0, balance_score - THUMBNAIL_THREE_WORD_ORPHAN_PENALTY)
-
-        return (line_preference, width_utilization, balance_score, float(layout.font_size))
-
-    def _preferred_line_count(self, word_count: int, one_line_ratio: float | None) -> int:
-        if word_count >= 4:
-            return 2
-        if word_count == 3:
-            if one_line_ratio is None:
-                return 2
-            if one_line_ratio <= THUMBNAIL_THREE_WORD_ONE_LINE_MAX_COMFORT_RATIO:
-                return 1
-            return 2 if one_line_ratio > THUMBNAIL_THREE_WORD_ONE_LINE_HARD_LIMIT_RATIO else 1
-        return 1
-
-    def _has_single_word_orphan(self, layout_text: str) -> bool:
-        lines = [line.strip() for line in layout_text.split("\n") if line.strip()]
-        if len(lines) != 2:
-            return False
-        split_words = [line.split() for line in lines]
-        return self._has_short_single_word_orphan(split_words[0], split_words[1])
-
-    def _has_short_single_word_orphan(self, first_words: list[str], second_words: list[str]) -> bool:
-        if len(first_words) == 1:
-            return len(first_words[0]) <= THUMBNAIL_THREE_WORD_SHORT_ORPHAN_MAX_CHARS
-        if len(second_words) == 1:
-            return len(second_words[0]) <= THUMBNAIL_THREE_WORD_SHORT_ORPHAN_MAX_CHARS
-        return False
-
-    def _apply_two_line_font_scale(self, layout: TextLayoutChoice) -> TextLayoutChoice:
-        if layout.line_count != 2:
-            return layout
-
-        scaled_font_size = max(
-            THUMBNAIL_TEXT_MIN_SAFE_FONT_SIZE,
-            int(round(layout.font_size * THUMBNAIL_TWO_LINE_FONT_SIZE_SCALE)),
-        )
-        if scaled_font_size == layout.font_size:
-            return layout
-
-        scaled_bbox = self.measure_text_block(layout.text, scaled_font_size)
-        return TextLayoutChoice(
-            text=layout.text,
-            line_count=layout.line_count,
-            font_size=scaled_font_size,
-            text_bbox=scaled_bbox,
-            block_size=(scaled_bbox[2] - scaled_bbox[0], scaled_bbox[3] - scaled_bbox[1]),
-            stroke_width=stroke_width_for_font_size(scaled_font_size),
-            shadow_offset=shadow_offset_for_font_size(scaled_font_size),
-            tracking=tracking_for_font_size(scaled_font_size),
-        )
-
-    def _one_line_widest_ratio(
-        self,
-        measured_layouts: list[TextLayoutChoice],
-        text_box: TextLayoutBox,
-    ) -> float | None:
-        one_line_layouts = [layout for layout in measured_layouts if layout.line_count == 1]
-        if not one_line_layouts or not text_box.width:
-            return None
-
-        best_one_line = max(one_line_layouts, key=lambda item: item.font_size)
-        line_widths = self._line_widths_for_layout_text(
-            best_one_line.text,
-            best_one_line.font_size,
-            best_one_line.stroke_width,
-        )
-        return max(line_widths, default=0) / text_box.width
-
-    def _width_utilization_score(self, widest_ratio: float) -> float:
-        score = 1.0 - abs(THUMBNAIL_WIDTH_UTILIZATION_IDEAL_RATIO - widest_ratio)
-        if widest_ratio > 0.90:
-            score -= (widest_ratio - 0.90) * 1.5
-        return max(0.0, min(1.0, score))
-
-    def _line_widths_for_layout_text(
-        self,
-        text: str,
-        font_size: int,
-        stroke_width: int,
-    ) -> list[int]:
-        font = self.font_loader(font_size)
-        tracking = tracking_for_font_size(font_size)
-        return [
-            self._measure_tracked_line_width(
-                line,
-                font=font,
-                stroke_width=stroke_width,
-                tracking=tracking,
-            )
-            for line in text.split("\n")
-        ]
 
     def measure_layout_candidate(self, layout_text: str) -> TextLayoutChoice:
         font_size = THUMBNAIL_TEXT_FONT_SIZE

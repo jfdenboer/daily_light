@@ -34,6 +34,7 @@ from .thumbnail_layout import (
     ThumbnailTextLayoutEngine,
     calculate_text_layout_box,
     line_spacing,
+    apply_thumbnail_line_break_logic,
     normalize_thumbnail_display_text,
     resolve_text_position,
 )
@@ -191,6 +192,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         text_box = calculate_text_layout_box(canvas.size)
         layout_engine = ThumbnailTextLayoutEngine(draw, self._load_font)
         layout = layout_engine.select_text_layout(display_text, text_box)
+        layout_text = apply_thumbnail_line_break_logic(layout.text)
         text_position = resolve_text_position(layout, text_box)
 
         if layout.block_size[0] > text_box.width or layout.block_size[1] > text_box.height:
@@ -219,7 +221,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
                 text_position[0] + layout.shadow_offset[0],
                 text_position[1] + layout.shadow_offset[1],
             ),
-            text=layout.text,
+            text=layout_text,
             font=font,
             fill=shadow_color,
             tracking=layout.tracking,
@@ -231,7 +233,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
         self._draw_tracked_multiline_text(
             draw=draw,
             position=text_position,
-            text=layout.text,
+            text=layout_text,
             font=font,
             fill=THUMBNAIL_TEXT_PRIMARY_GOLD,
             tracking=layout.tracking,
@@ -244,7 +246,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
             "thumbnail_pipeline.text_layout original=%r rendered=%r layout=%s font_size=%s tracking=%s text_bbox=%s text_box=%s",
             text,
             display_text,
-            f"{layout.line_count}-line",
+            f"{layout_text.count(chr(10)) + 1}-line",
             layout.font_size,
             layout.tracking,
             (
@@ -275,7 +277,7 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
     ) -> None:
         x, y = position
         current_y = y
-        for line in text.split("\n") or [""]:
+        for line in text.splitlines() or [""]:
             current_x = x
             for character in line:
                 draw.text(
