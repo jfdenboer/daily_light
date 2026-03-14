@@ -21,7 +21,7 @@ from spurgeon.services.thumbnail.thumbnail_adapters import OpenAIIntentCardProvi
 from spurgeon.services.thumbnail.thumbnail_errors import IntentCardError
 from spurgeon.utils.retry_utils import retry_with_backoff
 
-DEFAULT_INPUT_DIR = Path("input")
+DEFAULT_INPUT_PATH = Path("input/Spurgeon_clean.txt")
 DEFAULT_OUTPUT_PATH = Path("output/thumbnailtext_january.txt")
 logger = logging.getLogger(__name__)
 
@@ -30,14 +30,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Genereer voor januari (1-31, morning/evening) per reading een intent card "
-            "en thumbnailtekst op basis van input/*.txt."
+            "en thumbnailtekst op basis van Spurgeon input (standaard: input/Spurgeon_clean.txt)."
         )
     )
     parser.add_argument(
-        "--input-dir",
+        "--input-file",
         type=Path,
-        default=DEFAULT_INPUT_DIR,
-        help=f"Map met bronbestanden (.txt), default: {DEFAULT_INPUT_DIR}",
+        default=DEFAULT_INPUT_PATH,
+        help=f"Pad naar Spurgeon bronbestand (.txt), default: {DEFAULT_INPUT_PATH}",
     )
     parser.add_argument(
         "--output",
@@ -51,34 +51,85 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=date.today().year,
         help="Jaar voor parsing van headers zonder jaar (default: huidig jaar).",
     )
+    parser.add_argument(
+        "--start-date",
+        type=_parse_date,
+        default=None,
+        help=(
+            "Startdatum (YYYY-MM-DD) voor filtering van readings. "
+            "Default: 1 januari van --year."
+        ),
+    )
+    parser.add_argument(
+        "--end-date",
+        type=_parse_date,
+        default=None,
+        help=(
+            "Einddatum (YYYY-MM-DD) voor filtering van readings. "
+            "Default: 31 januari van --year."
+        ),
+    )
     return parser
 
 
-def _load_readings(input_dir: Path, *, year: int) -> list[Reading]:
+def _parse_date(value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"Ongeldige datum: {value!r}. Gebruik formaat YYYY-MM-DD."
+        ) from exc
+
+
+def _resolve_date_range(
+    *,
+    year: int,
+    start_date: date | None,
+    end_date: date | None,
+) -> tuple[date, date]:
+    resolved_start = start_date or date(year, 1, 1)
+    resolved_end = end_date or date(year, 1, 31)
+
+    if resolved_end < resolved_start:
+        raise ValueError(
+            "--end-date mag niet vóór --start-date liggen. "
+            f"Ontvangen: {resolved_start.isoformat()} t/m {resolved_end.isoformat()}."
+        )
+
+    return resolved_start, resolved_end
+
+
+def _load_readings(
+    input_file: Path,
+    *,
+    year: int,
+    start_date: date,
+    end_date: date,
+) -> list[Reading]:
     parser = Parser()
-    texts = parser.load_texts(input_dir)
+    if not input_file.is_file():
+        raise FileNotFoundError(f"Inputbestand niet gevonden: {input_file}")
 
-    readings: list[Reading] = []
-    for index, raw_text in enumerate(texts, start=1):
-        source_name = f"{input_dir}/<file-{index}>"
-        readings.extend(parser.parse(raw_text, year=year, source_name=source_name))
+    raw_text = input_file.read_text(encoding="utf-8-sig", errors="ignore")
+    readings = parser.parse(raw_text, year=year, source_name=str(input_file))
 
-    january_readings = [
-        reading
-        for reading in readings
-        if reading.date.month == 1 and 1 <= reading.date.day <= 31
+    selected_readings = [
+        reading for reading in readings if start_date <= reading.date <= end_date
     ]
-    january_readings.sort(
+    selected_readings.sort(
         key=lambda reading: (
             reading.date,
             0 if reading.reading_type.value.lower() == "morning" else 1,
         )
     )
 
-    if not january_readings:
-        raise ValueError("Geen januari-readings gevonden in de inputmap.")
+    if not selected_readings:
+        raise ValueError(
+            "Geen readings gevonden in het inputbestand voor range "
+            f"{start_date.isoformat()} t/m {end_date.isoformat()}."
+        )
 
-    return january_readings
+    return selected_readings
 
 
 def _format_entry(
@@ -162,7 +213,17 @@ def main() -> None:
     args = parser.parse_args()
 
     settings = load_settings()
-    readings = _load_readings(args.input_dir, year=args.year)
+    start_date, end_date = _resolve_date_range(
+        year=args.year,
+        start_date=args.start_date,
+        end_date=args.end_date,
+    )
+    readings = _load_readings(
+        args.input_file,
+        year=args.year,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
     client = OpenAI(api_key=settings.openai_api_key)
     intent_provider = OpenAIIntentCardProvider(client=client, settings=settings)
