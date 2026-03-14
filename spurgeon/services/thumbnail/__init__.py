@@ -40,6 +40,9 @@ __all__ = [
     "ThumbnailFinalSelection",
     "ThumbnailFinalSelectorError",
     "ThumbnailFinalSelector",
+    "ThumbnailConfidenceGateResult",
+    "ThumbnailConfidenceGateError",
+    "ThumbnailConfidenceGate",
     "ThumbnailPipelineResult",
     "ThumbnailPipelineRunner",
     "ThumbnailPipelineRunnerError",
@@ -94,6 +97,13 @@ def __getattr__(name: str) -> Any:
         "ThumbnailFinalSelector",
     }:
         module = import_module("spurgeon.services.thumbnail.thumbnail_final_selector")
+        return getattr(module, name)
+    if name in {
+        "ThumbnailConfidenceGateResult",
+        "ThumbnailConfidenceGateError",
+        "ThumbnailConfidenceGate",
+    }:
+        module = import_module("spurgeon.services.thumbnail.thumbnail_confidence_gate")
         return getattr(module, name)
     if name in {
         "ThumbnailPipelineResult",

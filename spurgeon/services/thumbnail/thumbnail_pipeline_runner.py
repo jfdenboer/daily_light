@@ -1,4 +1,4 @@
-"""Canonical thumbnail pipeline orchestrator for steps 0-6 (copy) and 2A (image intent)."""
+"""Canonical thumbnail pipeline orchestrator for steps 0-8 and 2A (image intent)."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from .thumbnail_bucketed_candidate_generator import (
 )
 from .thumbnail_candidate_critic import ThumbnailCandidateCritic, ThumbnailCandidateCriticResult
 from .thumbnail_copy_intent_card import ThumbnailCopyIntentCard, ThumbnailCopyIntentCardBuilder
+from .thumbnail_confidence_gate import ThumbnailConfidenceGate, ThumbnailConfidenceGateResult
 from .thumbnail_final_selector import ThumbnailFinalSelection, ThumbnailFinalSelector
 from .thumbnail_image_intent_card import ThumbnailImageIntentCard, ThumbnailImageIntentCardBuilder
 from .thumbnail_pairwise_tournament import ThumbnailPairwiseTournament, ThumbnailPairwiseTournamentResult
@@ -37,6 +38,7 @@ class ThumbnailPipelineResult(BaseModel):
     critic_result: ThumbnailCandidateCriticResult
     pairwise_result: ThumbnailPairwiseTournamentResult
     final_selection: ThumbnailFinalSelection
+    confidence_gate_result: ThumbnailConfidenceGateResult
 
 
 class ThumbnailPipelineRunnerError(RuntimeError):
@@ -44,7 +46,7 @@ class ThumbnailPipelineRunnerError(RuntimeError):
 
 
 class ThumbnailPipelineRunner:
-    """Run thumbnail steps 0-6 in the canonical production flow."""
+    """Run thumbnail steps 0-8 in the canonical production flow."""
 
     def __init__(
         self,
@@ -58,6 +60,7 @@ class ThumbnailPipelineRunner:
         candidate_critic: ThumbnailCandidateCritic | None = None,
         pairwise_tournament: ThumbnailPairwiseTournament | None = None,
         final_selector: ThumbnailFinalSelector | None = None,
+        confidence_gate: ThumbnailConfidenceGate | None = None,
     ) -> None:
         self.settings = settings
         self.source_reader = source_reader or ThumbnailSourceReader(settings)
@@ -70,9 +73,10 @@ class ThumbnailPipelineRunner:
         self.candidate_critic = candidate_critic or ThumbnailCandidateCritic(settings)
         self.pairwise_tournament = pairwise_tournament or ThumbnailPairwiseTournament(settings)
         self.final_selector = final_selector or ThumbnailFinalSelector(settings)
+        self.confidence_gate = confidence_gate or ThumbnailConfidenceGate(settings)
 
     def run(self, reading: "Reading") -> ThumbnailPipelineResult:
-        """Execute thumbnail steps 0-6 and return all typed outputs."""
+        """Execute thumbnail steps 0-8 and return all typed outputs."""
 
         logger.info("thumbnail_pipeline.start slug=%s", reading.slug)
 
@@ -170,6 +174,24 @@ class ThumbnailPipelineRunner:
                 final_selection.winner,
                 final_selection.confidence,
             )
+
+            logger.info("thumbnail_pipeline.step_start slug=%s step=8_confidence_gate", reading.slug)
+            confidence_gate_result = self.confidence_gate.evaluate(
+                reading,
+                source_read,
+                diagnosis,
+                copy_intent_card,
+                candidate_buckets,
+                critic_result,
+                pairwise_result,
+                final_selection,
+            )
+            logger.info(
+                "thumbnail_pipeline.step_success slug=%s step=8_confidence_gate winner_status=%s recommendation=%s",
+                reading.slug,
+                confidence_gate_result.winner_status,
+                confidence_gate_result.final_recommendation,
+            )
         except Exception as exc:  # pragma: no cover
             logger.exception("thumbnail_pipeline.unexpected_error slug=%s error_type=%s", reading.slug, type(exc).__name__)
             raise ThumbnailPipelineRunnerError(str(exc)) from exc
@@ -183,6 +205,7 @@ class ThumbnailPipelineRunner:
             critic_result=critic_result,
             pairwise_result=pairwise_result,
             final_selection=final_selection,
+            confidence_gate_result=confidence_gate_result,
         )
         logger.info("thumbnail_pipeline.complete slug=%s winner=%s", reading.slug, result.final_selection.winner)
         return result
