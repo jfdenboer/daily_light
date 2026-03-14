@@ -13,21 +13,14 @@ if TYPE_CHECKING:
 
 from spurgeon.utils.retry_utils import retry_with_backoff
 
-from .thumbnail_contracts import (
-    ImageProvider,
-    IntentCardProvider,
-    ThumbnailRenderer,
-    ThumbnailRepository,
-)
-from .thumbnail_errors import (
-    ImageProviderError,
-    IntentCardError,
-    PromptBuildError,
-)
-from .thumbnail_intent_card import ThumbnailIntentCard
+from .thumbnail_contracts import ImageProvider, ThumbnailRenderer, ThumbnailRepository
+from .thumbnail_errors import ImageProviderError, IntentCardError, PromptBuildError
+from .thumbnail_image_intent_card import ThumbnailImageIntentCardBuilder
 from .thumbnail_observability import ThumbnailEvent, log_thumbnail_event
 from .thumbnail_prompting import build_thumbnail_prompt
 from .thumbnail_quality import validate_thumbnail_quality
+from .thumbnail_reading_diagnoser import ThumbnailReadingDiagnoser
+from .thumbnail_source_reader import ThumbnailSourceReader
 
 logger = logging.getLogger(__name__)
 
@@ -55,22 +48,26 @@ def _openai_retry_error_types() -> tuple[type[BaseException], ...]:
 
 
 class ThumbnailService:
-    """Generate thumbnails using provider, renderer and repository abstractions."""
+    """Generate thumbnails using the v3 image-side chain and provider abstractions."""
 
     def __init__(
         self,
         *,
         settings,
-        intent_card_provider: IntentCardProvider,
         image_provider: ImageProvider,
         renderer: ThumbnailRenderer,
         repository: ThumbnailRepository,
+        source_reader: ThumbnailSourceReader,
+        reading_diagnoser: ThumbnailReadingDiagnoser,
+        image_intent_card_builder: ThumbnailImageIntentCardBuilder,
     ) -> None:
         self.settings = settings
-        self.intent_card_provider = intent_card_provider
         self.image_provider = image_provider
         self.renderer = renderer
         self.repository = repository
+        self.source_reader = source_reader
+        self.reading_diagnoser = reading_diagnoser
+        self.image_intent_card_builder = image_intent_card_builder
 
     def generate(self, reading: "Reading", *, thumbnail_text: str) -> Path | None:
         if not self.settings.thumbnail_enabled:
@@ -95,11 +92,15 @@ class ThumbnailService:
             reading_type=reading.reading_type.value,
         )
 
-        stage = "intent_card"
+        stage = "source_read"
         try:
-            intent_card = self._generate_intent_card(reading, text)
+            source_read = self.source_reader.read(reading)
+            stage = "reading_diagnosis"
+            diagnosis = self.reading_diagnoser.diagnose(reading, source_read)
+            stage = "image_intent_card"
+            image_intent_card = self._generate_image_intent_card(reading, source_read, diagnosis)
             stage = "prompt"
-            prompt = self._generate_prompt(reading, text, intent_card)
+            prompt = self._generate_prompt(reading, text, image_intent_card)
             stage = "image_render"
             rendered = self._generate_rendered_image(reading.slug, prompt, text)
             stage = "quality_gate"
@@ -141,43 +142,40 @@ class ThumbnailService:
             return cached
         return None
 
-    def _generate_intent_card(self, reading: "Reading", text: str) -> ThumbnailIntentCard:
+    def _generate_image_intent_card(self, reading, source_read, diagnosis):
+        log_thumbnail_event(ThumbnailEvent.IMAGE_INTENT_CARD_START, slug=reading.slug)
         try:
-            card = retry_with_backoff(
-                func=lambda: self.intent_card_provider.generate(reading, text),
-                max_retries=self.settings.thumbnail_max_retries,
-                backoff=self.settings.thumbnail_retry_backoff,
-                error_types=(*_openai_retry_error_types(), IntentCardError),
-                context=f"thumbnail_intent_card_{reading.slug}",
-            )
+            card = self.image_intent_card_builder.build(reading, source_read, diagnosis)
         except Exception as exc:
             raise IntentCardError(str(exc)) from exc
 
         log_thumbnail_event(
-            ThumbnailEvent.INTENT_CARD_READY,
+            ThumbnailEvent.IMAGE_INTENT_CARD_READY,
             slug=reading.slug,
-            core_tension=card.core_tension,
+            visual_tension=card.visual_tension,
             emotional_tone=card.emotional_tone,
             dominant_anchor=card.dominant_anchor,
-            open_loop=card.open_loop,
             scene_direction=card.scene_direction,
-            avoid=card.avoid,
+            subject_priority=card.subject_priority,
+            visual_open_loop=card.visual_open_loop,
+            visual_avoid=", ".join(card.visual_avoid),
         )
         return card
 
-    def _generate_prompt(self, reading: "Reading", text: str, intent_card: ThumbnailIntentCard) -> str:
+    def _generate_prompt(self, reading: "Reading", text: str, image_intent_card) -> str:
+        log_thumbnail_event(ThumbnailEvent.PROMPT_FROM_2A_START, slug=reading.slug)
         try:
             prompt = build_thumbnail_prompt(
                 reading,
                 text,
-                intent_card,
+                image_intent_card,
                 prompt_version=self.settings.thumbnail_prompt_version,
             )
         except Exception as exc:
             raise PromptBuildError(str(exc)) from exc
 
         log_thumbnail_event(
-            ThumbnailEvent.PROMPT_READY,
+            ThumbnailEvent.PROMPT_FROM_2A_READY,
             slug=reading.slug,
             prompt_char_count=len(prompt),
         )

@@ -13,8 +13,10 @@ class ThumbnailEvent:
 
     START = "thumbnail.pipeline.start"
     CACHE_HIT = "thumbnail.pipeline.cache_hit"
-    INTENT_CARD_READY = "thumbnail.pipeline.intent_card.ready"
-    PROMPT_READY = "thumbnail.pipeline.prompt.ready"
+    IMAGE_INTENT_CARD_START = "thumbnail.pipeline.image_intent_card.start"
+    IMAGE_INTENT_CARD_READY = "thumbnail.pipeline.image_intent_card.ready"
+    PROMPT_FROM_2A_START = "thumbnail.pipeline.prompt_from_2a.start"
+    PROMPT_FROM_2A_READY = "thumbnail.pipeline.prompt_from_2a.ready"
     IMAGE_READY = "thumbnail.pipeline.image.ready"
     RENDER_READY = "thumbnail.pipeline.render.ready"
     SAVED = "thumbnail.pipeline.saved"

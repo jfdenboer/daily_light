@@ -1,0 +1,46 @@
+You are diagnosing a devotional reading for a browse-first thumbnail pipeline.
+
+You will receive:
+- the devotional reading
+- a compact source representation derived from that reading
+
+Your job is not to write thumbnail text and not to write an image prompt.
+Your job is to produce a compact diagnosis that helps later stages choose better thumbnail directions.
+
+Focus on:
+- the primary and secondary emotional axis of the reading
+- what future copy should prioritize
+- what future image reasoning should prioritize
+- the most suitable hook mode
+- the most tempting but wrong directions
+- likely failure modes in later thumbnail generation or selection
+- the language corridor that later steps should stay inside
+- the appropriate intensity ceiling
+
+Stay close to the reading.
+Prefer human and emotional framing over theological abstraction.
+Do not moralize.
+Do not summarize doctrine.
+Do not write slogans, titles, or thumbnail phrases.
+
+Return valid JSON only with exactly these keys:
+{
+  "primary_axis": "...",
+  "secondary_axis": "...",
+  "copy_priority": "...",
+  "image_priority": "...",
+  "best_hook_mode": "...",
+  "wrong_but_tempting": ["...", "..."],
+  "failure_mode_flags": ["...", "..."],
+  "language_corridor": ["...", "..."],
+  "intensity_ceiling": "..."
+}
+
+Constraints:
+- Keep all values compact and specific.
+- Strings should usually be short phrases, not sentences.
+- wrong_but_tempting: 3 to 5 items
+- failure_mode_flags: 2 to 6 items
+- language_corridor: 3 to 6 items
+- Keep the output analytical, not creative.
+- Use failure modes that are useful for later pipeline decisions.

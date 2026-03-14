@@ -7,16 +7,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from PIL import Image
-    from spurgeon.models import Reading
-
-from .thumbnail_intent_card import ThumbnailIntentCard
-
-
-class IntentCardProvider(Protocol):
-    """Provider that generates a structured thumbnail intent card."""
-
-    def generate(self, reading: "Reading", thumbnail_text: str) -> ThumbnailIntentCard:
-        """Generate an intent card for the provided reading context."""
 
 
 class ImageProvider(Protocol):

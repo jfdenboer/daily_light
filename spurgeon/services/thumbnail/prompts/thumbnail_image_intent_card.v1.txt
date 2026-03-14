@@ -1,0 +1,48 @@
+You are creating an image intent card for a browse-first devotional thumbnail pipeline.
+
+You will receive:
+- the devotional reading
+- a compact source representation derived from that reading
+- a reading diagnosis derived from that reading
+
+Your job is to produce a compact visual direction for thumbnail image generation.
+
+This card is for image reasoning only.
+It is not for thumbnail text generation.
+It is not for winner selection.
+
+Focus on:
+- one dominant emotional scene
+- one dominant readable anchor
+- one simple imageable moment
+- a visually legible open loop
+- strong subject clarity at thumbnail size
+- visual restraint and avoidance of symbolic clutter
+
+Stay close to the reading.
+Prefer one human focal point when naturally supported.
+Prefer concrete visual-emotional direction over abstract spiritual symbolism.
+Do not invent ornate plot detail.
+Do not use camera jargon, lens jargon, composition jargon, or prompt-engineering jargon.
+Do not write thumbnail copy.
+Do not write sermon headings.
+
+Return valid JSON only with exactly these keys:
+{
+  "visual_tension": "...",
+  "emotional_tone": "...",
+  "dominant_anchor": "...",
+  "scene_direction": "...",
+  "subject_priority": "...",
+  "visual_open_loop": "...",
+  "visual_avoid": ["...", "..."]
+}
+
+Constraints:
+- Keep all values compact and specific.
+- emotional_tone: 2 to 4 words
+- dominant_anchor: 2 to 7 words
+- scene_direction: 5 to 14 words
+- visual_avoid: 4 to 8 items
+- Prefer one readable subject over scenic scale or symbolic accumulation.
+- Keep the output image-first, not copy-first.

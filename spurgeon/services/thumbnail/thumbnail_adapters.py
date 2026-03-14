@@ -13,24 +13,9 @@ from openai import OpenAI, OpenAIError
 from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 from spurgeon.config.settings import Settings
-from spurgeon.models import Reading
-
-from .thumbnail_contracts import (
-    ImageProvider,
-    IntentCardProvider,
-    ThumbnailRenderer,
-    ThumbnailRepository,
-)
-from .thumbnail_errors import ImageProviderError, IntentCardError, RenderError, StorageError
-from .thumbnail_intent_card import (
-    IntentCardParseError,
-    ThumbnailIntentCard,
-    normalize_clip_reading_text,
-    parse_thumbnail_intent_card,
-)
-from .thumbnail_prompting import get_thumbnail_intent_card_prompt_template
+from .thumbnail_contracts import ImageProvider, ThumbnailRenderer, ThumbnailRepository
+from .thumbnail_errors import ImageProviderError, RenderError, StorageError
 from .thumbnail_layout import (
-    THUMBNAIL_TEXT_SHADOW_ALPHA,
     ThumbnailTextLayoutEngine,
     calculate_text_layout_box,
     line_spacing,
@@ -43,9 +28,9 @@ logger = logging.getLogger(__name__)
 THUMBNAIL_CANVAS_SIZE = (1280, 720)
 
 THUMBNAIL_PREMIUM_FONT_PATHS = (
-    "C:/Users/jfden/daily_light/input/CormorantGaramond-SemiBold.ttf",
+    "C:/Users/jfden/spurgeon/input/CormorantGaramond-SemiBold.ttf",
     "CormorantGaramond-SemiBold.ttf",
-    "C:/Users/jfden/daily_light/input/CormorantGaramond-Regular.ttf",
+    "C:/Users/jfden/spurgeon/input/CormorantGaramond-Regular.ttf",
     "CormorantGaramond-Regular.ttf",
 )
 THUMBNAIL_FALLBACK_FONT_NAME = "CormorantGaramond-Medium.ttf"
@@ -55,80 +40,9 @@ THUMBNAIL_TEXT_SHADOW_HEX = "#1A120D"
 THUMBNAIL_TEXT_STROKE_HEX = "#120D0A"
 THUMBNAIL_TEXT_STROKE_ALPHA = 28
 THUMBNAIL_TEXT_STROKE_WIDTH_CAP = 1
-THUMBNAIL_TEXT_AMBIENT_SHADOW_BLUR_RADIUS = 1.5
+THUMBNAIL_TEXT_AMBIENT_SHADOW_ALPHA = 12
+THUMBNAIL_TEXT_AMBIENT_SHADOW_BLUR_RADIUS = 1.0
 
-
-class OpenAIIntentCardProvider(IntentCardProvider):
-    """OpenAI-backed provider for thumbnail intent cards."""
-
-    def __init__(self, client: OpenAI, settings: Settings) -> None:
-        self.client = client
-        self.model = settings.thumbnail_intent_card_model
-        self.temperature = settings.thumbnail_intent_card_temperature
-        self.prompt_version = settings.thumbnail_prompt_version
-
-    def generate(self, reading: Reading, thumbnail_text: str) -> ThumbnailIntentCard:
-        cleaned_reading = normalize_clip_reading_text(reading.text, max_chars=2000)
-        user_message = (
-            f"Devotional type: {reading.reading_type.value}\n"
-            f"Thumbnail theme: {thumbnail_text}\n"
-            "Reading text:\n"
-            f"{cleaned_reading}"
-        )
-
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                temperature=self.temperature,
-                max_completion_tokens=220,
-                user=reading.slug,
-                messages=[
-                    {"role": "system", "content": get_thumbnail_intent_card_prompt_template(self.prompt_version)},
-                    {"role": "user", "content": user_message},
-                ],
-            )
-        except OpenAIError as exc:
-            raise IntentCardError(
-                f"OpenAI thumbnail intent-card call failed: {getattr(exc, 'message', exc)}"
-            ) from exc
-
-        choices = getattr(response, "choices", None)
-        if not choices:
-            raise IntentCardError("Received empty choices in thumbnail intent-card response")
-
-        first_choice = choices[0]
-        message = getattr(first_choice, "message", None)
-        content = getattr(message, "content", "") if message is not None else ""
-        normalized = self._normalize_message_content(content)
-        if not normalized:
-            raise IntentCardError("Received empty thumbnail intent-card output")
-
-        logger.debug("thumbnail_pipeline.intent_card_raw_output=%r", normalized)
-        try:
-            return parse_thumbnail_intent_card(normalized)
-        except IntentCardParseError as exc:
-            raise IntentCardError(str(exc)) from exc
-
-    @staticmethod
-    def _normalize_message_content(content: object) -> str:
-        if isinstance(content, str):
-            return content.strip()
-
-        if isinstance(content, list):
-            text_fragments: list[str] = []
-            for block in content:
-                if isinstance(block, dict):
-                    text = block.get("text")
-                    if isinstance(text, str) and text.strip():
-                        text_fragments.append(text.strip())
-                    continue
-                text = getattr(block, "text", None)
-                if isinstance(text, str) and text.strip():
-                    text_fragments.append(text.strip())
-
-            return "\n".join(text_fragments).strip()
-
-        return ""
 
 
 class OpenAIImageProvider(ImageProvider):
@@ -211,28 +125,35 @@ class PillowThumbnailRenderer(ThumbnailRenderer):
             layout.font_size,
             self._font_source_name(font),
         )
-        shadow_color = (*ImageColor.getrgb(THUMBNAIL_TEXT_SHADOW_HEX), THUMBNAIL_TEXT_SHADOW_ALPHA)
+        shadow_color = (
+            *ImageColor.getrgb(THUMBNAIL_TEXT_SHADOW_HEX),
+            THUMBNAIL_TEXT_AMBIENT_SHADOW_ALPHA,
+        )
         stroke_color = (*ImageColor.getrgb(THUMBNAIL_TEXT_STROKE_HEX), THUMBNAIL_TEXT_STROKE_ALPHA)
         stroke_width = min(layout.stroke_width, THUMBNAIL_TEXT_STROKE_WIDTH_CAP)
 
-        ambient_shadow_layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-        ambient_shadow_draw = ImageDraw.Draw(ambient_shadow_layer, "RGBA")
-        self._draw_tracked_multiline_text(
-            draw=ambient_shadow_draw,
-            position=text_position,
-            text=layout_text,
-            font=font,
-            fill=shadow_color,
-            tracking=layout.tracking,
-            line_spacing_px=line_spacing(layout.font_size),
-            stroke_width=0,
-            stroke_fill=None,
-        )
-        ambient_shadow_layer = ambient_shadow_layer.filter(
-            ImageFilter.GaussianBlur(radius=THUMBNAIL_TEXT_AMBIENT_SHADOW_BLUR_RADIUS)
-        )
-        canvas = Image.alpha_composite(canvas.convert("RGBA"), ambient_shadow_layer).convert("RGB")
-        draw = ImageDraw.Draw(canvas, "RGBA")
+        if (
+            THUMBNAIL_TEXT_AMBIENT_SHADOW_ALPHA > 0
+            and THUMBNAIL_TEXT_AMBIENT_SHADOW_BLUR_RADIUS > 0
+        ):
+            ambient_shadow_layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+            ambient_shadow_draw = ImageDraw.Draw(ambient_shadow_layer, "RGBA")
+            self._draw_tracked_multiline_text(
+                draw=ambient_shadow_draw,
+                position=text_position,
+                text=layout_text,
+                font=font,
+                fill=shadow_color,
+                tracking=layout.tracking,
+                line_spacing_px=line_spacing(layout.font_size),
+                stroke_width=0,
+                stroke_fill=None,
+            )
+            ambient_shadow_layer = ambient_shadow_layer.filter(
+                ImageFilter.GaussianBlur(radius=THUMBNAIL_TEXT_AMBIENT_SHADOW_BLUR_RADIUS)
+            )
+            canvas = Image.alpha_composite(canvas.convert("RGBA"), ambient_shadow_layer).convert("RGB")
+            draw = ImageDraw.Draw(canvas, "RGBA")
 
         self._draw_tracked_multiline_text(
             draw=draw,

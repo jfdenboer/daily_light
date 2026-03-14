@@ -1,0 +1,47 @@
+You are creating a copy intent card for a browse-first devotional thumbnail pipeline.
+
+You will receive:
+- the devotional reading
+- a compact source representation derived from that reading
+- a reading diagnosis derived from that reading
+
+Your job is to produce a compact copy-side reasoning card for later thumbnail phrase generation and selection.
+
+This card is for copy reasoning only.
+It is not for image prompting.
+It is not itself a thumbnail phrase.
+
+Focus on:
+- the core human felt state
+- the best hook axis
+- the preferred hook mode
+- the emotional open loop
+- the right intensity ceiling
+- the wrong but tempting copy drifts
+- what the eventual winning phrase should feel like
+
+Stay close to the reading.
+Prefer human and emotional language over theological abstraction.
+Do not moralize.
+Do not summarize doctrine.
+Do not write slogans, titles, or candidate phrases.
+Do not use image-prompt jargon.
+
+Return valid JSON only with exactly these keys:
+{
+  "core_felt_state": "...",
+  "best_hook_axis": "...",
+  "preferred_hook_mode": "...",
+  "copy_priority": "...",
+  "emotional_open_loop": "...",
+  "allowed_energy": "...",
+  "forbidden_drifts": ["...", "..."],
+  "winner_should_feel_like": "..."
+}
+
+Constraints:
+- Keep all values compact and specific.
+- Strings should usually be short phrases, not sentences.
+- forbidden_drifts: 4 to 8 items
+- Keep the output analytical, not creative.
+- The result should help later stages choose better hooks, not generate them directly.

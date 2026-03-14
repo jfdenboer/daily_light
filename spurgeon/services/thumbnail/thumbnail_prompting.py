@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spurgeon.models import Reading
 
-from .thumbnail_intent_card import ThumbnailIntentCard
+from .thumbnail_image_intent_card import ThumbnailImageIntentCard
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 DEFAULT_PROMPT_VERSION = "v1"
@@ -30,10 +30,6 @@ def get_thumbnail_image_prompt_template(version: str = DEFAULT_PROMPT_VERSION) -
     return _load_prompt_template("thumbnail_image", version)
 
 
-def get_thumbnail_intent_card_prompt_template(version: str = DEFAULT_PROMPT_VERSION) -> str:
-    return _load_prompt_template("thumbnail_intent_card", version)
-
-
 def _image_policy_lines(version: str = DEFAULT_PROMPT_VERSION) -> list[str]:
     template = get_thumbnail_image_prompt_template(version)
     return template.splitlines()[:7]
@@ -52,18 +48,21 @@ THUMBNAIL_LIGHTING_LINE = _IMAGE_POLICY_LINES[6]
 def build_thumbnail_prompt(
     reading: "Reading",
     thumbnail_text: str,
-    intent_card: ThumbnailIntentCard,
+    image_intent_card: ThumbnailImageIntentCard,
     *,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> str:
+    """Build the image prompt directly from step-2A image intent-card fields."""
+
     template = get_thumbnail_image_prompt_template(prompt_version)
     return template.format(
         reading_type=reading.reading_type.value,
         thumbnail_text=thumbnail_text,
-        core_tension=intent_card.core_tension,
-        emotional_tone=intent_card.emotional_tone,
-        dominant_anchor=intent_card.dominant_anchor,
-        open_loop=intent_card.open_loop,
-        scene_direction=intent_card.scene_direction,
-        avoid=intent_card.avoid,
+        visual_tension=image_intent_card.visual_tension,
+        emotional_tone=image_intent_card.emotional_tone,
+        dominant_anchor=image_intent_card.dominant_anchor,
+        scene_direction=image_intent_card.scene_direction,
+        subject_priority=image_intent_card.subject_priority,
+        visual_open_loop=image_intent_card.visual_open_loop,
+        visual_avoid=", ".join(image_intent_card.visual_avoid),
     )

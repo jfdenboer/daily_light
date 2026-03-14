@@ -55,7 +55,7 @@ class TextLayoutChoice:
 def normalize_thumbnail_display_text(text: str) -> str:
     normalised = " ".join(text.replace("\n", " ").split())
     if not normalised:
-        return "Daily Light"
+        return "Spurgeon"
     return _to_title_case_preserving_apostrophes(normalised)
 
 
