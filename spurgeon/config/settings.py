@@ -33,8 +33,24 @@ class Settings(BaseSettings):
     thumbnail_image_size: Literal["1024x1024", "1024x1536", "1536x1024"] = "1536x1024"
     thumbnail_image_quality: Literal["low", "medium", "high", "auto"] = "low"
     thumbnail_image_background: Literal["transparent", "opaque", "auto"] = "opaque"
-    thumbnail_intent_card_model: Literal["gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.2"
-    thumbnail_intent_card_temperature: float = Field(0.2, ge=0.0, le=2.0)
+    thumbnail_source_read_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_source_read_temperature: float = Field(0.2, ge=0.0, le=2.0)
+    thumbnail_reading_diagnosis_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_reading_diagnosis_temperature: float = Field(0.2, ge=0.0, le=2.0)
+    thumbnail_image_intent_card_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_image_intent_card_temperature: float = Field(0.2, ge=0.0, le=2.0)
+    thumbnail_copy_intent_card_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_copy_intent_card_temperature: float = Field(0.2, ge=0.0, le=2.0)
+    thumbnail_candidate_buckets_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_candidate_buckets_temperature: float = Field(0.3, ge=0.0, le=2.0)
+    thumbnail_candidate_critic_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_candidate_critic_temperature: float = Field(0.2, ge=0.0, le=2.0)
+    thumbnail_pairwise_tournament_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_pairwise_tournament_temperature: float = Field(0.2, ge=0.0, le=2.0)
+    thumbnail_final_selector_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_final_selector_temperature: float = Field(0.2, ge=0.0, le=2.0)
+    thumbnail_confidence_gate_model: Literal["gpt-5.4", "gpt-5.2", "gpt-5", "gpt-4o"] = "gpt-5.4"
+    thumbnail_confidence_gate_temperature: float = Field(0.2, ge=0.0, le=2.0)
     thumbnail_max_retries: int = Field(3, ge=0)
     thumbnail_retry_backoff: float = Field(1.0, gt=0.0)
     thumbnail_font_path: str | None = Field(default=None, env="THUMBNAIL_FONT_PATH")
@@ -48,18 +64,9 @@ class Settings(BaseSettings):
 
     # Prompt
     prompt_model: Literal["gpt-4o"] = "gpt-4o"
-    prompt_generator_model: Literal["gpt-5-chat-latest", "gpt-5", "gpt-4o"] = (
-        "gpt-5-chat-latest"
-    )
+    prompt_generator_model: Literal["gpt-5.4", "gpt-5", "gpt-4o"] = "gpt-5.4"
     prompt_temperature: float = Field(0.5, ge=0.0, le=2.0)
     prompt_generator_temperature: float = Field(0.7, ge=0.0, le=2.0)
-    thumbnail_text_generator_model: str = Field("gpt-5.2", min_length=1)
-    thumbnail_text_judge_model: str = Field("gpt-5.2", min_length=1)
-    thumbnail_text_selector_model: str = Field("gpt-5.2", min_length=1)
-    thumbnail_text_generator_temperature: float = Field(0.9, ge=0.0, le=2.0)
-    thumbnail_text_judge_temperature: float = Field(0.1, ge=0.0, le=2.0)
-    thumbnail_text_selector_temperature: float = Field(0.1, ge=0.0, le=2.0)
-    thumbnail_text_num_candidates: int = Field(10, ge=6, le=10)
     # Optional: determinisme voor promptmodel (gebruikt door prompt_generator indien ingesteld)
     prompt_seed: int | None = Field(default=None, ge=0, env="PROMPT_SEED")
     prompt_subject_tokens: int = Field(90, gt=0)
@@ -86,9 +93,9 @@ class Settings(BaseSettings):
         min_length=1,
         env="INTRO_VOICE_ID",
     )
-    hook_generator_model: str = Field("gpt-5.2", env="HOOK_GENERATOR_MODEL")
-    hook_judge_model: str = Field("gpt-5.2", env="HOOK_JUDGE_MODEL")
-    hook_tweaker_model: str = Field("gpt-5.2", env="HOOK_TWEAKER_MODEL")
+    hook_generator_model: str = Field("gpt-5.4", env="HOOK_GENERATOR_MODEL")
+    hook_judge_model: str = Field("gpt-5.4", env="HOOK_JUDGE_MODEL")
+    hook_tweaker_model: str = Field("gpt-5.4", env="HOOK_TWEAKER_MODEL")
     hook_generator_temperature: float = Field(0.9, ge=0.0, le=2.0)
     hook_judge_temperature: float = Field(0.1, ge=0.0, le=2.0)
     hook_tweaker_temperature: float = Field(0.45, ge=0.0, le=2.0, env="HOOK_TWEAKER_TEMPERATURE")
@@ -183,7 +190,7 @@ class Settings(BaseSettings):
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_file: Path = Field(
-        default_factory=lambda: Path("logs") / "daily_light.log",
+        default_factory=lambda: Path("logs") / "spurgeon.log",
         description="Location of the rotating log file.",
     )
     log_file_max_bytes: int = Field(10 * 1024 * 1024, gt=0)
